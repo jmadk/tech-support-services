@@ -1,4 +1,5 @@
 import React, { useState, useMemo, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 
@@ -160,13 +161,21 @@ const iconMap: Record<string, JSX.Element> = {
 
 const catIconMap: Record<string, JSX.Element> = iconMap;
 
-const ServicesGrid: React.FC = () => {
-  const { user } = useAuth();
+const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [expandedCard, setExpandedCard] = useState<number | null>(null);
   const [savedTitles, setSavedTitles] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [selectedServiceMode, setSelectedServiceMode] = useState<'service' | 'class'>('service');
+  const [serviceTestStatus, setServiceTestStatus] = useState<Record<number, 'not_started' | 'in_progress' | 'completed'>>({});
+  const [serviceCertificationStarted, setServiceCertificationStarted] = useState<Record<number, boolean>>({});
+
+  const certificationCatalog: Record<string, {sessions: string[]}> = {
+    'Database Systems': { sessions: ['Introduction to Databases (1h)', 'Data Modeling & ERD (1h 30m)', 'SQL Basics & Advanced Queries (1h 30m)'] },
+    'Data Communications & Networks': { sessions: ['Networking Fundamentals (1h)', 'TCP/IP & OSI Models (1h 30m)', 'Routing & Switching (1h 30m)'] },
+    'Distributed Systems': { sessions: ['Distributed System Concepts (1h)', 'Consensus & Fault Tolerance (1h 30m)', 'Microservices Architecture (1h)'] },
+  };
 
   // Load saved services for the user
   useEffect(() => {
@@ -208,6 +217,26 @@ const ServicesGrid: React.FC = () => {
       return matchesCategory && matchesSearch;
     });
   }, [activeCategory, searchQuery]);
+
+  const handleStartServiceTest = (serviceId: number) => {
+    setServiceTestStatus(prev => ({ ...prev, [serviceId]: 'in_progress' }));
+    setTimeout(() => {
+      setServiceTestStatus(prev => ({ ...prev, [serviceId]: 'completed' }));
+    }, 800);
+  };
+
+  const handleProceedServiceCertification = (serviceId: number, serviceTitle: string) => {
+    setServiceCertificationStarted(prev => ({ ...prev, [serviceId]: true }));
+
+    const selectedCourse = serviceTitle;
+    const selectedSession = certificationCatalog[serviceTitle]?.sessions?.[0] || 'Introduction';
+
+    // Store the selection for Lesson page
+    sessionStorage.setItem(`lesson_service_${serviceId}`, JSON.stringify({ course: selectedCourse, session: selectedSession }));
+
+    // Redirect to lesson route with synthetic id (service-based)
+    navigate(`/lesson/service-${serviceId}`);
+  };
 
   return (
     <section id="services" className="py-24 bg-gradient-to-b from-[#0a1628] via-[#0f1d35] to-[#0a1628] relative overflow-hidden">
@@ -272,9 +301,27 @@ const ServicesGrid: React.FC = () => {
         </div>
 
         {/* Results count */}
-        <p className="text-blue-300/40 text-sm mb-6 text-center">
+        <p className="text-blue-300/40 text-sm mb-2 text-center">
           Showing {filteredServices.length} of {services.length} services
         </p>
+
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-center gap-3 mb-6 text-sm">
+          <label className="text-blue-200/70">Choose activity track:</label>
+          <select
+            value={selectedServiceMode}
+            onChange={e => setSelectedServiceMode(e.target.value as 'service' | 'class')}
+            className="rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-white outline-none"
+          >
+            <option value="service">Service delivery (default)</option>
+            <option value="class">Class & certification</option>
+          </select>
+        </div>
+
+        {selectedServiceMode === 'class' && (
+          <div className="mb-6 rounded-2xl border border-emerald-500/20 bg-emerald-500/10 p-4 text-sm text-emerald-100">
+            Class path is active. Click on a service card, then use the "Start class test" button to take the Dreamport-style test. After completion, use the post-test certification link.
+          </div>
+        )}
 
         {/* Grid */}
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
@@ -321,30 +368,58 @@ const ServicesGrid: React.FC = () => {
                   {service.description}
                 </p>
                 {expandedCard === service.id && (
-                  <div className="flex gap-2 mt-4">
-                    <button
-                      onClick={e => {
-                        e.stopPropagation();
-                        const el = document.getElementById('contact');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all"
-                    >
-                      Inquire Now
-                    </button>
-                    {user && (
+                  <>
+                    <div className="flex gap-2 mt-4">
                       <button
-                        onClick={e => toggleSave(e, service)}
-                        className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
-                          savedTitles.has(service.title)
-                            ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
-                            : 'border-white/10 text-blue-200/60 hover:text-white hover:border-white/30'
-                        }`}
+                        onClick={e => {
+                          e.stopPropagation();
+                          const el = document.getElementById('contact');
+                          if (el) el.scrollIntoView({ behavior: 'smooth' });
+                        }}
+                        className="flex-1 py-2.5 bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-sm font-bold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all"
                       >
-                        {savedTitles.has(service.title) ? 'Saved' : 'Save'}
+                        Inquire Now
                       </button>
+                      {user && (
+                        <button
+                          onClick={e => toggleSave(e, service)}
+                          className={`px-4 py-2.5 rounded-xl text-sm font-bold transition-all border ${
+                            savedTitles.has(service.title)
+                              ? 'bg-cyan-500/10 border-cyan-500/30 text-cyan-400'
+                              : 'border-white/10 text-blue-200/60 hover:text-white hover:border-white/30'
+                          }`}
+                        >
+                          {savedTitles.has(service.title) ? 'Saved' : 'Save'}
+                        </button>
+                      )}
+                    </div>
+
+                    {selectedServiceMode === 'class' && (
+                      <div className="mt-3 rounded-xl border border-emerald-500/30 bg-emerald-500/10 p-3 text-sm text-emerald-100">
+                        <p className="mb-2">Class path selected. Complete the Dreamport-style test to unlock certification.</p>
+                        {serviceTestStatus[service.id] !== 'completed' ? (
+                          <button
+                            onClick={e => { e.stopPropagation(); handleStartServiceTest(service.id); }}
+                            className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-2 py-2 text-sm font-semibold text-white hover:opacity-90"
+                          >
+                            {serviceTestStatus[service.id] === 'in_progress' ? 'Test in progress...' : 'Start class test'}
+                          </button>
+                        ) : (
+                          <>
+                            <button
+                              onClick={e => { e.stopPropagation(); handleProceedServiceCertification(service.id, service.title); }}
+                              className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-2 py-2 text-sm font-semibold text-white hover:opacity-90"
+                            >
+                              Proceed to Certification Course Introduction
+                            </button>
+                            {serviceCertificationStarted[service.id] && (
+                              <p className="mt-2 text-xs text-green-200">Certification course introduction activated.</p>
+                            )}
+                          </>
+                        )}
+                      </div>
                     )}
-                  </div>
+                  </>
                 )}
               </div>
             </div>

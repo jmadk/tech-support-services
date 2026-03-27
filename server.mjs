@@ -1,6 +1,6 @@
 import { createServer } from "node:http";
 import { mkdirSync, existsSync, readFileSync } from "node:fs";
-import { randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
+import { createHash, randomBytes, scryptSync, timingSafeEqual } from "node:crypto";
 import { DatabaseSync } from "node:sqlite";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -50,12 +50,20 @@ const dbPath = join(dataDir, "app.db");
 const port = Number(process.env.PORT || process.env.API_PORT || 3001);
 const sessionTtlDays = 30;
 const ownerEmail = (process.env.OWNER_EMAIL || "chegekeith4@gmail.com").trim().toLowerCase();
+const passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_CODE_TTL_MINUTES || 10);
+const passwordResetMaxAttempts = Number(process.env.PASSWORD_RESET_MAX_ATTEMPTS || 5);
+const passwordResetCooldownSeconds = Number(process.env.PASSWORD_RESET_COOLDOWN_SECONDS || 60);
 const smtpHost = process.env.SMTP_HOST || "smtp.gmail.com";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
 const smtpSecure = process.env.SMTP_SECURE === "true" || smtpPort === 465;
 const smtpUser = process.env.SMTP_USER || "";
 const smtpPass = process.env.SMTP_PASS || "";
 const smtpFrom = process.env.SMTP_FROM || smtpUser || ownerEmail;
+const resendApiKey = process.env.RESEND_API_KEY || "";
+const resendFromEmail = process.env.RESEND_FROM_EMAIL || "";
+const resendReplyTo = process.env.RESEND_REPLY_TO || ownerEmail;
+const resendUserAgent = "kctech-password-reset/1.0";
+const RESEND_TEST_DOMAIN = "resend.dev";
 
 if (!existsSync(dataDir)) {
   mkdirSync(dataDir, { recursive: true });
@@ -126,6 +134,19 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
     UNIQUE (user_id, service_title)
   );
+
+  CREATE TABLE IF NOT EXISTS password_reset_otps (
+    id TEXT PRIMARY KEY,
+    user_id TEXT NOT NULL,
+    email TEXT NOT NULL,
+    otp_hash TEXT NOT NULL,
+    otp_salt TEXT NOT NULL,
+    attempt_count INTEGER NOT NULL DEFAULT 0,
+    expires_at TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    used_at TEXT,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+  );
 `);
 
 const statements = {
@@ -180,6 +201,7 @@ const statements = {
     WHERE s.token = ?
   `),
   deleteSession: db.prepare(`DELETE FROM sessions WHERE token = ?`),
+  deleteSessionsByUser: db.prepare(`DELETE FROM sessions WHERE user_id = ?`),
   cleanupExpiredSessions: db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`),
   insertConsultation: db.prepare(`
     INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, created_at)
@@ -224,6 +246,43 @@ const statements = {
     DELETE FROM saved_services
     WHERE user_id = ? AND service_title = ?
   `),
+  latestPasswordResetOtpByEmail: db.prepare(`
+    SELECT id, created_at
+    FROM password_reset_otps
+    WHERE email = ?
+    ORDER BY datetime(created_at) DESC
+    LIMIT 1
+  `),
+  deletePasswordResetOtpsByEmail: db.prepare(`
+    DELETE FROM password_reset_otps
+    WHERE email = ?
+  `),
+  createPasswordResetOtp: db.prepare(`
+    INSERT INTO password_reset_otps (
+      id, user_id, email, otp_hash, otp_salt, attempt_count, expires_at, created_at, used_at
+    ) VALUES (?, ?, ?, ?, ?, 0, ?, ?, NULL)
+  `),
+  getActivePasswordResetOtpByEmail: db.prepare(`
+    SELECT id, user_id, email, otp_hash, otp_salt, attempt_count, expires_at, created_at
+    FROM password_reset_otps
+    WHERE email = ? AND used_at IS NULL
+    ORDER BY datetime(created_at) DESC
+    LIMIT 1
+  `),
+  incrementPasswordResetOtpAttempts: db.prepare(`
+    UPDATE password_reset_otps
+    SET attempt_count = attempt_count + 1
+    WHERE id = ?
+  `),
+  markPasswordResetOtpUsed: db.prepare(`
+    UPDATE password_reset_otps
+    SET used_at = ?
+    WHERE id = ?
+  `),
+  deleteExpiredPasswordResetOtps: db.prepare(`
+    DELETE FROM password_reset_otps
+    WHERE used_at IS NOT NULL OR expires_at <= ?
+  `),
 };
 
 function nowIso() {
@@ -232,6 +291,10 @@ function nowIso() {
 
 function createId() {
   return randomBytes(16).toString("hex");
+}
+
+function createOtp() {
+  return String(randomBytes(4).readUInt32BE(0) % 1000000).padStart(6, "0");
 }
 
 function hashPassword(password) {
@@ -245,6 +308,165 @@ function verifyPassword(password, storedHash) {
   const derived = scryptSync(password, Buffer.from(saltHex, "hex"), 64);
   const original = Buffer.from(hashHex, "hex");
   return timingSafeEqual(derived, original);
+}
+
+function hashOtp(email, otp, salt = randomBytes(16)) {
+  const hash = createHash("sha256")
+    .update(salt)
+    .update(`${email}:${otp}`)
+    .digest("hex");
+
+  return {
+    saltHex: salt.toString("hex"),
+    hashHex: hash,
+  };
+}
+
+function verifyOtp(email, otp, saltHex, hashHex) {
+  const actual = hashOtp(email, otp, Buffer.from(saltHex, "hex"));
+  return timingSafeEqual(Buffer.from(actual.hashHex, "hex"), Buffer.from(hashHex, "hex"));
+}
+
+function normalizeWhitespace(value) {
+  return String(value || "").replace(/\s+/g, " ").trim();
+}
+
+function extractEmailAddress(value) {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) {
+    return "";
+  }
+
+  const match = normalized.match(/<([^>]+)>/);
+  return (match ? match[1] : normalized).trim().toLowerCase();
+}
+
+function maskEmailAddress(value) {
+  const email = extractEmailAddress(value);
+  if (!email || !email.includes("@")) {
+    return "";
+  }
+
+  const [localPart, domainPart] = email.split("@");
+  const localPrefix = localPart.length <= 2 ? localPart.slice(0, 1) : localPart.slice(0, 2);
+  const domainSegments = domainPart.split(".");
+  const domainName = domainSegments.shift() || "";
+  const domainSuffix = domainSegments.join(".");
+  const domainPrefix = domainName.length <= 2 ? domainName.slice(0, 1) : domainName.slice(0, 2);
+
+  return `${localPrefix || "*"}***@${domainPrefix || "*"}***${domainSuffix ? `.${domainSuffix}` : ""}`;
+}
+
+function maskSender(value) {
+  const normalized = normalizeWhitespace(value);
+  if (!normalized) {
+    return "";
+  }
+
+  const maskedEmail = maskEmailAddress(normalized);
+  const match = normalized.match(/^([^<]+)<([^>]+)>$/);
+  if (match && maskedEmail) {
+    return `${match[1].trim()} <${maskedEmail}>`;
+  }
+
+  return maskedEmail || normalized;
+}
+
+function summarizeResendConfig() {
+  const apiKey = normalizeWhitespace(resendApiKey);
+  const fromRaw = normalizeWhitespace(resendFromEmail);
+  const fromAddress = extractEmailAddress(fromRaw);
+  const fromDomain = fromAddress.includes("@") ? fromAddress.split("@").pop() || "" : "";
+  const issues = [];
+
+  if (!apiKey) {
+    issues.push("RESEND_API_KEY is missing.");
+  }
+
+  if (!fromRaw) {
+    issues.push("RESEND_FROM_EMAIL is missing.");
+  } else {
+    if (fromRaw.toLowerCase().includes("yourdomain.com")) {
+      issues.push("RESEND_FROM_EMAIL is still using the placeholder yourdomain.com.");
+    }
+    if (!fromAddress.includes("@")) {
+      issues.push("RESEND_FROM_EMAIL must contain a valid sender email address.");
+    }
+  }
+
+  return {
+    configured: Boolean(apiKey && fromRaw),
+    fromMasked: maskSender(fromRaw),
+    senderMode: fromDomain === RESEND_TEST_DOMAIN ? "resend_test" : fromDomain ? "custom_domain" : "unknown",
+    issues,
+  };
+}
+
+function createHttpError(status, message) {
+  const error = new Error(message);
+  error.status = status;
+  return error;
+}
+
+function extractResendErrorMessage(responseText) {
+  const normalizedText = normalizeWhitespace(responseText);
+  if (!normalizedText) {
+    return "";
+  }
+
+  try {
+    const parsed = JSON.parse(responseText);
+    return normalizeWhitespace(
+      parsed?.message ||
+        parsed?.error?.message ||
+        parsed?.error ||
+        parsed?.name ||
+        normalizedText,
+    );
+  } catch {
+    return normalizedText;
+  }
+}
+
+function formatResendFailureMessage(status, responseText = "") {
+  const resendConfig = summarizeResendConfig();
+  if (resendConfig.issues.length > 0) {
+    return `Password reset email is not configured correctly: ${resendConfig.issues.join(" ")}`;
+  }
+
+  const senderLabel = resendConfig.fromMasked || "the configured sender";
+  const apiMessage = extractResendErrorMessage(responseText);
+
+  if (status === 401) {
+    return "Resend rejected the API key. Check that RESEND_API_KEY is valid and has Sending or Full access.";
+  }
+
+  if (status === 403 && resendConfig.senderMode === "resend_test") {
+    return `Resend rejected ${senderLabel}. The resend.dev testing sender only works for the email address on your Resend account. Use a verified custom-domain sender for other recipients.`;
+  }
+
+  if (status === 403) {
+    return apiMessage
+      ? `Resend rejected ${senderLabel}: ${apiMessage}`
+      : `Resend rejected ${senderLabel}. Verify that the sender is approved in Resend.`;
+  }
+
+  if (status === 422) {
+    return apiMessage
+      ? `Resend rejected the email payload: ${apiMessage}`
+      : "Resend rejected the email payload. Check the sender and recipient values.";
+  }
+
+  if (apiMessage) {
+    return `Resend email failed (${status}): ${apiMessage}`;
+  }
+
+  return `Resend email failed (${status}). Check the sender, recipient, and API key configuration.`;
+}
+
+function canSendEmail() {
+  const resendConfig = summarizeResendConfig();
+  return Boolean((smtpUser && smtpPass) || (resendConfig.configured && resendConfig.issues.length === 0));
 }
 
 function sanitizeUser(row) {
@@ -353,8 +575,65 @@ function requireOwner(req, res) {
   return session;
 }
 
-async function sendConsultationNotification(consultation) {
+async function sendEmailMessage({ to, replyTo, subject, text, html }) {
+  if (resendApiKey && resendFromEmail) {
+    const resendConfig = summarizeResendConfig();
+    if (resendConfig.issues.length > 0) {
+      throw createHttpError(502, formatResendFailureMessage(0));
+    }
+
+    let response;
+    try {
+      response = await fetch("https://api.resend.com/emails", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          "Content-Type": "application/json",
+          "User-Agent": resendUserAgent,
+        },
+        body: JSON.stringify({
+          from: resendFromEmail,
+          to: [to],
+          subject,
+          text,
+          html,
+          reply_to: replyTo || resendReplyTo,
+        }),
+      });
+    } catch (error) {
+      console.error("Password reset email transport error", error);
+      throw createHttpError(502, "Could not reach Resend from the local server. Try again in a moment.");
+    }
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error("Password reset email send failed", {
+        status: response.status,
+        sender: resendConfig.fromMasked,
+        errorText,
+      });
+      throw createHttpError(502, formatResendFailureMessage(response.status, errorText));
+    }
+
+    return;
+  }
+
   if (!mailTransport) {
+    throw new Error("Email delivery is not configured.");
+  }
+
+  await mailTransport.sendMail({
+    from: smtpFrom,
+    to,
+    replyTo,
+    subject,
+    text,
+    html,
+  });
+}
+
+async function sendConsultationNotification(consultation) {
+  if (!canSendEmail()) {
     return { enabled: false, sent: false };
   }
 
@@ -373,15 +652,86 @@ async function sendConsultationNotification(consultation) {
     consultation.message,
   ];
 
-  await mailTransport.sendMail({
-    from: smtpFrom,
+  await sendEmailMessage({
     to: ownerEmail,
     replyTo: consultation.email,
     subject,
     text: lines.join("\n"),
+    html: `
+      <div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:24px;color:#0f172a">
+        <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #dbe5f0">
+          <h2 style="margin:0 0 16px;font-size:24px">New consultation: ${consultation.service}</h2>
+          <p style="margin:0 0 8px"><strong>Name:</strong> ${consultation.full_name}</p>
+          <p style="margin:0 0 8px"><strong>Email:</strong> ${consultation.email}</p>
+          <p style="margin:0 0 8px"><strong>Phone:</strong> ${consultation.phone || "Not provided"}</p>
+          <p style="margin:0 0 8px"><strong>Status:</strong> ${consultation.status}</p>
+          <p style="margin:0 0 20px"><strong>Submitted:</strong> ${consultation.created_at}</p>
+          <p style="margin:0 0 8px"><strong>Message:</strong></p>
+          <div style="padding:16px;border-radius:12px;background:#eff6ff;color:#1e3a8a;line-height:1.6">
+            ${consultation.message}
+          </div>
+        </div>
+      </div>
+    `,
   });
 
   return { enabled: true, sent: true };
+}
+
+async function sendPasswordResetOtpEmail(email, fullName, otp) {
+  if (!canSendEmail()) {
+    throw new Error("Password reset email is not configured.");
+  }
+
+  const recipientName = fullName || email;
+  const subject = "Your KCJ Tech password reset code";
+  const text = [
+    `Hello ${recipientName},`,
+    "",
+    `Use this OTP to reset your KCJ Tech password: ${otp}`,
+    `This code expires in ${passwordResetTtlMinutes} minutes.`,
+    "",
+    "If you did not request this reset, you can safely ignore this email.",
+  ].join("\n");
+
+  await sendEmailMessage({
+    to: email,
+    replyTo: ownerEmail,
+    subject,
+    text,
+    html: `
+      <div style="font-family:Arial,sans-serif;background:#f4f7fb;padding:24px;color:#0f172a">
+        <div style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;padding:32px;border:1px solid #dbe5f0">
+          <p style="margin:0 0 16px;font-size:16px">Hello ${recipientName},</p>
+          <p style="margin:0 0 20px;font-size:16px;line-height:1.6">
+            Use this one-time password to reset your KCJ Tech account password.
+          </p>
+          <div style="margin:0 0 20px;padding:18px 20px;border-radius:14px;background:linear-gradient(135deg,#0ea5e9,#2563eb);color:#ffffff;text-align:center;font-size:32px;font-weight:700;letter-spacing:8px">
+            ${otp}
+          </div>
+          <p style="margin:0 0 12px;font-size:15px;line-height:1.6">
+            This code expires in ${passwordResetTtlMinutes} minutes.
+          </p>
+          <p style="margin:0;font-size:14px;line-height:1.6;color:#475569">
+            If you did not request this reset, you can safely ignore this email.
+          </p>
+        </div>
+      </div>
+    `,
+  });
+}
+
+function issuePasswordResetOtp(user) {
+  const email = String(user.email || "").trim().toLowerCase();
+  const otp = createOtp();
+  const { saltHex, hashHex } = hashOtp(email, otp);
+  const createdAt = nowIso();
+  const expiresAt = new Date(Date.now() + passwordResetTtlMinutes * 60 * 1000).toISOString();
+
+  statements.deletePasswordResetOtpsByEmail.run(email);
+  statements.createPasswordResetOtp.run(createId(), user.id, email, hashHex, saltHex, expiresAt, createdAt);
+
+  return { email, otp, createdAt, expiresAt };
 }
 
 async function handleSignup(req, res) {
@@ -460,10 +810,25 @@ function handleMe(req, res) {
 }
 
 function handleHealth(req, res) {
+  const resendConfig = summarizeResendConfig();
+  const smtpConfigured = Boolean(smtpUser && smtpPass);
   return json(res, 200, {
     ok: true,
     ownerEmail,
-    emailNotificationsEnabled: Boolean(mailTransport),
+    emailNotificationsEnabled: canSendEmail(),
+    emailDiagnostics: smtpConfigured
+      ? {
+          provider: "smtp",
+          configured: true,
+          sender: maskEmailAddress(smtpFrom) || smtpFrom,
+        }
+      : {
+          provider: "resend",
+          configured: resendConfig.configured,
+          sender: resendConfig.fromMasked || null,
+          senderMode: resendConfig.senderMode,
+          issues: resendConfig.issues,
+        },
   });
 }
 
@@ -503,6 +868,124 @@ async function handlePasswordUpdate(req, res) {
   }
 
   statements.updatePassword.run(hashPassword(password), nowIso(), session.user.id);
+  return json(res, 200, { success: true });
+}
+
+async function handlePasswordResetRequest(req, res) {
+  const resendConfig = summarizeResendConfig();
+  if (!canSendEmail()) {
+    return json(res, 503, {
+      error:
+        resendConfig.configured && resendConfig.issues.length > 0
+          ? `Password reset email is not configured correctly: ${resendConfig.issues.join(" ")}`
+          : "Password reset email is not configured yet. Set SMTP credentials or valid Resend credentials in the server environment.",
+    });
+  }
+
+  const body = await readBody(req);
+  const email = String(body.email || "").trim().toLowerCase();
+
+  if (!email) {
+    return json(res, 400, { error: "Email is required." });
+  }
+
+  const user = statements.findUserByEmail.get(email);
+  if (!user) {
+    return json(res, 200, { success: true });
+  }
+
+  const latestOtp = statements.latestPasswordResetOtpByEmail.get(email);
+  if (latestOtp) {
+    const elapsedSeconds = Math.floor((Date.now() - new Date(latestOtp.created_at).getTime()) / 1000);
+    if (elapsedSeconds < passwordResetCooldownSeconds) {
+      return json(res, 429, {
+        error: `Please wait ${passwordResetCooldownSeconds - elapsedSeconds} seconds before requesting another OTP.`,
+      });
+    }
+  }
+
+  const { otp } = issuePasswordResetOtp(user);
+  try {
+    await sendPasswordResetOtpEmail(email, user.full_name, otp);
+  } catch (error) {
+    console.error("Password reset request email error", error);
+    const status = Number(error?.status);
+    return json(res, status >= 400 && status < 600 ? status : 502, {
+      error: error instanceof Error ? error.message : "Password reset email could not be sent.",
+    });
+  }
+
+  return json(res, 200, { success: true });
+}
+
+async function handleOwnerPasswordResetOtpCreate(req, res) {
+  const session = requireOwner(req, res);
+  if (!session) return;
+
+  const body = await readBody(req);
+  const email = String(body.email || "").trim().toLowerCase();
+
+  if (!email) {
+    return json(res, 400, { error: "Email is required." });
+  }
+
+  const user = statements.findUserByEmail.get(email);
+  if (!user) {
+    return json(res, 404, { error: "No account exists for that email." });
+  }
+
+  const reset = issuePasswordResetOtp(user);
+  return json(res, 200, {
+    success: true,
+    email: reset.email,
+    otp: reset.otp,
+    expiresAt: reset.expiresAt,
+    ttlMinutes: passwordResetTtlMinutes,
+  });
+}
+
+async function handlePasswordResetConfirm(req, res) {
+  const body = await readBody(req);
+  const email = String(body.email || "").trim().toLowerCase();
+  const otp = String(body.otp || "").trim();
+  const password = String(body.password || "");
+
+  if (!email || !otp || !password) {
+    return json(res, 400, { error: "Email, OTP, and new password are required." });
+  }
+
+  if (!/^\d{6}$/.test(otp)) {
+    return json(res, 400, { error: "OTP must be a 6-digit code." });
+  }
+
+  if (password.length < 6) {
+    return json(res, 400, { error: "Password must be at least 6 characters." });
+  }
+
+  const resetRecord = statements.getActivePasswordResetOtpByEmail.get(email);
+  if (!resetRecord) {
+    return json(res, 400, { error: "The OTP is invalid or has expired." });
+  }
+
+  if (new Date(resetRecord.expires_at).getTime() <= Date.now()) {
+    statements.deletePasswordResetOtpsByEmail.run(email);
+    return json(res, 400, { error: "The OTP is invalid or has expired." });
+  }
+
+  if ((resetRecord.attempt_count || 0) >= passwordResetMaxAttempts) {
+    return json(res, 429, { error: "Too many invalid OTP attempts. Request a new code and try again." });
+  }
+
+  if (!verifyOtp(email, otp, resetRecord.otp_salt, resetRecord.otp_hash)) {
+    statements.incrementPasswordResetOtpAttempts.run(resetRecord.id);
+    return json(res, 400, { error: "The OTP is invalid or has expired." });
+  }
+
+  const updatedAt = nowIso();
+  statements.updatePassword.run(hashPassword(password), updatedAt, resetRecord.user_id);
+  statements.deleteSessionsByUser.run(resetRecord.user_id);
+  statements.markPasswordResetOtpUsed.run(updatedAt, resetRecord.id);
+
   return json(res, 200, { success: true });
 }
 
@@ -650,12 +1133,20 @@ const server = createServer(async (req, res) => {
       return json(res, 200, { ok: true });
     }
 
+    statements.deleteExpiredPasswordResetOtps.run(nowIso());
+
     const url = new URL(req.url, `http://${req.headers.host || "localhost"}`);
     const { pathname } = url;
 
     if (req.method === "GET" && pathname === "/api/health") return await handleHealth(req, res);
     if (req.method === "POST" && pathname === "/api/auth/signup") return await handleSignup(req, res);
     if (req.method === "POST" && pathname === "/api/auth/signin") return await handleSignin(req, res);
+    if (req.method === "POST" && pathname === "/api/auth/password-reset/request") {
+      return await handlePasswordResetRequest(req, res);
+    }
+    if (req.method === "POST" && pathname === "/api/auth/password-reset/confirm") {
+      return await handlePasswordResetConfirm(req, res);
+    }
     if (req.method === "POST" && pathname === "/api/auth/signout") return await handleSignout(req, res);
     if (req.method === "GET" && pathname === "/api/auth/me") return await handleMe(req, res);
     if (req.method === "PATCH" && pathname === "/api/auth/password") return await handlePasswordUpdate(req, res);
@@ -663,6 +1154,9 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && pathname === "/api/consultations") return await handleConsultationList(req, res);
     if (req.method === "POST" && pathname === "/api/consultations") return await handleConsultationCreate(req, res);
     if (req.method === "GET" && pathname === "/api/admin/consultations") return await handleAdminConsultationList(req, res);
+    if (req.method === "POST" && pathname === "/api/admin/password-reset-otp") {
+      return await handleOwnerPasswordResetOtpCreate(req, res);
+    }
     if (
       req.method === "PATCH" &&
       pathname.startsWith("/api/admin/consultations/") &&
@@ -695,7 +1189,5 @@ server.listen(port, () => {
   console.log(`SQLite API running on http://localhost:${port}`);
   console.log(`Database file: ${dbPath}`);
   console.log(`Owner email: ${ownerEmail}`);
-  console.log(
-    `Email notifications: ${mailTransport ? "enabled" : "disabled (set SMTP_USER and SMTP_PASS in .env)"}`
-  );
+  console.log(`Email notifications: ${canSendEmail() ? "enabled" : "disabled (set SMTP or Resend credentials in .env)"}`);
 });

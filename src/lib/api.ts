@@ -61,6 +61,18 @@ export const api = {
       body: payload,
     });
   },
+  requestPasswordReset(email: string) {
+    return request<{ success: boolean }>("/auth/password-reset/request", {
+      method: "POST",
+      body: { email },
+    });
+  },
+  confirmPasswordReset(payload: { email: string; otp: string; password: string }) {
+    return request<{ success: boolean }>("/auth/password-reset/confirm", {
+      method: "POST",
+      body: payload,
+    });
+  },
   signOut() {
     return request<{ success: boolean }>("/auth/signout", { method: "POST" });
   },
@@ -85,6 +97,15 @@ export const api = {
   getAdminConsultations() {
     return request<{ consultations: any[]; ownerEmail: string }>("/admin/consultations");
   },
+  createManualPasswordReset(email: string) {
+    return request<{ success: boolean; email: string; otp: string; expiresAt: string; ttlMinutes: number }>(
+      "/admin/password-reset-otp",
+      {
+        method: "POST",
+        body: { email },
+      },
+    );
+  },
   createConsultation(payload: Record<string, unknown>) {
     return request<{ consultation: any }>("/consultations", {
       method: "POST",
@@ -95,6 +116,12 @@ export const api = {
     return request<{ consultation: any }>(`/admin/consultations/${id}/status`, {
       method: "PATCH",
       body: { status },
+    });
+  },
+  updateConsultationWorkflow(id: string, payload: { next_path: "service" | "class"; next_path_status: "pending" | "test_in_progress" | "test_completed" | "certification_started"; owner_agreed: "yes" | "no" }) {
+    return request<{ consultation: any }>(`/admin/consultations/${id}/workflow`, {
+      method: "PATCH",
+      body: payload,
     });
   },
   getSavedServices() {

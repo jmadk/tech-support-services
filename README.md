@@ -52,7 +52,10 @@ Save the database name. You will bind it to the Pages project as `DB`.
 npx wrangler d1 migrations apply tech-support-services-db --remote
 ```
 
-The schema lives in [migrations/0001_initial.sql](./migrations/0001_initial.sql).
+The schema lives in:
+
+- [migrations/0001_initial.sql](./migrations/0001_initial.sql)
+- [migrations/0002_password_reset_otps.sql](./migrations/0002_password_reset_otps.sql)
 
 ### 4. Create the Cloudflare Pages project from GitHub
 
@@ -67,7 +70,7 @@ In the Cloudflare dashboard:
    - Build command: `npm run build`
    - Build output directory: `dist`
 
-### 5. Add the D1 binding and owner email
+### 5. Add the D1 binding and environment variables
 
 In the Pages project settings:
 
@@ -77,6 +80,13 @@ In the Pages project settings:
    - Database: `tech-support-services-db`
 3. Add an environment variable:
    - `OWNER_EMAIL=chegekeith4@gmail.com`
+   - `RESEND_API_KEY=your-resend-api-key`
+   - `RESEND_FROM_EMAIL=KCJ Tech <noreply@yourdomain.com>`
+4. Optional:
+   - `RESEND_REPLY_TO=chegekeith4@gmail.com`
+   - `PASSWORD_RESET_CODE_TTL_MINUTES=10`
+   - `PASSWORD_RESET_MAX_ATTEMPTS=5`
+   - `PASSWORD_RESET_COOLDOWN_SECONDS=60`
 
 Then redeploy the Pages project.
 
@@ -107,20 +117,26 @@ npx wrangler d1 execute tech-support-services-db --remote --command "SELECT * FR
 npx wrangler d1 execute tech-support-services-db --remote --command "SELECT * FROM saved_services ORDER BY saved_at DESC;"
 ```
 
-### About email notifications
+### About live email delivery
 
-The Cloudflare deployment keeps the owner inbox, Gmail reply action, and WhatsApp follow-up inside the dashboard.
+The Cloudflare deployment now supports OTP-based password reset emails and any future transactional email through Resend.
 
-The previous SMTP-based notification flow is still available in the local Node API, but it is not automatically wired into the Cloudflare Pages Functions version yet. For the hosted version, the main follow-up workflow is:
+For the hosted version:
 
 - open `Client Inbox`
 - reply in Gmail using `chegekeith4@gmail.com`
 - contact the client on WhatsApp
 - track status in the dashboard
+- users can request a 6-digit OTP from the forgot-password form and reset their password on the live site
 
-## Email notifications for consultations
+Important:
 
-To receive consultation alerts in your official inbox, create a `.env` file in the project root based on `.env.example`:
+- the live site will only send OTP emails after `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are configured
+- after pulling these changes, run the D1 migrations again so the `password_reset_otps` table exists
+
+## Email setup for local development
+
+To receive consultation alerts and password reset OTP emails locally, create a `.env` file in the project root based on `.env.example`:
 
 ```env
 OWNER_EMAIL=chegekeith4@gmail.com
@@ -130,9 +146,23 @@ SMTP_SECURE=false
 SMTP_USER=chegekeith4@gmail.com
 SMTP_PASS=your-gmail-app-password
 SMTP_FROM=chegekeith4@gmail.com
+RESEND_API_KEY=
+RESEND_FROM_EMAIL=KCJ Tech <noreply@yourdomain.com>
+RESEND_REPLY_TO=chegekeith4@gmail.com
+PASSWORD_RESET_CODE_TTL_MINUTES=10
+PASSWORD_RESET_MAX_ATTEMPTS=5
+PASSWORD_RESET_COOLDOWN_SECONDS=60
 ```
 
-For Gmail, use an App Password instead of your normal account password:
+Local email sending can work in either of these ways:
+
+1. SMTP:
+   - use Gmail SMTP with an App Password
+2. Resend:
+   - add `RESEND_API_KEY`
+   - add a valid `RESEND_FROM_EMAIL`
+
+For Gmail SMTP, use an App Password instead of your normal account password:
 
 1. Turn on 2-Step Verification for `chegekeith4@gmail.com`.
 2. Create a Gmail App Password.
@@ -144,6 +174,7 @@ When this is configured:
 - Every consultation is stored in SQLite.
 - The owner account (`chegekeith4@gmail.com`) can open the dashboard inbox and see all consultations.
 - New consultations also send an email notification to the owner inbox.
+- Users can request a 6-digit password reset OTP and set a new password.
 
 ## Notes
 

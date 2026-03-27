@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
 import { OWNER_EMAIL } from '@/lib/site-config';
@@ -11,6 +12,9 @@ interface Consultation {
   service: string;
   message: string;
   status: string;
+  next_path?: 'service' | 'class';
+  next_path_status?: 'pending' | 'test_in_progress' | 'test_completed' | 'certification_started';
+  owner_agreed?: 'yes' | 'no';
   created_at: string;
 }
 
@@ -32,6 +36,7 @@ const statusColors: Record<string, string> = {
 };
 
 const Dashboard: React.FC = () => {
+  const navigate = useNavigate();
   const { user, profile, updateProfile, changePassword, signOut } = useAuth();
   const isOwner = user?.email?.toLowerCase() === OWNER_EMAIL;
   const [activeTab, setActiveTab] = useState<DashTab>('overview');
@@ -42,6 +47,49 @@ const Dashboard: React.FC = () => {
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState('');
   const [ownerInboxError, setOwnerInboxError] = useState('');
+
+  const [consultationFeedback, setConsultationFeedback] = useState<Record<string, 'none' | 'gmail' | 'whatsapp'>>({});
+  const [selectedCourse, setSelectedCourse] = useState<Record<string, string>>({});
+  const [selectedSession, setSelectedSession] = useState<Record<string, string>>({});
+  const [certificationStarted, setCertificationStarted] = useState<Record<string, boolean>>({});
+  const [activeLessonConsultationId, setActiveLessonConsultationId] = useState<string | null>(null);
+
+  const certificationCatalog: Record<string, {title: string; description: string; sessions: string[]}> = {
+    'Database Systems': {
+      title: 'Database Systems Certification',
+      description: 'Comprehensive database theory, relational design, and admin skills.',
+      sessions: [
+        'Introduction to Databases (1h)',
+        'Data Modeling & ERD (1h 30m)',
+        'SQL Basics & Advanced Queries (1h 30m)',
+        'Indexing & Optimization (1h)',
+        'Transactions & Concurrency (1h)',
+        'Backup & Recovery (1h)',
+      ],
+    },
+    'Data Communications & Networks': {
+      title: 'Data Communications & Networks Certification',
+      description: 'Core networking curriculum for routing, switching, and protocols.',
+      sessions: [
+        'Networking Fundamentals (1h)',
+        'TCP/IP & OSI Models (1h 30m)',
+        'Routing & Switching (1h 30m)',
+        'Network Security (1h)',
+        'Wireless & WAN Technologies (1h 30m)',
+      ],
+    },
+    'Distributed Systems': {
+      title: 'Distributed Systems Certification',
+      description: 'Cloud and distributed computing concepts for modern systems.',
+      sessions: [
+        'Distributed System Concepts (1h)',
+        'Consensus & Fault Tolerance (1h 30m)',
+        'Microservices Architecture (1h)',
+        'Scalability & Load Balancing (1h 30m)',
+      ],
+    },
+    // Add additional computer science track courses as needed.
+  };
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
@@ -56,6 +104,11 @@ const Dashboard: React.FC = () => {
   const [passwordError, setPasswordError] = useState('');
   const [passwordSuccess, setPasswordSuccess] = useState(false);
   const [changingPassword, setChangingPassword] = useState(false);
+  const [manualResetEmail, setManualResetEmail] = useState('');
+  const [manualResetError, setManualResetError] = useState('');
+  const [manualResetCode, setManualResetCode] = useState('');
+  const [manualResetExpiresAt, setManualResetExpiresAt] = useState('');
+  const [manualResetGenerating, setManualResetGenerating] = useState(false);
 
   const fetchData = useCallback(async () => {
     if (!user) return;
@@ -112,6 +165,12 @@ const Dashboard: React.FC = () => {
     }
   }, [profile]);
 
+  useEffect(() => {
+    if (activeTab === 'consultations') {
+      fetchData();
+    }
+  }, [activeTab, fetchData]);
+
   const handleProfileSave = async () => {
     setProfileSaving(true);
     const { error } = await updateProfile(profileForm);
@@ -163,7 +222,102 @@ const Dashboard: React.FC = () => {
     setStatusUpdatingId(null);
   };
 
-  const openGmailReply = (consultation: Consultation) => {
+  const syncConsultation = (consultation: Consultation) => {
+    setOwnerConsultations(prev => prev.map(item => (item.id === consultation.id ? consultation : item)));
+    setConsultations(prev => prev.map(item => (item.id === consultation.id ? consultation : item)));
+  };
+
+  const handleConsultationWorkflowChange = async (id: string, nextPath: 'service' | 'class') => {
+    setStatusUpdatingId(id);
+    try {
+      const update = await api.updateConsultationWorkflow(id, {
+        next_path: nextPath,
+        next_path_status: nextPath === 'class' ? 'certification_started' : 'pending',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(update.consultation);
+    } catch (err) {
+      console.error('Error updating consultation workflow:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleStartClassTest = async (id: string) => {
+    setStatusUpdatingId(id);
+    try {
+      const update = await api.updateConsultationWorkflow(id, {
+        next_path: 'class',
+        next_path_status: 'test_in_progress',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(update.consultation);
+      setTimeout(async () => {
+        const completedUpdate = await api.updateConsultationWorkflow(id, {
+          next_path: 'class',
+          next_path_status: 'test_completed',
+          owner_agreed: 'yes',
+        });
+        syncConsultation(completedUpdate.consultation);
+      }, 800);
+    } catch (err) {
+      console.error('Error starting class test:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleProceedToCertification = async (id: string) => {
+    setStatusUpdatingId(id);
+    try {
+      const update = await api.updateConsultationWorkflow(id, {
+        next_path: 'class',
+        next_path_status: 'certification_started',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(update.consultation);
+    } catch (err) {
+      console.error('Error proceeding to certification:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleManualResetGenerate = async () => {
+    const normalizedEmail = manualResetEmail.trim().toLowerCase();
+    setManualResetError('');
+    setManualResetCode('');
+    setManualResetExpiresAt('');
+
+    if (!normalizedEmail) {
+      setManualResetError('User email is required');
+      return;
+    }
+
+    setManualResetGenerating(true);
+    try {
+      const result = await api.createManualPasswordReset(normalizedEmail);
+      setManualResetEmail(result.email);
+      setManualResetCode(result.otp);
+      setManualResetExpiresAt(result.expiresAt);
+    } catch (err: any) {
+      setManualResetError(err.message || 'Could not generate a manual reset code.');
+    } finally {
+      setManualResetGenerating(false);
+    }
+  };
+
+  const openGmailReply = async (consultation: Consultation) => {
+    setConsultationFeedback(prev => ({ ...prev, [consultation.id]: 'gmail' }));
+
+    try {
+      const response = await api.updateConsultationWorkflow(consultation.id, {
+        next_path: consultation.next_path === 'class' ? 'class' : 'service',
+        next_path_status: consultation.next_path_status || 'pending',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(response.consultation);
+    } catch (err) {
+      console.error('Error setting consultation agreement:', err);
+    }
+
     const subject = encodeURIComponent(`Re: ${consultation.service} consultation`);
     const body = encodeURIComponent(
       `Hello ${consultation.full_name},\n\nThank you for reaching out to Expert Tech Solutions & Training.\n\nI am following up on your ${consultation.service} consultation request.\n\nBest regards,\nKeith Chege Junior\n${OWNER_EMAIL}`
@@ -175,10 +329,23 @@ const Dashboard: React.FC = () => {
     );
   };
 
-  const openWhatsApp = (consultation: Consultation) => {
+  const openWhatsApp = async (consultation: Consultation) => {
     if (!consultation.phone) return;
     const phoneNumber = consultation.phone.replace(/\D/g, '');
     if (!phoneNumber) return;
+
+    setConsultationFeedback(prev => ({ ...prev, [consultation.id]: 'whatsapp' }));
+
+    try {
+      const response = await api.updateConsultationWorkflow(consultation.id, {
+        next_path: consultation.next_path === 'class' ? 'class' : 'service',
+        next_path_status: consultation.next_path_status || 'pending',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(response.consultation);
+    } catch (err) {
+      console.error('Error setting consultation agreement:', err);
+    }
 
     const message = encodeURIComponent(
       `Hello ${consultation.full_name}, this is Keith from Expert Tech Solutions & Training. I am following up on your ${consultation.service} consultation request.`
@@ -193,6 +360,10 @@ const Dashboard: React.FC = () => {
 
   const inboxConsultations = isOwner ? ownerConsultations : consultations;
   const overviewConsultations = isOwner ? ownerConsultations : consultations;
+
+  const activeCertificationConsultation = !isOwner
+    ? consultations.find(c => c.next_path === 'class' && c.next_path_status === 'certification_started')
+    : undefined;
 
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -231,6 +402,69 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
+
+        {!isOwner && activeCertificationConsultation && (
+          <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-6 text-white">
+            <h3 className="text-lg font-bold mb-1">🎓 Certification Curriculum</h3>
+            <p className="text-sm text-indigo-200 mb-4">Your provider activated the <span className="font-semibold">{activeCertificationConsultation.service}</span> certification path. Select a course to begin your interactive learning journey with AI narrator, Q&A, and certification quiz.</p>
+
+            {!selectedCourse[activeCertificationConsultation.id] ? (
+              <div>
+                <p className="text-xs text-indigo-300 mb-3 font-medium">Available courses:</p>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  {Object.entries(certificationCatalog).map(([key, course]) => (
+                    <button
+                      key={key}
+                      onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: key }))}
+                      className="text-left p-4 rounded-xl border border-cyan-400/30 bg-cyan-500/5 hover:bg-cyan-500/15 transition-all"
+                    >
+                      <h4 className="font-bold text-cyan-300 mb-1">{course.title}</h4>
+                      <p className="text-xs text-cyan-200/70">{course.description}</p>
+                      <p className="text-xs text-cyan-300/50 mt-2">📚 {course.sessions.length} sessions</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <button
+                    onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: '' }))}
+                    className="px-3 py-1 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+                  >
+                    ← Back
+                  </button>
+                  <span className="text-sm font-semibold text-cyan-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.title}</span>
+                </div>
+
+                <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
+                  <p className="text-xs text-gray-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.description}</p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-indigo-300 mb-3 font-medium">Select a session to start learning:</p>
+                  <div className="grid grid-cols-1 gap-2">
+                    {(certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.sessions || []).map((session, idx) => (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          sessionStorage.setItem(`lesson_${activeCertificationConsultation.id}`, JSON.stringify({
+                            course: selectedCourse[activeCertificationConsultation.id],
+                            session: session
+                          }));
+                          navigate(`/lesson/${activeCertificationConsultation.id}`);
+                        }}
+                        className="text-left p-3 rounded-lg border border-green-400/40 bg-green-500/10 hover:bg-green-500/20 transition-all font-medium text-green-300 text-sm"
+                      >
+                        ▶ {session}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Tabs */}
         <div className="flex flex-wrap gap-2 mb-8 border-b border-white/10 pb-4">
@@ -292,21 +526,28 @@ const Dashboard: React.FC = () => {
                   ) : (
                     <div className="space-y-3">
                       {overviewConsultations.slice(0, 5).map(c => (
-                        <div key={c.id} className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:bg-white/[0.07] transition-all">
-                          <div className="flex-1 min-w-0">
-                            <p className="text-white font-medium truncate">{c.service}</p>
-                            <p className="text-blue-200/40 text-sm truncate">
-                              {isOwner ? `${c.full_name} · ${c.message}` : c.message}
-                            </p>
+                        <div key={c.id} className="space-y-2">
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-4 flex items-center justify-between hover:bg-white/[0.07] transition-all">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-white font-medium truncate">{c.service}</p>
+                              <p className="text-blue-200/40 text-sm truncate">
+                                {isOwner ? `${c.full_name} · ${c.message}` : c.message}
+                              </p>
+                            </div>
+                            <div className="flex items-center gap-3 ml-4">
+                              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[c.status] || statusColors.pending}`}>
+                                {c.status.replace('_', ' ')}
+                              </span>
+                              <span className="text-blue-200/30 text-xs whitespace-nowrap">
+                                {new Date(c.created_at).toLocaleDateString()}
+                              </span>
+                            </div>
                           </div>
-                          <div className="flex items-center gap-3 ml-4">
-                            <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColors[c.status] || statusColors.pending}`}>
-                              {c.status.replace('_', ' ')}
-                            </span>
-                            <span className="text-blue-200/30 text-xs whitespace-nowrap">
-                              {new Date(c.created_at).toLocaleDateString()}
-                            </span>
-                          </div>
+                          { !isOwner && c.owner_agreed === 'yes' && (
+                            <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
+                              Provider agreed to your {c.next_path === 'class' ? 'training path' : 'service path'}, status: {c.next_path_status.replace('_', ' ')}
+                            </div>
+                          )}
                         </div>
                       ))}
                     </div>
@@ -421,6 +662,62 @@ const Dashboard: React.FC = () => {
                                 </button>
                               ))}
                             </div>
+
+                            <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
+                              <div className="flex flex-wrap items-center gap-3 mb-4">
+                                <span className="text-xs text-blue-200/60">Approval status:</span>
+                                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${
+                                  c.owner_agreed === 'yes'
+                                    ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
+                                    : 'border-amber-400/30 bg-amber-500/10 text-amber-300'
+                                }`}>
+                                  {c.owner_agreed === 'yes' ? '✓ Approved' : '⏳ Pending'}
+                                </span>
+                              </div>
+
+                              <label className="block text-xs text-blue-200/60 mb-2">Select path for client</label>
+                              <div className="grid grid-cols-2 gap-2 mb-4">
+                                <button
+                                  onClick={() => {
+                                    handleConsultationWorkflowChange(c.id, 'service');
+                                  }}
+                                  className={`p-3 rounded-lg border text-xs font-medium transition-all ${
+                                    c.next_path === 'service'
+                                      ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-300'
+                                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                                  }`}
+                                >
+                                  📦 Service
+                                </button>
+                                <button
+                                  onClick={() => {
+                                    handleConsultationWorkflowChange(c.id, 'class');
+                                  }}
+                                  className={`p-3 rounded-lg border text-xs font-medium transition-all ${
+                                    c.next_path === 'class'
+                                      ? 'border-cyan-400/50 bg-cyan-500/20 text-cyan-300'
+                                      : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
+                                  }`}
+                                >
+                                  📚 Certification
+                                </button>
+                              </div>
+
+                              <div className="flex gap-2">
+                                <button
+                                  onClick={() => openGmailReply(c)}
+                                  className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-400/30 text-red-300 text-xs font-medium hover:bg-red-500/30 transition-all"
+                                >
+                                  📧 Reply via Gmail ∧
+                                </button>
+                                <button
+                                  onClick={() => openWhatsApp(c)}
+                                  className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-green-600/20 border border-green-400/30 text-green-300 text-xs font-medium hover:bg-green-500/30 transition-all"
+                                >
+                                  💬 WhatsApp ∧
+                                </button>
+                              </div>
+                            </div>
                           </div>
                         </div>
                       </div>
@@ -433,7 +730,16 @@ const Dashboard: React.FC = () => {
             {/* CONSULTATIONS */}
             {activeTab === 'consultations' && (
               <div>
-                <h3 className="text-lg font-bold text-white mb-4">Consultation History</h3>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-lg font-bold text-white">Consultation History</h3>
+                  <button
+                    onClick={() => fetchData()}
+                    disabled={loadingData}
+                    className="px-3 py-1.5 text-xs font-medium rounded-lg bg-cyan-500/20 border border-cyan-500/40 text-cyan-300 hover:bg-cyan-500/30 disabled:opacity-50"
+                  >
+                    {loadingData ? 'Syncing...' : 'Refresh'}
+                  </button>
+                </div>
                 {consultations.length === 0 ? (
                   <div className="bg-white/5 border border-white/10 rounded-2xl p-12 text-center">
                     <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-white/5 flex items-center justify-center">
@@ -461,6 +767,86 @@ const Dashboard: React.FC = () => {
                           <span>Email: {c.email}</span>
                           {c.phone && <span>Phone: {c.phone}</span>}
                         </div>
+
+                        {!isOwner && c.next_path === 'class' && (
+                          <div className="mt-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
+                            <p className="mb-2 font-semibold">Class learning path for this consultation.</p>
+
+                            {c.next_path_status === 'pending' && (
+                              <button
+                                onClick={() => handleStartClassTest(c.id)}
+                                disabled={statusUpdatingId === c.id}
+                                className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                              >
+                                Start class test
+                              </button>
+                            )}
+
+                            {c.next_path_status === 'test_in_progress' && (
+                              <p className="text-xs text-cyan-100">Test in progress… please wait just a moment.</p>
+                            )}
+
+                            {c.next_path_status === 'test_completed' && (
+                              <button
+                                onClick={() => handleProceedToCertification(c.id)}
+                                disabled={statusUpdatingId === c.id}
+                                className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-3 py-2 text-sm font-semibold text-white hover:opacity-90 disabled:opacity-50"
+                              >
+                                Proceed to Certification Course Introduction
+                              </button>
+                            )}
+
+                            {c.next_path_status === 'certification_started' && (
+                              <>
+                                <p className="text-xs text-cyan-100 mb-3">Certification started — choose a course and session.</p>
+
+                                <label className="text-xs text-blue-200/60">Course</label>
+                                <select
+                                  value={selectedCourse[c.id] || ''}
+                                  onChange={e => setSelectedCourse(prev => ({ ...prev, [c.id]: e.target.value }))}
+                                  className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
+                                >
+                                  <option value="">Choose a course</option>
+                                  {(certificationCatalog[c.service] ? [c.service] : Object.keys(certificationCatalog)).map(key => (
+                                    <option key={key} value={key}>{certificationCatalog[key]?.title || key}</option>
+                                  ))}
+                                </select>
+
+                                {selectedCourse[c.id] && (
+                                  <>
+                                    <label className="mt-3 block text-xs text-blue-200/60">Session</label>
+                                    <select
+                                      value={selectedSession[c.id] || ''}
+                                      onChange={e => setSelectedSession(prev => ({ ...prev, [c.id]: e.target.value }))}
+                                      className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
+                                    >
+                                      <option value="">Choose a session</option>
+                                      {(certificationCatalog[selectedCourse[c.id]]?.sessions || []).map(session => (
+                                        <option key={session} value={session}>{session}</option>
+                                      ))}
+                                    </select>
+                                  </>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    if (!selectedCourse[c.id] || !selectedSession[c.id]) return;
+                                    sessionStorage.setItem(`lesson_${c.id}`, JSON.stringify({ course: selectedCourse[c.id], session: selectedSession[c.id] }));
+                                    navigate(`/lesson/${c.id}`);
+                                  }}
+                                  disabled={!selectedCourse[c.id] || !selectedSession[c.id]}
+                                  className="mt-3 w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
+                                >
+                                  Enter AI Lesson
+                                </button>
+                              </>
+                            )}
+
+                            {c.next_path === 'service' && (
+                              <p className="text-xs text-blue-200/70">You selected service delivery path; continue with direct implementation and status updates in consultation history.</p>
+                            )}
+                          </div>
+                        )}
                       </div>
                     ))}
                   </div>
@@ -592,6 +978,55 @@ const Dashboard: React.FC = () => {
                     </button>
                   </div>
                 </div>
+
+                {isOwner && (
+                  <div>
+                    <h3 className="text-lg font-bold text-white mb-4">Manual Password Reset</h3>
+                    <div className="bg-white/5 border border-white/10 rounded-2xl p-6 space-y-4">
+                      <p className="text-blue-200/50 text-sm">
+                        Generate a one-time reset code for any user when email delivery is unavailable. Creating a new code replaces the previous one for that email.
+                      </p>
+                      {manualResetError && (
+                        <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-400 text-sm">
+                          {manualResetError}
+                        </div>
+                      )}
+                      <div>
+                        <label className="block text-sm font-medium text-blue-200/70 mb-1.5">User Email</label>
+                        <input
+                          type="email"
+                          value={manualResetEmail}
+                          onChange={e => setManualResetEmail(e.target.value)}
+                          className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:border-cyan-500/50 outline-none transition-all"
+                          placeholder="user@example.com"
+                        />
+                      </div>
+                      <button
+                        onClick={handleManualResetGenerate}
+                        disabled={manualResetGenerating}
+                        className="px-6 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-400 hover:to-orange-400 transition-all disabled:opacity-60"
+                      >
+                        {manualResetGenerating ? 'Generating...' : 'Generate Reset OTP'}
+                      </button>
+                      {manualResetCode && (
+                        <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5 space-y-3">
+                          <p className="text-amber-200 text-sm">
+                            Share this code with the user through a trusted channel, then have them finish the existing reset form.
+                          </p>
+                          <div>
+                            <p className="text-xs uppercase tracking-[0.2em] text-amber-200/70 mb-2">Generated OTP</p>
+                            <div className="rounded-xl bg-[#0a1628] border border-white/10 px-4 py-3 text-3xl font-bold tracking-[0.35em] text-white">
+                              {manualResetCode}
+                            </div>
+                          </div>
+                          <p className="text-sm text-amber-100/80">
+                            Expires at {new Date(manualResetExpiresAt).toLocaleString()}.
+                          </p>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
 
                 <div>
                   <h3 className="text-lg font-bold text-white mb-4">Account Actions</h3>
