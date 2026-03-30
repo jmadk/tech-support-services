@@ -6,6 +6,13 @@ interface LessonPhase {
   phase: 'loading' | 'narrator' | 'qa' | 'quiz' | 'complete';
 }
 
+type LessonData = {
+  title: string;
+  notes: string[];
+  qaQuestions: Array<{ q: string; options: string[]; correct: number }>;
+  quizQuestions: Array<{ q: string; options: string[]; correct: number }>;
+};
+
 const lessonContent: Record<string, Record<string, {
   title: string;
   notes: string[];
@@ -215,6 +222,89 @@ const lessonContent: Record<string, Record<string, {
   },
 };
 
+function buildFallbackLesson(course: string, session: string): LessonData {
+  const sessionTitle = session.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Lesson Session';
+  const courseTitle = course || 'Certification Track';
+
+  return {
+    title: sessionTitle,
+    notes: [
+      `Welcome to ${sessionTitle} in the ${courseTitle} track.`,
+      `This lesson focuses on the main ideas, vocabulary, and practical workflow used in ${courseTitle}.`,
+      `Pay attention to the core concepts introduced in ${sessionTitle}, because they will support later sessions and certification tasks.`,
+      `As you proceed, connect each concept to a real project or support scenario so the lesson becomes practical and memorable.`,
+      `Use the Q&A and quiz sections to confirm understanding before moving to the next milestone.`,
+    ],
+    qaQuestions: [
+      {
+        q: `What is the main goal of the ${sessionTitle} session?`,
+        options: [
+          'To build understanding of the session fundamentals',
+          'To skip directly to certification',
+          'To avoid practical examples',
+          'To replace all previous lessons',
+        ],
+        correct: 0,
+      },
+      {
+        q: 'What is the best way to benefit from this lesson?',
+        options: [
+          'Ignore the examples',
+          'Relate the concepts to real tasks and workflows',
+          'Memorize only the title',
+          'Skip the questions',
+        ],
+        correct: 1,
+      },
+    ],
+    quizQuestions: [
+      {
+        q: `Which statement best describes ${sessionTitle}?`,
+        options: [
+          'It introduces concepts you can apply in practice',
+          'It has no connection to the certification path',
+          'It is only for entertainment',
+          'It replaces every other session',
+        ],
+        correct: 0,
+      },
+      {
+        q: 'What should you do before moving to the next session?',
+        options: [
+          'Close the lesson immediately',
+          'Confirm understanding through Q&A and quiz review',
+          'Delete your progress',
+          'Skip the dashboard entirely',
+        ],
+        correct: 1,
+      },
+      {
+        q: 'Why are lesson activities included in the flow?',
+        options: [
+          'To help reinforce learning and readiness',
+          'To make the page longer',
+          'To prevent progress permanently',
+          'To remove the need for practice',
+        ],
+        correct: 0,
+      },
+    ],
+  };
+}
+
+function resolveLessonData(course: string, session: string): LessonData | null {
+  if (!course || !session) {
+    return null;
+  }
+
+  const exactCourse = lessonContent[course];
+  if (exactCourse?.[session]) {
+    return exactCourse[session];
+  }
+
+  return buildFallbackLesson(course, session);
+}
+
 const Lesson: React.FC = () => {
   const { consultationId } = useParams();
   const navigate = useNavigate();
@@ -246,7 +336,7 @@ const Lesson: React.FC = () => {
   const course = payload.course || queryCourse;
   const session = payload.session || querySession;
 
-  const courseData = lessonContent[course]?.[session];
+  const courseData = resolveLessonData(course, session);
 
   useEffect(() => {
     if (storageKey && course && session) {
