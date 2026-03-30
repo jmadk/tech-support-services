@@ -297,8 +297,7 @@ const Lesson: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading } = useAuth();
-  const [phase, setPhase] = useState<'loading' | 'narrator' | 'qa' | 'quiz' | 'complete'>('loading');
-  const [currentSessionIndex, setCurrentSessionIndex] = useState(0);
+  const [phase, setPhase] = useState<'loading' | 'narrator' | 'qa' | 'quiz' | 'complete'>('narrator');
   const [qaAnswers, setQaAnswers] = useState<Record<number, number>>({});
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [narrating, setNarrating] = useState(true);
@@ -324,6 +323,9 @@ const Lesson: React.FC = () => {
   const session = payload.session || querySession;
 
   const courseData = resolveLessonData(course, session);
+  const sessionLabels = curriculumTracks[course]?.map((item) => item.label) || [];
+  const currentSessionIndex = sessionLabels.indexOf(session);
+  const nextSessionLabel = currentSessionIndex >= 0 ? sessionLabels[currentSessionIndex + 1] || '' : '';
 
   useEffect(() => {
     if (storageKey && course && session) {
@@ -365,6 +367,21 @@ const Lesson: React.FC = () => {
     setPhase('complete');
   };
 
+  const handleNextSession = () => {
+    if (!consultationId || !nextSessionLabel) {
+      navigate('/dashboard');
+      return;
+    }
+
+    const nextPayload = { course, session: nextSessionLabel };
+    sessionStorage.setItem(`lesson_${consultationId}`, JSON.stringify(nextPayload));
+    setQaAnswers({});
+    setQuizAnswers({});
+    setNarrating(true);
+    setPhase('narrator');
+    navigate(`/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(nextSessionLabel)}`);
+  };
+
   if (!courseData) {
     return (
       <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
@@ -391,7 +408,7 @@ const Lesson: React.FC = () => {
         </div>
 
         {/* NARRATOR PHASE */}
-        {phase === 'narrator' && (
+        {(phase === 'loading' || phase === 'narrator') && (
           <div className="bg-white/5 border border-cyan-500/30 rounded-2xl p-8 mb-6">
             <div className="flex items-start gap-4 mb-6">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
@@ -521,13 +538,21 @@ const Lesson: React.FC = () => {
             <p className="text-green-200 mb-2">Congratulations! You've successfully completed the {session} session.</p>
             <p className="text-green-100/70 mb-8">Your certification has been recorded and you can now advance to the next session in the {course} curriculum.</p>
             
-            <div className="grid grid-cols-2 gap-4">
+            <div className={`grid gap-4 ${nextSessionLabel ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <button
                 onClick={() => navigate('/')}
                 className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
               >
                 Home
               </button>
+              {nextSessionLabel && (
+                <button
+                  onClick={handleNextSession}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all"
+                >
+                  Next Session
+                </button>
+              )}
               <button
                 onClick={() => {
                   sessionStorage.removeItem(`lesson_${consultationId}`);
