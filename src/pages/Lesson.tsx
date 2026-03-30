@@ -13,214 +13,201 @@ type LessonData = {
   quizQuestions: Array<{ q: string; options: string[]; correct: number }>;
 };
 
-const lessonContent: Record<string, Record<string, {
+type CurriculumSession = {
+  label: string;
   title: string;
-  notes: string[];
-  qaQuestions: Array<{ q: string; options: string[]; correct: number }>;
-  quizQuestions: Array<{ q: string; options: string[]; correct: number }>;
-}>> = {
-  'Database Systems': {
-    'Introduction to Databases (1h)': {
-      title: 'Introduction to Databases',
-      notes: [
-        'A database is an organized collection of structured data.',
-        'Databases use DBMS software to manage, store, and retrieve information.',
-        'There are two main types: Relational and NoSQL databases.',
-        'Relational databases organize data in tables with rows and columns.',
-        'SQL is the standard language for querying relational databases.',
-        'Databases ensure data integrity, security, and efficient retrieval.',
-      ],
-      qaQuestions: [
-        {
-          q: 'What is a primary key in a database table?',
-          options: [
-            'A unique identifier for each row in a table',
-            'The first column in a table',
-            'A column that can contain NULL values',
-            'A backup key for security'
-          ],
-          correct: 0
-        },
-        {
-          q: 'Which of these is a characteristic of relational databases?',
-          options: [
-            'Data stored in JSON format',
-            'Data stored in tables with defined schemas',
-            'No relationships between tables',
-            'Only supports unstructured data'
-          ],
-          correct: 1
-        }
-      ],
-      quizQuestions: [
-        {
-          q: 'What does ACID stand for in database transactions?',
-          options: [
-            'Atomicity, Consistency, Isolation, Durability',
-            'Access, Control, Integration, Data',
-            'Application, Configuration, Implementation, Deployment',
-            'Analysis, Coding, Implementation, Debugging'
-          ],
-          correct: 0
-        },
-        {
-          q: 'Which of these is NOT a basic SQL operation?',
-          options: [
-            'SELECT',
-            'INSERT',
-            'EXECUTE',
-            'DELETE'
-          ],
-          correct: 2
-        },
-        {
-          q: 'What is normalization in database design?',
-          options: [
-            'The process of organizing data to reduce redundancy',
-            'Converting text to numbers',
-            'Making all tables the same size',
-            'Backing up database files'
-          ],
-          correct: 0
-        }
-      ]
-    },
-  },
-  'Data Communications & Networks': {
-    'Networking Fundamentals (1h)': {
-      title: 'Networking Fundamentals',
-      notes: [
-        'A computer network is a collection of interconnected devices.',
-        'Networks enable communication and resource sharing between computers.',
-        'The OSI model has 7 layers that structure network communication.',
-        'TCP/IP is the primary protocol suite used on the internet.',
-        'IP addresses uniquely identify devices on a network.',
-        'Network protocols define rules for data transmission and reception.',
-      ],
-      qaQuestions: [
-        {
-          q: 'What is an IP address?',
-          options: [
-            'A unique numerical identifier for a device on a network',
-            'A type of internet service provider',
-            'A security password for networks',
-            'The speed of internet connection'
-          ],
-          correct: 0
-        },
-        {
-          q: 'How many layers are in the OSI model?',
-          options: [
-            '5 layers',
-            '6 layers',
-            '7 layers',
-            '10 layers'
-          ],
-          correct: 2
-        }
-      ],
-      quizQuestions: [
-        {
-          q: 'What is the purpose of DNS?',
-          options: [
-            'To convert domain names to IP addresses',
-            'To encrypt network traffic',
-            'To manage network bandwidth',
-            'To filter spam emails'
-          ],
-          correct: 0
-        },
-        {
-          q: 'Which layer of the OSI model handles physical transmission?',
-          options: [
-            'Application Layer',
-            'Transport Layer',
-            'Network Layer',
-            'Physical Layer'
-          ],
-          correct: 3
-        },
-        {
-          q: 'What does TCP ensure in data transmission?',
-          options: [
-            'Fast delivery',
-            'Reliable, ordered delivery with error checking',
-            'Encrypted communication',
-            'Broadcast to all devices'
-          ],
-          correct: 1
-        }
-      ]
-    },
-  },
-  'Distributed Systems': {
-    'Distributed System Concepts (1h)': {
-      title: 'Distributed System Concepts',
-      notes: [
-        'A distributed system consists of multiple computers working together.',
-        'These systems share a common goal and communicate over a network.',
-        'Key benefits include scalability, reliability, and resource sharing.',
-        'Challenges include network latency, consistency, and fault tolerance.',
-        'Cloud computing is built on distributed system principles.',
-        'Load balancing distributes work across multiple servers.',
-      ],
-      qaQuestions: [
-        {
-          q: 'What is the main advantage of distributed systems?',
-          options: [
-            'All data stored in one place',
-            'Scalability and fault tolerance',
-            'Lower network usage',
-            'Simpler programming'
-          ],
-          correct: 1
-        },
-        {
-          q: 'What is load balancing?',
-          options: [
-            'Reducing the weight of data',
-            'Distributing network traffic across multiple servers',
-            'Balancing electricity between devices',
-            'Organizing files in alphabetical order'
-          ],
-          correct: 1
-        }
-      ],
-      quizQuestions: [
-        {
-          q: 'Which is a key challenge in distributed systems?',
-          options: [
-            'Too much data storage',
-            'Network latency and consistency',
-            'Using too many programming languages',
-            'Expensive hardware'
-          ],
-          correct: 1
-        },
-        {
-          q: 'What does CAP theorem state?',
-          options: [
-            'All systems must be cheap',
-            'A distributed system can guarantee at most 2 of: Consistency, Availability, Partition tolerance',
-            'Computers must be of equal capacity',
-            'Data must be replicated 3 times'
-          ],
-          correct: 1
-        },
-        {
-          q: 'What is a microservice?',
-          options: [
-            'A small amount of data',
-            'An independent, loosely coupled service that does one thing well',
-            'A tiny computer',
-            'A fast network protocol'
-          ],
-          correct: 1
-        }
-      ]
-    },
-  },
+  focus: string;
+  outcomes: string[];
+  tools: string[];
 };
+
+const curriculumTracks: Record<string, CurriculumSession[]> = {
+  'Database Systems': [
+    {
+      label: 'Introduction to Databases (1h)',
+      title: 'Introduction to Databases',
+      focus: 'core database concepts, DBMS roles, relational thinking, and data lifecycle foundations',
+      outcomes: ['differentiate files from databases', 'identify DBMS responsibilities', 'describe relational vs NoSQL use cases'],
+      tools: ['DBMS', 'tables', 'records', 'SQL'],
+    },
+    {
+      label: 'Data Modeling & ERD (1h 30m)',
+      title: 'Data Modeling & ERD',
+      focus: 'entity analysis, relationships, normalization, and schema planning for diploma and degree projects',
+      outcomes: ['build ER diagrams', 'identify entities and attributes', 'map cardinalities correctly'],
+      tools: ['ERD', 'entities', 'attributes', 'normalization'],
+    },
+    {
+      label: 'SQL Basics & Advanced Queries (1h 30m)',
+      title: 'SQL Basics & Advanced Queries',
+      focus: 'data retrieval, joins, grouping, subqueries, and query writing for academic and industry tasks',
+      outcomes: ['write SELECT queries', 'use joins and grouping', 'interpret query results accurately'],
+      tools: ['SELECT', 'JOIN', 'GROUP BY', 'subqueries'],
+    },
+    {
+      label: 'Indexing & Optimization (1h)',
+      title: 'Indexing & Optimization',
+      focus: 'query performance, access paths, indexing tradeoffs, and execution planning',
+      outcomes: ['explain index benefits', 'identify slow-query causes', 'choose useful indexes'],
+      tools: ['indexes', 'query plans', 'search conditions', 'optimization'],
+    },
+    {
+      label: 'Transactions & Concurrency (1h)',
+      title: 'Transactions & Concurrency',
+      focus: 'ACID, locking, isolation, rollback, and concurrent user safety',
+      outcomes: ['define ACID properties', 'explain concurrency issues', 'identify transaction boundaries'],
+      tools: ['transactions', 'locks', 'commit', 'rollback'],
+    },
+    {
+      label: 'Backup & Recovery (1h)',
+      title: 'Backup & Recovery',
+      focus: 'business continuity, backup strategies, recovery objectives, and fault response',
+      outcomes: ['compare backup types', 'plan recovery workflow', 'protect data availability'],
+      tools: ['full backup', 'incremental backup', 'restore', 'recovery'],
+    },
+  ],
+  'Data Communications & Networks': [
+    {
+      label: 'Networking Fundamentals (1h)',
+      title: 'Networking Fundamentals',
+      focus: 'network concepts, topology, addressing, and communication basics used across diploma and degree curricula',
+      outcomes: ['define network components', 'explain topologies', 'describe network communication flow'],
+      tools: ['hosts', 'switches', 'routers', 'media'],
+    },
+    {
+      label: 'TCP/IP & OSI Models (1h 30m)',
+      title: 'TCP/IP & OSI Models',
+      focus: 'layered communication models and how protocols map to real network services',
+      outcomes: ['name OSI layers', 'map protocols to layers', 'trace packet movement across layers'],
+      tools: ['OSI', 'TCP/IP', 'encapsulation', 'protocol stack'],
+    },
+    {
+      label: 'Routing & Switching (1h 30m)',
+      title: 'Routing & Switching',
+      focus: 'packet forwarding, MAC learning, subnetting, and network segmentation',
+      outcomes: ['explain router vs switch roles', 'interpret forwarding decisions', 'apply subnetting basics'],
+      tools: ['routing tables', 'MAC tables', 'subnets', 'VLANs'],
+    },
+    {
+      label: 'Network Security (1h)',
+      title: 'Network Security',
+      focus: 'threats, controls, firewalls, authentication, and secure network design',
+      outcomes: ['identify common threats', 'describe access controls', 'explain defense-in-depth'],
+      tools: ['firewalls', 'ACLs', 'IDS/IPS', 'authentication'],
+    },
+    {
+      label: 'Wireless & WAN Technologies (1h 30m)',
+      title: 'Wireless & WAN Technologies',
+      focus: 'wireless standards, WAN links, mobility, and enterprise connectivity choices',
+      outcomes: ['compare WLAN and WAN uses', 'describe wireless challenges', 'identify enterprise connectivity options'],
+      tools: ['Wi-Fi', 'WAN', 'latency', 'bandwidth'],
+    },
+  ],
+  'Distributed Systems': [
+    {
+      label: 'Distributed System Concepts (1h)',
+      title: 'Distributed System Concepts',
+      focus: 'the structure, purpose, and tradeoffs of systems spread across multiple machines',
+      outcomes: ['define distributed systems', 'describe benefits and risks', 'relate the model to cloud platforms'],
+      tools: ['nodes', 'messages', 'coordination', 'scalability'],
+    },
+    {
+      label: 'Consensus & Fault Tolerance (1h 30m)',
+      title: 'Consensus & Fault Tolerance',
+      focus: 'reliability, replication, leader election, and keeping services available under failure',
+      outcomes: ['explain consensus goals', 'describe replication', 'identify fault-tolerance strategies'],
+      tools: ['replication', 'consensus', 'failover', 'quorum'],
+    },
+    {
+      label: 'Microservices Architecture (1h)',
+      title: 'Microservices Architecture',
+      focus: 'service decomposition, APIs, independent deployment, and boundaries in modern systems',
+      outcomes: ['define microservices', 'compare with monoliths', 'identify service boundaries'],
+      tools: ['services', 'APIs', 'deployment', 'service contracts'],
+    },
+    {
+      label: 'Scalability & Load Balancing (1h 30m)',
+      title: 'Scalability & Load Balancing',
+      focus: 'horizontal scaling, bottlenecks, load balancing, and system growth patterns',
+      outcomes: ['compare vertical and horizontal scaling', 'identify bottlenecks', 'explain load-balancing behavior'],
+      tools: ['scaling', 'load balancer', 'throughput', 'availability'],
+    },
+  ],
+};
+
+function createLessonFromCurriculum(session: CurriculumSession): LessonData {
+  return {
+    title: session.title,
+    notes: [
+      `${session.title} covers ${session.focus}.`,
+      `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
+      `This session is aligned with computer science degree and diploma expectations, where learners are expected to connect theory to lab work, coursework, and real deployments.`,
+      `Key study terms in this session include ${session.tools.join(', ')}.`,
+      `As you move through the lesson, focus on how the concepts support software development, infrastructure design, troubleshooting, and professional certification readiness.`,
+    ],
+    qaQuestions: [
+      {
+        q: `What is the primary focus of ${session.title}?`,
+        options: [
+          session.focus,
+          'Only memorizing terms without application',
+          'Avoiding practical work completely',
+          'Replacing every other module in the curriculum',
+        ],
+        correct: 0,
+      },
+      {
+        q: `Which outcome is expected from ${session.title}?`,
+        options: [
+          'Ignoring implementation details',
+          session.outcomes[1],
+          'Skipping assessment tasks',
+          'Removing the need for foundational knowledge',
+        ],
+        correct: 1,
+      },
+    ],
+    quizQuestions: [
+      {
+        q: `Which set contains concepts central to ${session.title}?`,
+        options: [
+          session.tools.join(', '),
+          'Payroll, accounting, and taxation only',
+          'Graphic design and illustration only',
+          'Unrelated office stationery terms',
+        ],
+        correct: 0,
+      },
+      {
+        q: 'Why is this session included in the curriculum?',
+        options: [
+          'To build academic and practical competency in the track',
+          'To delay progress without learning value',
+          'To remove the need for future modules',
+          'To avoid assessment and review',
+        ],
+        correct: 0,
+      },
+      {
+        q: 'What is the best approach while studying this lesson?',
+        options: [
+          'Connect each concept to labs, projects, and real support scenarios',
+          'Read only the title and leave',
+          'Skip all questions and feedback',
+          'Treat all topics as unrelated facts',
+        ],
+        correct: 0,
+      },
+    ],
+  };
+}
+
+const lessonContent: Record<string, Record<string, LessonData>> = Object.fromEntries(
+  Object.entries(curriculumTracks).map(([course, sessions]) => [
+    course,
+    Object.fromEntries(sessions.map((session) => [session.label, createLessonFromCurriculum(session)])),
+  ]),
+);
 
 function buildFallbackLesson(course: string, session: string): LessonData {
   const sessionTitle = session.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Lesson Session';
@@ -353,10 +340,7 @@ const Lesson: React.FC = () => {
       navigate('/');
       return;
     }
-
-    // Start narrator phase after 1 second
-    const timer = setTimeout(() => setPhase('narrator'), 1000);
-    return () => clearTimeout(timer);
+    setPhase((current) => (current === 'loading' ? 'narrator' : current));
   }, [user, courseData, loading, navigate]);
 
   const speakText = (text: string) => {
