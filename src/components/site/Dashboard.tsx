@@ -452,7 +452,9 @@ const Dashboard: React.FC = () => {
                             course: selectedCourse[activeCertificationConsultation.id],
                             session: session
                           }));
-                          navigate(`/lesson/${activeCertificationConsultation.id}`);
+                          navigate(
+                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(session)}`
+                          );
                         }}
                         className="text-left p-3 rounded-lg border border-green-400/40 bg-green-500/10 hover:bg-green-500/20 transition-all font-medium text-green-300 text-sm"
                       >
@@ -832,7 +834,9 @@ const Dashboard: React.FC = () => {
                                   onClick={() => {
                                     if (!selectedCourse[c.id] || !selectedSession[c.id]) return;
                                     sessionStorage.setItem(`lesson_${c.id}`, JSON.stringify({ course: selectedCourse[c.id], session: selectedSession[c.id] }));
-                                    navigate(`/lesson/${c.id}`);
+                                    navigate(
+                                      `/lesson/${c.id}?course=${encodeURIComponent(selectedCourse[c.id])}&session=${encodeURIComponent(selectedSession[c.id])}`
+                                    );
                                   }}
                                   disabled={!selectedCourse[c.id] || !selectedSession[c.id]}
                                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"

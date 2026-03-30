@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface LessonPhase {
@@ -218,7 +218,8 @@ const lessonContent: Record<string, Record<string, {
 const Lesson: React.FC = () => {
   const { consultationId } = useParams();
   const navigate = useNavigate();
-  const { user } = useAuth();
+  const location = useLocation();
+  const { user, loading } = useAuth();
   const [phase, setPhase] = useState<'loading' | 'narrator' | 'qa' | 'quiz' | 'complete'>('loading');
   const [currentSessionIndex, setCurrentSessionIndex] = useState(0);
   const [qaAnswers, setQaAnswers] = useState<Record<number, number>>({});
@@ -238,13 +239,26 @@ const Lesson: React.FC = () => {
   }
 
   const sessionData = storageKey ? sessionStorage.getItem(storageKey) : null;
-  const payload = sessionData ? JSON.parse(sessionData) : { course: '', session: '' };
-  const course = payload.course || '';
-  const session = payload.session || '';
+  const searchParams = new URLSearchParams(location.search);
+  const queryCourse = searchParams.get('course') || '';
+  const querySession = searchParams.get('session') || '';
+  const payload = sessionData ? JSON.parse(sessionData) : { course: queryCourse, session: querySession };
+  const course = payload.course || queryCourse;
+  const session = payload.session || querySession;
 
   const courseData = lessonContent[course]?.[session];
 
   useEffect(() => {
+    if (storageKey && course && session) {
+      sessionStorage.setItem(storageKey, JSON.stringify({ course, session }));
+    }
+  }, [storageKey, course, session]);
+
+  useEffect(() => {
+    if (loading) {
+      return;
+    }
+
     if (!user || !courseData) {
       navigate('/');
       return;
@@ -253,7 +267,7 @@ const Lesson: React.FC = () => {
     // Start narrator phase after 1 second
     const timer = setTimeout(() => setPhase('narrator'), 1000);
     return () => clearTimeout(timer);
-  }, [user, courseData, navigate]);
+  }, [user, courseData, loading, navigate]);
 
   const speakText = (text: string) => {
     if ('speechSynthesis' in window) {
