@@ -1,4 +1,6 @@
 const DEFAULT_OWNER_EMAIL = "chegekeith4@gmail.com";
+const DEFAULT_OWNER_USERNAME = "owner";
+const DEFAULT_OWNER_FULL_NAME = "Owner";
 const PASSWORD_RESET_TTL_MINUTES = 10;
 const PASSWORD_RESET_MAX_ATTEMPTS = 5;
 const PASSWORD_RESET_COOLDOWN_SECONDS = 60;
@@ -147,6 +149,14 @@ function sanitizeUser(row) {
 
 function ownerEmailFor(env) {
   return String(env.OWNER_EMAIL || DEFAULT_OWNER_EMAIL).trim().toLowerCase();
+}
+
+function ownerUsernameFor(env) {
+  return String(env.OWNER_USERNAME || DEFAULT_OWNER_USERNAME).trim();
+}
+
+function ownerFullNameFor(env) {
+  return String(env.OWNER_FULL_NAME || DEFAULT_OWNER_FULL_NAME).trim();
 }
 
 function normalizeWhitespace(value) {
@@ -455,6 +465,40 @@ async function ensureSchema(env) {
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at)");
+}
+
+async function ensureOwnerAccount(env) {
+  const ownerInitialPassword = String(env.OWNER_INITIAL_PASSWORD || "");
+  if (!ownerInitialPassword) {
+    return;
+  }
+
+  const email = ownerEmailFor(env);
+  const username = ownerUsernameFor(env);
+  const fullName = ownerFullNameFor(env);
+  const existingOwner = await firstRow(env, "SELECT id FROM users WHERE email = ?", [email]);
+  if (existingOwner) {
+    return;
+  }
+
+  const usernameTaken = await firstRow(env, "SELECT id FROM users WHERE username = ?", [username]);
+  if (usernameTaken) {
+    return;
+  }
+
+  const id = createId();
+  const createdAt = nowIso();
+  const passwordHash = await hashPassword(ownerInitialPassword);
+
+  await runQuery(
+    env,
+    `
+      INSERT INTO users (
+        id, email, password_hash, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, '', '', '', '', ?, ?)
+    `,
+    [id, email, passwordHash, username, fullName, createdAt, createdAt],
+  );
 }
 
 async function cleanupExpiredSessions(env) {
@@ -1319,6 +1363,7 @@ export async function onRequest(context) {
 
   try {
     await ensureSchema(env);
+    await ensureOwnerAccount(env);
     await cleanupExpiredSessions(env);
     await cleanupExpiredPasswordResetOtps(env);
 
