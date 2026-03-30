@@ -13,6 +13,12 @@ services:
     envVars:
       - key: OWNER_EMAIL
         value: chegekeith4@gmail.com
+      - key: OWNER_USERNAME
+        value: owner
+      - key: OWNER_FULL_NAME
+        value: KCJ Tech Owner
+      - key: OWNER_INITIAL_PASSWORD
+        sync: false
       - key: SMTP_HOST
         value: smtp.gmail.com
       - key: SMTP_PORT
@@ -25,6 +31,18 @@ services:
         sync: false
       - key: SMTP_FROM
         sync: false
+      - key: RESEND_API_KEY
+        sync: false
+      - key: RESEND_FROM_EMAIL
+        sync: false
+      - key: RESEND_REPLY_TO
+        value: chegekeith4@gmail.com
+      - key: PASSWORD_RESET_CODE_TTL_MINUTES
+        value: "10"
+      - key: PASSWORD_RESET_MAX_ATTEMPTS
+        value: "5"
+      - key: PASSWORD_RESET_COOLDOWN_SECONDS
+        value: "60"
 
   - type: web
     name: tech-support-web
@@ -34,7 +52,7 @@ services:
     autoDeployTrigger: commit
     envVars:
       - key: VITE_API_URL
-        sync: false
+        value: https://tech-support-api.onrender.com
     routes:
       - type: rewrite
         source: /*

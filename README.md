@@ -1,6 +1,10 @@
 # Tech Support Services
 
-This project now uses a local SQLite database instead of Supabase.
+This project uses a Node API backed by SQLite. The fastest hosted setup is:
+
+- backend on Render using [`server.mjs`](./server.mjs)
+- frontend on any static host using `VITE_API_URL`
+- SQLite stored on the Render disk
 
 ## Run locally
 
@@ -18,121 +22,68 @@ npm run dev
 
 The API runs on `http://localhost:3001` and creates the SQLite database at `data/app.db`.
 
-## Go Live With GitHub + Cloudflare Pages + D1
+## Recommended Hosted Setup: Cloudflare Pages + Render API + SQLite
 
-This repo can now go live on Cloudflare without relying on a local SQLite file:
+This avoids Cloudflare D1 entirely and uses the existing SQLite backend already in the repo.
 
-- the frontend deploys as a static Vite site on Cloudflare Pages
-- the `/api/*` routes run as Cloudflare Pages Functions
-- the production database lives in Cloudflare D1
+- deploy the backend with [`render.yaml`](./render.yaml)
+- keep the SQLite database on the Render persistent disk
+- deploy the frontend on Cloudflare Pages
+- set `VITE_API_URL` to your Render API origin
 
-Important notes:
+Example:
 
-- your local database at `data/app.db` stays on your computer for local development
-- the live site uses a separate hosted D1 database
-- `/api` stays the same on the frontend, so no production `VITE_API_URL` is needed when Pages Functions and the site are deployed together
-
-### 1. Log in to Cloudflare Wrangler
-
-```bash
-npx wrangler login
+```env
+VITE_API_URL=https://your-api-service.onrender.com
 ```
 
-### 2. Create the live D1 database
+The frontend automatically appends `/api`, so you can use the plain Render origin above.
 
-```bash
-npx wrangler d1 create tech-support-services-db
-```
+### Render backend
 
-Save the database name. You will bind it to the Pages project as `DB`.
+The backend service in [`render.yaml`](./render.yaml) already includes:
 
-### 3. Apply the schema migrations
+- `node server.mjs`
+- persistent disk mounted at `/opt/render/project/src/data`
+- health check at `/api/health`
 
-```bash
-npx wrangler d1 migrations apply tech-support-services-db --remote
-```
+Set these environment variables on the Render API service:
 
-The schema lives in:
+- `OWNER_EMAIL=chegekeith4@gmail.com`
+- `OWNER_USERNAME=owner`
+- `OWNER_FULL_NAME=KCJ Tech Owner`
+- `OWNER_INITIAL_PASSWORD=choose-a-strong-password`
+- `SMTP_HOST=smtp.gmail.com`
+- `SMTP_PORT=587`
+- `SMTP_SECURE=false`
+- `SMTP_USER=...`
+- `SMTP_PASS=...`
+- `SMTP_FROM=...`
+- optional: `RESEND_API_KEY`, `RESEND_FROM_EMAIL`, `RESEND_REPLY_TO`
 
-- [migrations/0001_initial.sql](./migrations/0001_initial.sql)
-- [migrations/0002_password_reset_otps.sql](./migrations/0002_password_reset_otps.sql)
+### Cloudflare Pages frontend
 
-### 4. Create the Cloudflare Pages project from GitHub
+Create a Cloudflare Pages project from this repo with:
 
-In the Cloudflare dashboard:
+- Framework preset: `Vite`
+- Build command: `npm run build`
+- Build output directory: `dist`
 
-1. Go to `Workers & Pages`
-2. Click `Create application`
-3. Choose `Pages`
-4. Connect your GitHub repo: `jmadk/tech-support-services`
-5. Use:
-   - Production branch: `main`
-   - Build command: `npm run build`
-   - Build output directory: `dist`
+Set this environment variable in the Pages project:
 
-### 5. Add the D1 binding and environment variables
+- `VITE_API_URL=https://your-api-service.onrender.com`
 
-In the Pages project settings:
+This repo includes [`public/_redirects`](./public/_redirects) so client-side routes fall back to `index.html` on Cloudflare Pages.
 
-1. Open `Settings` -> `Functions`
-2. Add a D1 binding:
-   - Variable name: `DB`
-   - Database: `tech-support-services-db`
-3. Add an environment variable:
-   - `OWNER_EMAIL=chegekeith4@gmail.com`
-   - `RESEND_API_KEY=your-resend-api-key`
-   - `RESEND_FROM_EMAIL=KCJ Tech <noreply@yourdomain.com>`
-4. Optional:
-   - `RESEND_REPLY_TO=chegekeith4@gmail.com`
-   - `PASSWORD_RESET_CODE_TTL_MINUTES=10`
-   - `PASSWORD_RESET_MAX_ATTEMPTS=5`
-   - `PASSWORD_RESET_COOLDOWN_SECONDS=60`
+### First deploy behavior
 
-Then redeploy the Pages project.
+On first boot, the API will automatically create the owner account if:
 
-### 6. Open the live site
+- `OWNER_INITIAL_PASSWORD` is set
+- no user already exists with `OWNER_EMAIL`
+- no user already uses `OWNER_USERNAME`
 
-Cloudflare will give you a public `*.pages.dev` URL that works on any device.
-
-### Accessing the live database
-
-You can inspect live consultations in two ways.
-
-Cloudflare dashboard:
-
-1. Open `Storage & Databases`
-2. Open your D1 database
-3. Use the query console or table browser
-
-Wrangler terminal:
-
-```bash
-npx wrangler d1 execute tech-support-services-db --remote --command "SELECT * FROM consultations ORDER BY created_at DESC;"
-```
-
-Examples:
-
-```bash
-npx wrangler d1 execute tech-support-services-db --remote --command "SELECT * FROM users ORDER BY created_at DESC;"
-npx wrangler d1 execute tech-support-services-db --remote --command "SELECT * FROM saved_services ORDER BY saved_at DESC;"
-```
-
-### About live email delivery
-
-The Cloudflare deployment now supports OTP-based password reset emails and any future transactional email through Resend.
-
-For the hosted version:
-
-- open `Client Inbox`
-- reply in Gmail using `chegekeith4@gmail.com`
-- contact the client on WhatsApp
-- track status in the dashboard
-- users can request a 6-digit OTP from the forgot-password form and reset their password on the live site
-
-Important:
-
-- the live site will only send OTP emails after `RESEND_API_KEY` and `RESEND_FROM_EMAIL` are configured
-- after pulling these changes, run the D1 migrations again so the `password_reset_otps` table exists
+After the owner account is created once, you can keep the value, rotate it, or remove `OWNER_INITIAL_PASSWORD`. It is only used when the owner account does not already exist.
 
 ## Email setup for local development
 
@@ -140,6 +91,9 @@ To receive consultation alerts and password reset OTP emails locally, create a `
 
 ```env
 OWNER_EMAIL=chegekeith4@gmail.com
+OWNER_USERNAME=owner
+OWNER_FULL_NAME=KCJ Tech Owner
+OWNER_INITIAL_PASSWORD=change-me-before-deploy
 SMTP_HOST=smtp.gmail.com
 SMTP_PORT=587
 SMTP_SECURE=false
@@ -178,8 +132,7 @@ When this is configured:
 
 ## Notes
 
-- Auth, profiles, consultations, and saved services are now stored in SQLite.
+- Auth, profiles, consultations, and saved services are stored in SQLite.
 - The frontend talks to the backend through `/api` requests.
-- If you want a different API URL, set `VITE_API_URL`.
+- If `VITE_API_URL` is set to a host such as `https://your-api.onrender.com`, the frontend will use `https://your-api.onrender.com/api`.
 - The backend uses Node's built-in `node:sqlite`, so use a recent Node 22+ release.
-- The Cloudflare production deployment uses D1 instead of the local `app.db` file.

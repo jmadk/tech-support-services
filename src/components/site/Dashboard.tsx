@@ -573,7 +573,7 @@ const Dashboard: React.FC = () => {
 
                 {ownerInboxError && (
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                    {ownerInboxError} Check that the deployed backend has the correct owner email and D1 binding configured.
+                    {ownerInboxError} Check that the deployed backend has the correct owner email and API configuration.
                   </div>
                 )}
 
