@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, getErrorMessage, type CreateConsultationPayload } from '@/lib/api';
 
 const serviceOptions = [
   'Computer Systems', 'Computer Architecture', 'IT Support & Customer Care',
@@ -52,7 +52,7 @@ const ConsultationForm: React.FC = () => {
     setSubmitError('');
 
     try {
-      const consultationData: any = {
+      const consultationData: CreateConsultationPayload = {
         full_name: form.name,
         email: form.email,
         phone: form.phone,
@@ -63,9 +63,9 @@ const ConsultationForm: React.FC = () => {
 
       await api.createConsultation(consultationData);
       setSubmitted(true);
-    } catch (err: any) {
+    } catch (err: unknown) {
       console.error('Consultation submit error:', err);
-      setSubmitError(err.message || 'Could not send your consultation right now.');
+      setSubmitError(getErrorMessage(err, 'Could not send your consultation right now.'));
     }
 
     setIsSubmitting(false);

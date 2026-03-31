@@ -12,10 +12,101 @@ function resolveApiBaseUrl() {
 const API_BASE_URL = resolveApiBaseUrl();
 const SESSION_STORAGE_KEY = "tech-support-session-token";
 
+export type AuthUser = {
+  id: string;
+  email: string;
+};
+
+export type Profile = {
+  id: string;
+  username: string;
+  full_name: string;
+  phone: string;
+  avatar_url: string;
+  bio: string;
+  company: string;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ConsultationStatus = "pending" | "in_progress" | "completed" | "cancelled";
+export type ConsultationNextPath = "service" | "class";
+export type ConsultationNextPathStatus = "pending" | "test_in_progress" | "test_completed" | "certification_started";
+export type ConsultationOwnerAgreement = "yes" | "no";
+
+export type Consultation = {
+  id: string;
+  user_id: string | null;
+  full_name: string;
+  email: string;
+  phone: string;
+  service: string;
+  message: string;
+  status: ConsultationStatus;
+  next_path: ConsultationNextPath;
+  next_path_status: ConsultationNextPathStatus;
+  owner_agreed: ConsultationOwnerAgreement;
+  created_at: string;
+};
+
+export type SavedService = {
+  id: string;
+  service_title: string;
+  service_category: string;
+  service_description: string;
+  saved_at: string;
+};
+
+export type PasswordResetRequestResponse = {
+  success: boolean;
+  fallback?: boolean;
+  otp?: string;
+  expiresAt?: string;
+};
+
+export type ManualPasswordResetResponse = {
+  success: boolean;
+  email: string;
+  otp: string;
+  expiresAt: string;
+  ttlMinutes: number;
+};
+
+export type CreateConsultationPayload = {
+  full_name: string;
+  email: string;
+  phone: string;
+  service: string;
+  message: string;
+  status?: ConsultationStatus;
+};
+
+export type UpdateConsultationWorkflowPayload = {
+  next_path: ConsultationNextPath;
+  next_path_status: ConsultationNextPathStatus;
+  owner_agreed: ConsultationOwnerAgreement;
+};
+
+export type SaveServicePayload = {
+  service_title: string;
+  service_category: string;
+  service_description: string;
+};
+
+type AuthResponse = {
+  token: string;
+  user: AuthUser;
+  profile: Profile;
+};
+
 type RequestOptions = {
   method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   token?: string | null;
+};
+
+type ApiErrorBody = {
+  error?: string;
 };
 
 export function getSessionToken() {
@@ -28,6 +119,18 @@ export function setSessionToken(token: string | null) {
     return;
   }
   localStorage.setItem(SESSION_STORAGE_KEY, token);
+}
+
+export function getErrorMessage(error: unknown, fallback = "An unexpected error occurred") {
+  if (error instanceof Error && error.message) {
+    return error.message;
+  }
+
+  if (typeof error === "object" && error && "message" in error && typeof error.message === "string") {
+    return error.message;
+  }
+
+  return fallback;
 }
 
 async function request<T>(path: string, options: RequestOptions = {}): Promise<T> {
@@ -51,9 +154,17 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     throw new Error("Could not connect to the API. Make sure the backend is running or deployed correctly.");
   }
 
-  const data = await response.json().catch(() => ({}));
+  const data: unknown = await response.json().catch(() => ({}));
   if (!response.ok) {
-    throw new Error(data.error || "Request failed");
+    const errorMessage =
+      typeof data === "object" &&
+      data !== null &&
+      "error" in data &&
+      typeof (data as ApiErrorBody).error === "string"
+        ? (data as ApiErrorBody).error
+        : "Request failed";
+
+    throw new Error(errorMessage);
   }
 
   return data as T;
@@ -61,19 +172,19 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
 
 export const api = {
   signUp(payload: { email: string; password: string; username: string; fullName: string }) {
-    return request<{ token: string; user: { id: string; email: string }; profile: any }>("/auth/signup", {
+    return request<AuthResponse>("/auth/signup", {
       method: "POST",
       body: payload,
     });
   },
   signIn(payload: { email: string; password: string }) {
-    return request<{ token: string; user: { id: string; email: string }; profile: any }>("/auth/signin", {
+    return request<AuthResponse>("/auth/signin", {
       method: "POST",
       body: payload,
     });
   },
   requestPasswordReset(email: string) {
-    return request<{ success: boolean }>("/auth/password-reset/request", {
+    return request<PasswordResetRequestResponse>("/auth/password-reset/request", {
       method: "POST",
       body: { email },
     });
@@ -88,7 +199,7 @@ export const api = {
     return request<{ success: boolean }>("/auth/signout", { method: "POST" });
   },
   getMe() {
-    return request<{ user: { id: string; email: string }; profile: any }>("/auth/me");
+    return request<{ user: AuthUser; profile: Profile }>("/auth/me");
   },
   updatePassword(password: string) {
     return request<{ success: boolean }>("/auth/password", {
@@ -97,49 +208,46 @@ export const api = {
     });
   },
   updateProfile(updates: Record<string, unknown>) {
-    return request<{ profile: any }>("/profile", {
+    return request<{ profile: Profile }>("/profile", {
       method: "PATCH",
       body: updates,
     });
   },
   getConsultations() {
-    return request<{ consultations: any[] }>("/consultations");
+    return request<{ consultations: Consultation[] }>("/consultations");
   },
   getAdminConsultations() {
-    return request<{ consultations: any[]; ownerEmail: string }>("/admin/consultations");
+    return request<{ consultations: Consultation[]; ownerEmail: string }>("/admin/consultations");
   },
   createManualPasswordReset(email: string) {
-    return request<{ success: boolean; email: string; otp: string; expiresAt: string; ttlMinutes: number }>(
-      "/admin/password-reset-otp",
-      {
-        method: "POST",
-        body: { email },
-      },
-    );
+    return request<ManualPasswordResetResponse>("/admin/password-reset-otp", {
+      method: "POST",
+      body: { email },
+    });
   },
-  createConsultation(payload: Record<string, unknown>) {
-    return request<{ consultation: any }>("/consultations", {
+  createConsultation(payload: CreateConsultationPayload) {
+    return request<{ consultation: Consultation }>("/consultations", {
       method: "POST",
       body: payload,
     });
   },
-  updateConsultationStatus(id: string, status: string) {
-    return request<{ consultation: any }>(`/admin/consultations/${id}/status`, {
+  updateConsultationStatus(id: string, status: ConsultationStatus) {
+    return request<{ consultation: Consultation }>(`/admin/consultations/${id}/status`, {
       method: "PATCH",
       body: { status },
     });
   },
-  updateConsultationWorkflow(id: string, payload: { next_path: "service" | "class"; next_path_status: "pending" | "test_in_progress" | "test_completed" | "certification_started"; owner_agreed: "yes" | "no" }) {
-    return request<{ consultation: any }>(`/admin/consultations/${id}/workflow`, {
+  updateConsultationWorkflow(id: string, payload: UpdateConsultationWorkflowPayload) {
+    return request<{ consultation: Consultation }>(`/admin/consultations/${id}/workflow`, {
       method: "PATCH",
       body: payload,
     });
   },
   getSavedServices() {
-    return request<{ savedServices: any[] }>("/saved-services");
+    return request<{ savedServices: SavedService[] }>("/saved-services");
   },
-  saveService(payload: Record<string, unknown>) {
-    return request<{ savedService: any }>("/saved-services", {
+  saveService(payload: SaveServicePayload) {
+    return request<{ savedService: SavedService }>("/saved-services", {
       method: "POST",
       body: payload,
     });

@@ -1,31 +1,15 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import {
+  api,
+  getErrorMessage,
+  type Consultation,
+  type ConsultationStatus,
+  type SavedService,
+} from '@/lib/api';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 import { OWNER_EMAIL } from '@/lib/site-config';
-
-interface Consultation {
-  id: string;
-  full_name: string;
-  email: string;
-  phone: string;
-  service: string;
-  message: string;
-  status: string;
-  next_path?: 'service' | 'class';
-  next_path_status?: 'pending' | 'test_in_progress' | 'test_completed' | 'certification_started';
-  owner_agreed?: 'yes' | 'no';
-  created_at: string;
-}
-
-interface SavedService {
-  id: string;
-  service_title: string;
-  service_category: string;
-  service_description: string;
-  saved_at: string;
-}
 
 type DashTab = 'overview' | 'consultations' | 'inbox' | 'saved' | 'profile' | 'settings';
 
@@ -251,7 +235,7 @@ const Dashboard: React.FC = () => {
     ]);
 
     if (consResult.status === 'fulfilled') {
-      setConsultations(consResult.value.consultations as Consultation[]);
+      setConsultations(consResult.value.consultations);
     } else {
       console.error('Error fetching consultations:', consResult.reason);
       setConsultations([]);
@@ -259,7 +243,7 @@ const Dashboard: React.FC = () => {
     }
 
     if (savedResult.status === 'fulfilled') {
-      setSavedServices(savedResult.value.savedServices as SavedService[]);
+      setSavedServices(savedResult.value.savedServices);
     } else {
       console.error('Error fetching saved services:', savedResult.reason);
       setSavedServices([]);
@@ -267,7 +251,7 @@ const Dashboard: React.FC = () => {
     }
 
     if (ownerResult.status === 'fulfilled') {
-      setOwnerConsultations(ownerResult.value?.consultations ? (ownerResult.value.consultations as Consultation[]) : []);
+      setOwnerConsultations(ownerResult.value?.consultations || []);
     } else if (isOwner) {
       console.error('Error fetching owner consultations:', ownerResult.reason);
       setOwnerConsultations([]);
@@ -323,8 +307,8 @@ const Dashboard: React.FC = () => {
         setConfirmNewPassword('');
         setTimeout(() => setPasswordSuccess(false), 3000);
       }
-    } catch (err: any) {
-      setPasswordError(err.message || 'Error changing password');
+    } catch (err: unknown) {
+      setPasswordError(getErrorMessage(err, 'Error changing password'));
     }
     setChangingPassword(false);
   };
@@ -338,12 +322,12 @@ const Dashboard: React.FC = () => {
     }
   };
 
-  const handleConsultationStatusChange = async (id: string, status: string) => {
+  const handleConsultationStatusChange = async (id: string, status: ConsultationStatus) => {
     setStatusUpdatingId(id);
     try {
       const { consultation } = await api.updateConsultationStatus(id, status);
-      setOwnerConsultations(prev => prev.map(item => (item.id === id ? consultation as Consultation : item)));
-      setConsultations(prev => prev.map(item => (item.id === id ? consultation as Consultation : item)));
+      setOwnerConsultations(prev => prev.map(item => (item.id === id ? consultation : item)));
+      setConsultations(prev => prev.map(item => (item.id === id ? consultation : item)));
     } catch (err) {
       console.error('Error updating consultation status:', err);
     }
@@ -425,8 +409,8 @@ const Dashboard: React.FC = () => {
       setManualResetEmail(result.email);
       setManualResetCode(result.otp);
       setManualResetExpiresAt(result.expiresAt);
-    } catch (err: any) {
-      setManualResetError(err.message || 'Could not generate a manual reset code.');
+    } catch (err: unknown) {
+      setManualResetError(getErrorMessage(err, 'Could not generate a manual reset code.'));
     } finally {
       setManualResetGenerating(false);
     }

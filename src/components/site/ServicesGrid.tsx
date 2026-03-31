@@ -312,7 +312,7 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
     if (!user) { setSavedTitles(new Set()); return; }
     const loadSaved = async () => {
       const { savedServices } = await api.getSavedServices();
-      setSavedTitles(new Set(savedServices.map((d: any) => d.service_title)));
+      setSavedTitles(new Set(savedServices.map(savedService => savedService.service_title)));
     };
     loadSaved();
   }, [user]);
@@ -323,7 +323,7 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
     setSavingId(service.id);
     if (savedTitles.has(service.title)) {
       const { savedServices } = await api.getSavedServices();
-      const existing = savedServices.find((item: any) => item.service_title === service.title);
+      const existing = savedServices.find(savedService => savedService.service_title === service.title);
       if (existing) {
         await api.deleteSavedService(existing.id);
       }

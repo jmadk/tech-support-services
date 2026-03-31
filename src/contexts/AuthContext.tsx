@@ -1,22 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { api, getSessionToken, setSessionToken } from '@/lib/api';
-
-interface Profile {
-  id: string;
-  username: string;
-  full_name: string;
-  phone: string;
-  avatar_url: string;
-  bio: string;
-  company: string;
-  created_at: string;
-  updated_at: string;
-}
-
-interface AuthUser {
-  id: string;
-  email: string;
-}
+import { api, getErrorMessage, getSessionToken, setSessionToken, type AuthUser, type Profile } from '@/lib/api';
 
 interface AuthContextType {
   user: AuthUser | null;
@@ -53,7 +36,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const data = await api.getMe();
       setUser(data.user);
-      setProfile(data.profile as Profile);
+      setProfile(data.profile);
     } catch (err) {
       console.error('Profile fetch error:', err);
       setSessionToken(null);
@@ -91,10 +74,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setSessionToken(data.token);
       setUser(data.user);
-      setProfile(data.profile as Profile);
+      setProfile(data.profile);
       return { error: null };
-    } catch (err: any) {
-      return { error: err.message || 'An unexpected error occurred' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
     }
   };
 
@@ -106,10 +89,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       });
       setSessionToken(data.token);
       setUser(data.user);
-      setProfile(data.profile as Profile);
+      setProfile(data.profile);
       return { error: null };
-    } catch (err: any) {
-      return { error: err.message || 'An unexpected error occurred' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
     }
   };
 
@@ -128,10 +111,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!user) return { error: 'Not authenticated' };
     try {
       const data = await api.updateProfile(updates);
-      setProfile(data.profile as Profile);
+      setProfile(data.profile);
       return { error: null };
-    } catch (err: any) {
-      return { error: err.message || 'An unexpected error occurred' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
     }
   };
 
@@ -140,8 +123,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       await api.updatePassword(password);
       return { error: null };
-    } catch (err: any) {
-      return { error: err.message || 'An unexpected error occurred' };
+    } catch (err: unknown) {
+      return { error: getErrorMessage(err) };
     }
   };
 

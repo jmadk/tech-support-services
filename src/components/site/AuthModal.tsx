@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, getErrorMessage } from '@/lib/api';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -156,8 +156,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       setTimeout(() => {
         switchView('login');
       }, 1800);
-    } catch (err: any) {
-      setServerError(err.message || 'An unexpected error occurred');
+    } catch (err: unknown) {
+      setServerError(getErrorMessage(err));
     } finally {
       setIsSubmitting(false);
     }
