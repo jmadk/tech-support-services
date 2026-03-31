@@ -1556,19 +1556,6 @@ const Lesson: React.FC = () => {
                 ))}
               </div>
             </div>
-              </div>
-            </div>
-
-            <div className="mb-8 rounded-2xl border border-lime-400/20 bg-lime-500/10 p-5">
-              <h3 className="text-lg font-semibold text-lime-200 mb-4">Short Test Preparation</h3>
-              <div className="space-y-2">
-                {courseData.shortTestTips.map((tip, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {tip}
-                  </p>
-                ))}
-              </div>
-            </div>
 
             <div className="flex gap-3">
               <button
