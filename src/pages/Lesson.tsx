@@ -1390,169 +1390,211 @@ const Lesson: React.FC = () => {
             {/* COURSE CONTENT - List all sessions like notes */}
             <div className="mb-8 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-6">
               <h3 className="text-xl font-bold text-violet-200 mb-4">COURSE CONTENT</h3>
-              <div className="space-y-2">
+              <div className="space-y-3">
                 {sessionLabels.map((label, idx) => (
-                  <p key={idx} className="text-sm text-slate-200">
-                    {idx + 1}. {label}
-                  </p>
+                  <div key={idx} className="border-l-2 border-violet-400/30 pl-4">
+                    <p className="text-sm font-semibold text-violet-100">{idx + 1}. {label}</p>
+                  </div>
                 ))}
               </div>
             </div>
 
             {/* TOPIC HEADING WITH NUMBER */}
             <div className="mb-8 rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-6">
-              <p className="text-xs uppercase tracking-[0.25em] text-cyan-300 mb-3">
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-300 mb-3 font-bold">
                 TOPIC {chapterNumber}{sessionLabels.length ? ` OF ${sessionLabels.length}` : ''}
               </p>
-              <h3 className="text-3xl font-bold text-white">{courseData.title}</h3>
-            </div>
-
-            {/* STRUCTURED NOTES SECTIONS */}
-            <div className="space-y-6 mb-8">
-              {/* Definition Section */}
-              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
-                <h4 className="text-lg font-bold text-cyan-300 mb-4">Definition of {courseData.title.toLowerCase()}</h4>
-                <div className="space-y-2">
-                  {courseData.notes.slice(0, Math.ceil(courseData.notes.length / 4)).map((note, idx) => (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
-                  ))}
-                </div>
-              </div>
-
-              {/* Characteristics Section */}
-              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
-                <h4 className="text-lg font-bold text-cyan-300 mb-4">Characteristics of {courseData.title.toLowerCase()}</h4>
-                <div className="space-y-2">
-                  {courseData.notes.slice(Math.ceil(courseData.notes.length / 4), Math.ceil(courseData.notes.length / 2)).map((note, idx) => (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
-                  ))}
-                </div>
-              </div>
-
-              {/* Functions Section */}
-              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
-                <h4 className="text-lg font-bold text-cyan-300 mb-4">Functions of {courseData.title.toLowerCase()}</h4>
-                <div className="space-y-2">
-                  {courseData.notes.slice(Math.ceil(courseData.notes.length / 2), Math.ceil((courseData.notes.length * 3) / 4)).map((note, idx) => (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
-                  ))}
-                </div>
-              </div>
-
-              {/* Types/Applications Section */}
-              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
-                <h4 className="text-lg font-bold text-cyan-300 mb-4">Types and Applications of {courseData.title.toLowerCase()}</h4>
-                <div className="space-y-2">
-                  {courseData.notes.slice(Math.ceil((courseData.notes.length * 3) / 4)).map((note, idx) => (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
-                  ))}
-                </div>
+              <h3 className="text-3xl font-bold text-white mb-3">{courseData.title}</h3>
+              <div className="border-t border-cyan-400/20 pt-4">
+                <p className="text-sm text-slate-300 italic">
+                  This session is structured in academic detail: Definition, Characteristics, Functions, Types/Applications, 
+                  Learning Objectives, Detailed Content Analysis, Concepts, Practice Work, Background Resources, 
+                  Worked Examples, Summary Points, and Assessment Preparation.
+                </p>
               </div>
             </div>
 
-            {/* DETAILED SECTIONS FROM CURRICULUM */}
-            <div className="mb-8 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6">
-              <h3 className="text-lg font-bold text-emerald-200 mb-4">Learning Objectives</h3>
-              <div className="space-y-2">
-                {courseData.learningObjectives.map((objective, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {objective}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            {/* Topic Sections with Subtopics */}
-            <div className="space-y-6 mb-8">
-              {courseData.sections.map((section, sectionIdx) => (
-                <div key={sectionIdx} className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-6">
-                  <h3 className="text-lg font-semibold text-blue-300 mb-4">{section.title}</h3>
-                  <div className="space-y-3">
-                    {section.subtopics.map((subtopic, subtopicIdx) => (
-                      <div key={subtopicIdx} className="rounded-lg border border-blue-400/10 bg-[#13233b] p-4">
-                        <h4 className="text-sm font-bold uppercase text-blue-200 mb-2">{subtopic.title}</h4>
-                        <div className="space-y-1">
-                          {subtopic.content.map((item, itemIdx) => (
-                            <p key={itemIdx} className="text-xs leading-relaxed text-slate-200">
-                              • {item}
-                            </p>
-                          ))}
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-
-            {/* Key Terms */}
-            <div className="mb-8 rounded-xl border border-violet-400/30 bg-violet-500/10 p-6">
-              <h3 className="text-lg font-bold text-violet-200 mb-4">Key Terms and Concepts</h3>
-              <div className="flex flex-wrap gap-2">
-                {courseData.keyTerms.map((term, idx) => (
-                  <span key={idx} className="rounded-full border border-violet-300/30 bg-[#13233b] px-3 py-1 text-xs text-violet-100">
-                    {term}
-                  </span>
-                ))}
-              </div>
-            </div>
-
-            {/* Practice Work / Lab */}
-            <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/10 p-6">
-              <h3 className="text-lg font-bold text-amber-200 mb-4">Practice Work (Lab/Activity)</h3>
-              <div className="space-y-2">
-                {courseData.practiceTasks.map((task, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {task}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            {/* Background Reading */}
-            <div className="mb-8 rounded-xl border border-sky-400/30 bg-sky-500/10 p-6">
-              <h3 className="text-lg font-bold text-sky-200 mb-4">Background Reading and Resources</h3>
-              <div className="space-y-2">
-                {courseData.background.map((item, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {item}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            {/* Worked Example */}
-            <div className="mb-8 rounded-xl border border-rose-400/30 bg-rose-500/10 p-6">
-              <h3 className="text-lg font-bold text-rose-200 mb-4">Worked Example</h3>
-              <div className="space-y-2">
-                {courseData.workedExample.map((item, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {item}
-                  </p>
-                ))}
-              </div>
-            </div>
-
-            {/* Summary Points */}
+            {/* 1. DEFINITION SECTION - COMPLEX */}
             <div className="mb-8 rounded-xl border border-blue-400/30 bg-blue-500/10 p-6">
-              <h3 className="text-lg font-bold text-blue-200 mb-4">Session Summary</h3>
-              <div className="space-y-2">
-                {courseData.summaryPoints.map((point, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {point}
-                  </p>
+              <h4 className="text-xl font-bold text-blue-300 mb-4">1. DEFINITION OF {courseData.title.toUpperCase()}</h4>
+              <div className="space-y-4">
+                {courseData.notes.slice(0, Math.ceil(courseData.notes.length / 5)).map((note, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-blue-400/50">
+                    <p className="text-sm leading-relaxed text-slate-100">{note}</p>
+                  </div>
                 ))}
               </div>
             </div>
 
-            {/* Short Test Tips */}
+            {/* 2. CHARACTERISTICS SECTION - COMPLEX */}
+            <div className="mb-8 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-6">
+              <h4 className="text-xl font-bold text-emerald-300 mb-4">2. CHARACTERISTICS OF {courseData.title.toUpperCase()}</h4>
+              <div className="space-y-3">
+                {courseData.notes.slice(Math.ceil(courseData.notes.length / 5), Math.ceil((courseData.notes.length * 2) / 5)).map((note, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-emerald-400/50">
+                    <span className="font-bold text-emerald-300">{idx + 1}.</span>
+                    <p className="text-sm leading-relaxed text-slate-100 ml-4 -mt-5">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 3. FUNCTIONS SECTION - COMPLEX */}
+            <div className="mb-8 rounded-xl border border-rose-400/30 bg-rose-500/10 p-6">
+              <h4 className="text-xl font-bold text-rose-300 mb-4">3. FUNCTIONS OF {courseData.title.toUpperCase()}</h4>
+              <div className="space-y-3">
+                {courseData.notes.slice(Math.ceil((courseData.notes.length * 2) / 5), Math.ceil((courseData.notes.length * 3) / 5)).map((note, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-rose-400/50">
+                    <span className="font-bold text-rose-300">{idx + 1}.</span>
+                    <p className="text-sm leading-relaxed text-slate-100 ml-4 -mt-5">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 4. TYPES & APPLICATIONS SECTION - COMPLEX */}
+            <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/10 p-6">
+              <h4 className="text-xl font-bold text-amber-300 mb-4">4. TYPES AND APPLICATIONS OF {courseData.title.toUpperCase()}</h4>
+              <div className="space-y-3">
+                {courseData.notes.slice(Math.ceil((courseData.notes.length * 3) / 5), Math.ceil((courseData.notes.length * 4) / 5)).map((note, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-amber-400/50">
+                    <span className="font-bold text-amber-300">{idx + 1}.</span>
+                    <p className="text-sm leading-relaxed text-slate-100 ml-4 -mt-5">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 5. ADVANCED TOPICS SECTION */}
+            <div className="mb-8 rounded-xl border border-indigo-400/30 bg-indigo-500/10 p-6">
+              <h4 className="text-xl font-bold text-indigo-300 mb-4">5. ADVANCED TOPICS AND APPLICATIONS</h4>
+              <div className="space-y-3">
+                {courseData.notes.slice(Math.ceil((courseData.notes.length * 4) / 5)).map((note, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-indigo-400/50">
+                    <span className="font-bold text-indigo-300">{idx + 1}.</span>
+                    <p className="text-sm leading-relaxed text-slate-100 ml-4 -mt-5">{note}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 6. LEARNING OBJECTIVES - DETAILED */}
+            <div className="mb-8 rounded-xl border border-emerald-400/30 bg-emerald-500/10 p-6">
+              <h4 className="text-xl font-bold text-emerald-300 mb-4">6. LEARNING OBJECTIVES AND OUTCOMES</h4>
+              <div className="space-y-3">
+                {courseData.learningObjectives.map((objective, idx) => (
+                  <div key={idx} className="bg-[#13233b] rounded-lg p-4 border-l-4 border-emerald-400/50">
+                    <p className="text-sm leading-relaxed text-slate-100">
+                      <span className="font-bold text-emerald-300">Objective {idx + 1}:</span> {objective}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 7. DETAILED CONTENT SECTIONS & SUBTOPICS */}
+            <div className="mb-8">
+              <h4 className="text-xl font-bold text-cyan-300 mb-4">7. DETAILED CONTENT ANALYSIS AND SUBTOPICS</h4>
+              <div className="space-y-4">
+                {courseData.sections.map((section, sectionIdx) => (
+                  <div key={sectionIdx} className="rounded-xl border border-cyan-400/30 bg-cyan-500/10 p-6">
+                    <h5 className="text-lg font-semibold text-cyan-200 mb-4">Section {sectionIdx + 1}: {section.title}</h5>
+                    <div className="space-y-3">
+                      {section.subtopics.map((subtopic, subtopicIdx) => (
+                        <div key={subtopicIdx} className="rounded-lg border border-cyan-400/20 bg-[#13233b] p-4">
+                          <h6 className="text-sm font-bold text-cyan-300 mb-3 uppercase">Subtopic {subtopicIdx + 1}: {subtopic.title}</h6>
+                          <div className="space-y-2 ml-4">
+                            {subtopic.content.map((item, itemIdx) => (
+                              <div key={itemIdx} className="text-xs leading-relaxed text-slate-200">
+                                <span className="font-semibold text-cyan-200">{String.fromCharCode(97 + itemIdx)})</span> {item}
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 8. KEY CONCEPTS & TERMINOLOGY */}
+            <div className="mb-8 rounded-xl border border-violet-400/30 bg-violet-500/10 p-6">
+              <h4 className="text-xl font-bold text-violet-300 mb-4">8. KEY CONCEPTS AND TERMINOLOGY</h4>
+              <div className="grid gap-4 grid-cols-1 md:grid-cols-2">
+                {courseData.keyTerms.map((term, idx) => (
+                  <div key={idx} className="rounded-lg border border-violet-400/20 bg-[#13233b] p-4">
+                    <span className="font-bold text-violet-300 text-sm">{idx + 1}. {term}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 9. PRACTICE WORK & LAB ACTIVITIES */}
+            <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/10 p-6">
+              <h4 className="text-xl font-bold text-amber-300 mb-4">9. PRACTICE WORK AND LAB ACTIVITIES</h4>
+              <div className="space-y-3">
+                {courseData.practiceTasks.map((task, idx) => (
+                  <div key={idx} className="rounded-lg border border-amber-400/20 bg-[#13233b] p-4">
+                    <p className="text-sm leading-relaxed text-slate-100">
+                      <span className="font-bold text-amber-300">Activity {idx + 1}:</span> {task}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 10. BACKGROUND READING & RESOURCES */}
+            <div className="mb-8 rounded-xl border border-sky-400/30 bg-sky-500/10 p-6">
+              <h4 className="text-xl font-bold text-sky-300 mb-4">10. BACKGROUND READING AND RECOMMENDED RESOURCES</h4>
+              <div className="space-y-3">
+                {courseData.background.map((item, idx) => (
+                  <div key={idx} className="rounded-lg border border-sky-400/20 bg-[#13233b] p-4">
+                    <p className="text-sm leading-relaxed text-slate-100">
+                      <span className="font-bold text-sky-300">Resource {idx + 1}:</span> {item}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 11. WORKED EXAMPLES & CASE STUDIES */}
+            <div className="mb-8 rounded-xl border border-rose-400/30 bg-rose-500/10 p-6">
+              <h4 className="text-xl font-bold text-rose-300 mb-4">11. WORKED EXAMPLES AND CASE STUDIES</h4>
+              <div className="space-y-3">
+                {courseData.workedExample.map((item, idx) => (
+                  <div key={idx} className="rounded-lg border border-rose-400/20 bg-[#13233b] p-4">
+                    <p className="text-sm leading-relaxed text-slate-100">
+                      <span className="font-bold text-rose-300">Example {idx + 1}:</span> {item}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 12. SESSION SUMMARY & KEY POINTS */}
+            <div className="mb-8 rounded-xl border border-blue-400/30 bg-blue-500/10 p-6">
+              <h4 className="text-xl font-bold text-blue-300 mb-4">12. SESSION SUMMARY AND KEY TAKEAWAYS</h4>
+              <div className="space-y-3">
+                {courseData.summaryPoints.map((point, idx) => (
+                  <div key={idx} className="rounded-lg border border-blue-400/20 bg-[#13233b] p-4 flex gap-3">
+                    <span className="font-bold text-blue-300 flex-shrink-0">✓</span>
+                    <p className="text-sm leading-relaxed text-slate-100">{point}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            {/* 13. ASSESSMENT PREPARATION & TEST TIPS */}
             <div className="mb-8 rounded-xl border border-orange-400/30 bg-orange-500/10 p-6">
-              <h3 className="text-lg font-bold text-orange-200 mb-4">Tips for Assessment</h3>
-              <div className="space-y-2">
+              <h4 className="text-xl font-bold text-orange-300 mb-4">13. ASSESSMENT PREPARATION AND STUDY TIPS</h4>
+              <div className="space-y-3">
                 {courseData.shortTestTips.map((tip, idx) => (
-                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                    {idx + 1}. {tip}
-                  </p>
+                  <div key={idx} className="rounded-lg border border-orange-400/20 bg-[#13233b] p-4">
+                    <p className="text-sm leading-relaxed text-slate-100">
+                      <span className="font-bold text-orange-300">Tip {idx + 1}:</span> {tip}
+                    </p>
+                  </div>
                 ))}
               </div>
             </div>
