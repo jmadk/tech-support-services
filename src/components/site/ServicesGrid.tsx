@@ -172,10 +172,136 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
   const [serviceCertificationStarted, setServiceCertificationStarted] = useState<Record<number, boolean>>({});
 
   const certificationCatalog: Record<string, {sessions: string[]}> = {
-    'Database Systems': { sessions: ['Introduction to Databases (1h)', 'Data Modeling & ERD (1h 30m)', 'SQL Basics & Advanced Queries (1h 30m)'] },
-    'Data Communications & Networks': { sessions: ['Networking Fundamentals (1h)', 'TCP/IP & OSI Models (1h 30m)', 'Routing & Switching (1h 30m)'] },
-    'Distributed Systems': { sessions: ['Distributed System Concepts (1h)', 'Consensus & Fault Tolerance (1h 30m)', 'Microservices Architecture (1h)'] },
+    'Database Systems': {
+      sessions: [
+        'Introduction to Databases (1h)',
+        'Data Modeling & ERD (1h 30m)',
+        'SQL Basics & Advanced Queries (1h 30m)',
+        'Database Design Principles (1h)',
+        'Indexing & Optimization (1h)',
+        'Transactions & Concurrency (1h)',
+        'Stored Procedures & Views (1h)',
+        'Database Security & Access Control (1h)',
+        'Distributed Databases & Replication (1h 30m)',
+        'Backup & Recovery (1h)',
+        'Database Administration & Monitoring (1h)',
+      ],
+    },
+    'Data Communications & Networks': {
+      sessions: [
+        'Networking Fundamentals (1h)',
+        'TCP/IP & OSI Models (1h 30m)',
+        'Routing & Switching (1h 30m)',
+        'IP Addressing & Subnetting (1h 30m)',
+        'Network Devices & Media (1h)',
+        'Network Security (1h)',
+        'Wireless & WAN Technologies (1h 30m)',
+        'Network Services & Protocols (1h)',
+        'Network Management & Troubleshooting (1h 30m)',
+        'Network Design Project (1h)',
+      ],
+    },
+    'Distributed Systems': {
+      sessions: [
+        'Distributed System Concepts (1h)',
+        'Consensus & Fault Tolerance (1h 30m)',
+        'Microservices Architecture (1h)',
+        'Scalability & Load Balancing (1h 30m)',
+        'Distributed Communication Patterns (1h)',
+        'Distributed Data Management (1h 30m)',
+        'Cloud Infrastructure Basics (1h)',
+        'Containerization & Orchestration (1h 30m)',
+        'Observability & Monitoring (1h)',
+        'Distributed Systems Capstone (1h)',
+      ],
+    },
+    'Data Structures & Algorithms': {
+      sessions: [
+        'Introduction to Data Structures (1h)',
+        'Arrays & Linked Lists (1h 30m)',
+        'Stacks & Queues (1h)',
+        'Trees & Binary Search Trees (1h 30m)',
+        'Heaps & Priority Queues (1h)',
+        'Hash Tables & Dictionaries (1h)',
+        'Algorithm Analysis & Big O (1h 30m)',
+        'Searching & Sorting Techniques (1h 30m)',
+        'Recursion & Divide and Conquer (1h)',
+        'Graph Algorithms Fundamentals (1h 30m)',
+      ],
+    },
+    'Operating Systems': {
+      sessions: [
+        'Introduction to Operating Systems (1h)',
+        'Processes & Threads (1h 30m)',
+        'CPU Scheduling (1h)',
+        'Process Synchronization (1h 30m)',
+        'Deadlocks & Resource Allocation (1h)',
+        'Memory Management (1h 30m)',
+        'Virtual Memory (1h)',
+        'File Systems & Storage (1h 30m)',
+        'Device Management & I/O (1h)',
+        'OS Security & Protection (1h)',
+      ],
+    },
+    'Software Engineering': {
+      sessions: [
+        'Introduction to Software Engineering (1h)',
+        'Software Development Life Cycle (1h 30m)',
+        'Requirements Engineering (1h 30m)',
+        'Software Design & Architecture (1h 30m)',
+        'Agile & Project Management (1h)',
+        'Version Control & Collaboration (1h)',
+        'Software Testing Fundamentals (1h 30m)',
+        'Software Quality Assurance (1h)',
+        'Maintenance & Evolution (1h)',
+        'Software Engineering Capstone (1h)',
+      ],
+    },
+    'Web Development': {
+      sessions: [
+        'Introduction to Web Development (1h)',
+        'HTML & Semantic Structure (1h)',
+        'CSS Layout & Responsive Design (1h 30m)',
+        'JavaScript Fundamentals (1h 30m)',
+        'Frontend Framework Concepts (1h)',
+        'Backend Development Basics (1h 30m)',
+        'Web Databases & Persistence (1h)',
+        'Authentication & Authorization (1h)',
+        'Deployment & Hosting (1h)',
+        'Web Development Capstone (1h)',
+      ],
+    },
+    'Computer Security': {
+      sessions: [
+        'Introduction to Computer Security (1h)',
+        'Cryptography Fundamentals (1h 30m)',
+        'Authentication & Access Control (1h)',
+        'Network Security Principles (1h 30m)',
+        'Web Application Security (1h 30m)',
+        'System Hardening & Endpoint Security (1h)',
+        'Security Monitoring & Incident Response (1h 30m)',
+        'Digital Forensics Basics (1h)',
+        'Security Policy, Risk & Governance (1h)',
+        'Computer Security Capstone (1h)',
+      ],
+    },
   };
+
+  const buildGenericTrackSessions = (courseTitle: string) => [
+    `Introduction to ${courseTitle} (1h)`,
+    `${courseTitle} Foundations (1h 30m)`,
+    `${courseTitle} Core Components (1h 30m)`,
+    `${courseTitle} Design & Architecture (1h 30m)`,
+    `${courseTitle} Methods & Techniques (1h)`,
+    `${courseTitle} Implementation Practice (1h 30m)`,
+    `${courseTitle} Analysis & Troubleshooting (1h)`,
+    `${courseTitle} Security & Best Practices (1h)`,
+    `${courseTitle} Applications & Case Studies (1h 30m)`,
+    `${courseTitle} Capstone Review (1h)`,
+  ];
+
+  const getTrackSessions = (courseTitle: string) =>
+    certificationCatalog[courseTitle]?.sessions || buildGenericTrackSessions(courseTitle);
 
   // Load saved services for the user
   useEffect(() => {
@@ -229,7 +355,7 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
     setServiceCertificationStarted(prev => ({ ...prev, [serviceId]: true }));
 
     const selectedCourse = serviceTitle;
-    const selectedSession = certificationCatalog[serviceTitle]?.sessions?.[0] || 'Introduction';
+    const selectedSession = getTrackSessions(serviceTitle)[0] || `Introduction to ${serviceTitle} (1h)`;
 
     // Store the selection for Lesson page
     sessionStorage.setItem(`lesson_service_${serviceId}`, JSON.stringify({ course: selectedCourse, session: selectedSession }));
