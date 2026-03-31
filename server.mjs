@@ -50,9 +50,6 @@ const dbPath = join(dataDir, "app.db");
 const port = Number(process.env.PORT || process.env.API_PORT || 3001);
 const sessionTtlDays = 30;
 const ownerEmail = (process.env.OWNER_EMAIL || "chegekeith4@gmail.com").trim().toLowerCase();
-const ownerUsername = (process.env.OWNER_USERNAME || "owner").trim();
-const ownerFullName = (process.env.OWNER_FULL_NAME || "Owner").trim();
-const ownerInitialPassword = process.env.OWNER_INITIAL_PASSWORD || "";
 const passwordResetTtlMinutes = Number(process.env.PASSWORD_RESET_CODE_TTL_MINUTES || 10);
 const passwordResetMaxAttempts = Number(process.env.PASSWORD_RESET_MAX_ATTEMPTS || 5);
 const passwordResetCooldownSeconds = Number(process.env.PASSWORD_RESET_COOLDOWN_SECONDS || 60);
@@ -152,51 +149,6 @@ db.exec(`
   );
 `);
 
-function getTableColumns(tableName) {
-  return db.prepare(`PRAGMA table_info(${tableName})`).all().map((column) => column.name);
-}
-
-function ensureSchema() {
-  db.exec(`
-    CREATE TABLE IF NOT EXISTS password_reset_otps (
-      id TEXT PRIMARY KEY,
-      user_id TEXT NOT NULL,
-      email TEXT NOT NULL,
-      otp_hash TEXT NOT NULL,
-      otp_salt TEXT NOT NULL,
-      attempt_count INTEGER NOT NULL DEFAULT 0,
-      expires_at TEXT NOT NULL,
-      created_at TEXT NOT NULL,
-      used_at TEXT,
-      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
-    );
-
-    CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
-    CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
-    CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
-    CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON consultations(user_id);
-    CREATE INDEX IF NOT EXISTS idx_consultations_created_at ON consultations(created_at);
-    CREATE INDEX IF NOT EXISTS idx_saved_services_user_id ON saved_services(user_id);
-    CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at);
-    CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
-    CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at);
-  `);
-
-  const consultationColumns = new Set(getTableColumns("consultations"));
-  if (!consultationColumns.has("next_path")) {
-    db.exec("ALTER TABLE consultations ADD COLUMN next_path TEXT NOT NULL DEFAULT 'service';");
-  }
-  if (!consultationColumns.has("next_path_status")) {
-    db.exec("ALTER TABLE consultations ADD COLUMN next_path_status TEXT NOT NULL DEFAULT 'pending';");
-  }
-  if (!consultationColumns.has("owner_agreed")) {
-    db.exec("ALTER TABLE consultations ADD COLUMN owner_agreed TEXT NOT NULL DEFAULT 'no';");
-  }
-}
-
-ensureSchema();
-
 const statements = {
   createUser: db.prepare(`
     INSERT INTO users (
@@ -252,34 +204,28 @@ const statements = {
   deleteSessionsByUser: db.prepare(`DELETE FROM sessions WHERE user_id = ?`),
   cleanupExpiredSessions: db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`),
   insertConsultation: db.prepare(`
-    INSERT INTO consultations (
-      id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, created_at)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   listConsultationsByUser: db.prepare(`
-    SELECT id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, full_name, email, phone, service, message, status, created_at
     FROM consultations
     WHERE user_id = ?
     ORDER BY datetime(created_at) DESC
   `),
   listAllConsultations: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, user_id, full_name, email, phone, service, message, status, created_at
     FROM consultations
     ORDER BY datetime(created_at) DESC
   `),
   getConsultationById: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, user_id, full_name, email, phone, service, message, status, created_at
     FROM consultations
     WHERE id = ?
   `),
   updateConsultationStatus: db.prepare(`
     UPDATE consultations
     SET status = ?
-    WHERE id = ?
-  `),
-  updateConsultationWorkflow: db.prepare(`
-    UPDATE consultations
-    SET next_path = ?, next_path_status = ?, owner_agreed = ?
     WHERE id = ?
   `),
   listSavedServicesByUser: db.prepare(`
@@ -338,8 +284,6 @@ const statements = {
     WHERE used_at IS NOT NULL OR expires_at <= ?
   `),
 };
-
-seedOwnerAccount();
 
 function nowIso() {
   return new Date().toISOString();
@@ -538,39 +482,6 @@ function sanitizeUser(row) {
     created_at: row.created_at,
     updated_at: row.updated_at,
   };
-}
-
-function seedOwnerAccount() {
-  if (!ownerInitialPassword) {
-    console.log("Owner bootstrap skipped: OWNER_INITIAL_PASSWORD is not set.");
-    return;
-  }
-
-  const existingOwner = statements.findUserByEmail.get(ownerEmail);
-  if (existingOwner) {
-    console.log(`Owner account already exists for ${ownerEmail}.`);
-    return;
-  }
-
-  const usernameTaken = statements.findUserByUsername.get(ownerUsername);
-  if (usernameTaken) {
-    console.warn(
-      `Owner bootstrap skipped: username \"${ownerUsername}\" is already in use. Set OWNER_USERNAME to a different value.`,
-    );
-    return;
-  }
-
-  const createdAt = nowIso();
-  statements.createUser.run(
-    createId(),
-    ownerEmail,
-    hashPassword(ownerInitialPassword),
-    ownerUsername,
-    ownerFullName,
-    createdAt,
-    createdAt,
-  );
-  console.log(`Seeded owner account for ${ownerEmail} with username "${ownerUsername}".`);
 }
 
 function isOwner(user) {
@@ -1102,9 +1013,6 @@ async function handleConsultationCreate(req, res) {
     service,
     message,
     status,
-    next_path: "service",
-    next_path_status: "pending",
-    owner_agreed: "no",
     created_at: createdAt,
   };
 
@@ -1117,9 +1025,6 @@ async function handleConsultationCreate(req, res) {
     consultation.service,
     consultation.message,
     consultation.status,
-    consultation.next_path,
-    consultation.next_path_status,
-    consultation.owner_agreed,
     consultation.created_at,
   );
 
@@ -1162,43 +1067,6 @@ async function handleConsultationStatusUpdate(req, res, id) {
   statements.updateConsultationStatus.run(status, id);
   const consultation = statements.getConsultationById.get(id);
 
-  if (!consultation) {
-    return json(res, 404, { error: "Consultation not found." });
-  }
-
-  return json(res, 200, { consultation });
-}
-
-async function handleConsultationWorkflowUpdate(req, res, id) {
-  const session = requireOwner(req, res);
-  if (!session) return;
-
-  const body = await readBody(req);
-  const nextPath = String(body.next_path || "service").trim();
-  const nextPathStatus = String(body.next_path_status || "pending").trim();
-  const ownerAgreed = body.owner_agreed === true || body.owner_agreed === "yes" ? "yes" : "no";
-  const allowedNextPath = new Set(["service", "class"]);
-  const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started"]);
-
-  if (!allowedNextPath.has(nextPath)) {
-    return json(res, 400, { error: "Invalid next path." });
-  }
-
-  if (!allowedNextPathStatus.has(nextPathStatus)) {
-    return json(res, 400, { error: "Invalid next path status." });
-  }
-
-  statements.updateConsultationWorkflow.run(nextPath, nextPathStatus, ownerAgreed, id);
-
-  const statusMap = {
-    pending: "pending",
-    test_in_progress: "in_progress",
-    test_completed: "completed",
-    certification_started: "completed",
-  };
-  statements.updateConsultationStatus.run(statusMap[nextPathStatus] || "pending", id);
-
-  const consultation = statements.getConsultationById.get(id);
   if (!consultation) {
     return json(res, 404, { error: "Consultation not found." });
   }
@@ -1296,14 +1164,6 @@ const server = createServer(async (req, res) => {
     ) {
       const id = pathname.replace("/api/admin/consultations/", "").replace("/status", "").replace(/\//g, "");
       return await handleConsultationStatusUpdate(req, res, id);
-    }
-    if (
-      req.method === "PATCH" &&
-      pathname.startsWith("/api/admin/consultations/") &&
-      pathname.endsWith("/workflow")
-    ) {
-      const id = pathname.replace("/api/admin/consultations/", "").replace("/workflow", "").replace(/\//g, "");
-      return await handleConsultationWorkflowUpdate(req, res, id);
     }
     if (req.method === "GET" && pathname === "/api/saved-services") return await handleSavedServicesList(req, res);
     if (req.method === "POST" && pathname === "/api/saved-services") return await handleSavedServiceCreate(req, res);

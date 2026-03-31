@@ -62,14 +62,9 @@ const Dashboard: React.FC = () => {
         'Introduction to Databases (1h)',
         'Data Modeling & ERD (1h 30m)',
         'SQL Basics & Advanced Queries (1h 30m)',
-        'Database Design Principles (1h)',
         'Indexing & Optimization (1h)',
         'Transactions & Concurrency (1h)',
-        'Stored Procedures & Views (1h)',
-        'Database Security & Access Control (1h)',
-        'Distributed Databases & Replication (1h 30m)',
         'Backup & Recovery (1h)',
-        'Database Administration & Monitoring (1h)',
       ],
     },
     'Data Communications & Networks': {
@@ -79,13 +74,8 @@ const Dashboard: React.FC = () => {
         'Networking Fundamentals (1h)',
         'TCP/IP & OSI Models (1h 30m)',
         'Routing & Switching (1h 30m)',
-        'IP Addressing & Subnetting (1h 30m)',
-        'Network Devices & Media (1h)',
         'Network Security (1h)',
         'Wireless & WAN Technologies (1h 30m)',
-        'Network Services & Protocols (1h)',
-        'Network Management & Troubleshooting (1h 30m)',
-        'Network Design Project (1h)',
       ],
     },
     'Distributed Systems': {
@@ -96,125 +86,9 @@ const Dashboard: React.FC = () => {
         'Consensus & Fault Tolerance (1h 30m)',
         'Microservices Architecture (1h)',
         'Scalability & Load Balancing (1h 30m)',
-        'Distributed Communication Patterns (1h)',
-        'Distributed Data Management (1h 30m)',
-        'Cloud Infrastructure Basics (1h)',
-        'Containerization & Orchestration (1h 30m)',
-        'Observability & Monitoring (1h)',
-        'Distributed Systems Capstone (1h)',
-      ],
-    },
-    'Data Structures & Algorithms': {
-      title: 'Data Structures & Algorithms Certification',
-      description: 'Core algorithmic thinking, data organization, and performance analysis for computing students.',
-      sessions: [
-        'Introduction to Data Structures (1h)',
-        'Arrays & Linked Lists (1h 30m)',
-        'Stacks & Queues (1h)',
-        'Trees & Binary Search Trees (1h 30m)',
-        'Heaps & Priority Queues (1h)',
-        'Hash Tables & Dictionaries (1h)',
-        'Algorithm Analysis & Big O (1h 30m)',
-        'Searching & Sorting Techniques (1h 30m)',
-        'Recursion & Divide and Conquer (1h)',
-        'Graph Algorithms Fundamentals (1h 30m)',
-      ],
-    },
-    'Operating Systems': {
-      title: 'Operating Systems Certification',
-      description: 'Systems-level computing concepts covering processes, memory, storage, and OS protection.',
-      sessions: [
-        'Introduction to Operating Systems (1h)',
-        'Processes & Threads (1h 30m)',
-        'CPU Scheduling (1h)',
-        'Process Synchronization (1h 30m)',
-        'Deadlocks & Resource Allocation (1h)',
-        'Memory Management (1h 30m)',
-        'Virtual Memory (1h)',
-        'File Systems & Storage (1h 30m)',
-        'Device Management & I/O (1h)',
-        'OS Security & Protection (1h)',
-      ],
-    },
-    'Software Engineering': {
-      title: 'Software Engineering Certification',
-      description: 'A full software engineering track from requirements to maintenance and team delivery.',
-      sessions: [
-        'Introduction to Software Engineering (1h)',
-        'Software Development Life Cycle (1h 30m)',
-        'Requirements Engineering (1h 30m)',
-        'Software Design & Architecture (1h 30m)',
-        'Agile & Project Management (1h)',
-        'Version Control & Collaboration (1h)',
-        'Software Testing Fundamentals (1h 30m)',
-        'Software Quality Assurance (1h)',
-        'Maintenance & Evolution (1h)',
-        'Software Engineering Capstone (1h)',
-      ],
-    },
-    'Web Development': {
-      title: 'Web Development Certification',
-      description: 'Frontend, backend, authentication, persistence, and deployment for modern web systems.',
-      sessions: [
-        'Introduction to Web Development (1h)',
-        'HTML & Semantic Structure (1h)',
-        'CSS Layout & Responsive Design (1h 30m)',
-        'JavaScript Fundamentals (1h 30m)',
-        'Frontend Framework Concepts (1h)',
-        'Backend Development Basics (1h 30m)',
-        'Web Databases & Persistence (1h)',
-        'Authentication & Authorization (1h)',
-        'Deployment & Hosting (1h)',
-        'Web Development Capstone (1h)',
-      ],
-    },
-    'Computer Security': {
-      title: 'Computer Security Certification',
-      description: 'Security foundations, secure systems, monitoring, and governance across computer platforms.',
-      sessions: [
-        'Introduction to Computer Security (1h)',
-        'Cryptography Fundamentals (1h 30m)',
-        'Authentication & Access Control (1h)',
-        'Network Security Principles (1h 30m)',
-        'Web Application Security (1h 30m)',
-        'System Hardening & Endpoint Security (1h)',
-        'Security Monitoring & Incident Response (1h 30m)',
-        'Digital Forensics Basics (1h)',
-        'Security Policy, Risk & Governance (1h)',
-        'Computer Security Capstone (1h)',
       ],
     },
     // Add additional computer science track courses as needed.
-  };
-
-  const buildGenericTrackSessions = (courseTitle: string) => [
-    `Introduction to ${courseTitle} (1h)`,
-    `${courseTitle} Foundations (1h 30m)`,
-    `${courseTitle} Core Components (1h 30m)`,
-    `${courseTitle} Design & Architecture (1h 30m)`,
-    `${courseTitle} Methods & Techniques (1h)`,
-    `${courseTitle} Implementation Practice (1h 30m)`,
-    `${courseTitle} Analysis & Troubleshooting (1h)`,
-    `${courseTitle} Security & Best Practices (1h)`,
-    `${courseTitle} Applications & Case Studies (1h 30m)`,
-    `${courseTitle} Capstone Review (1h)`,
-  ];
-
-  const getCertificationTrack = (courseTitle: string) => {
-    if (!courseTitle) {
-      return {
-        title: 'Select a course',
-        description: 'Choose a course to load its structured certification path.',
-        sessions: [] as string[],
-      };
-    }
-    const existing = certificationCatalog[courseTitle];
-    if (existing) return existing;
-    return {
-      title: `${courseTitle} Certification`,
-      description: `A structured ${courseTitle} learning path with topic-to-subtopic progression, lab-style practice, and review checkpoints.`,
-      sessions: buildGenericTrackSessions(courseTitle),
-    };
   };
 
   // Profile form
@@ -560,17 +434,17 @@ const Dashboard: React.FC = () => {
                   >
                     ← Back
                   </button>
-                  <span className="text-sm font-semibold text-cyan-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).title}</span>
+                  <span className="text-sm font-semibold text-cyan-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.title}</span>
                 </div>
 
                 <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-xs text-gray-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).description}</p>
+                  <p className="text-xs text-gray-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.description}</p>
                 </div>
 
                 <div>
                   <p className="text-xs text-indigo-300 mb-3 font-medium">Select a session to start learning:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    {getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).sessions.map((session, idx) => (
+                    {(certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.sessions || []).map((session, idx) => (
                       <button
                         key={idx}
                         onClick={() => {
@@ -578,9 +452,7 @@ const Dashboard: React.FC = () => {
                             course: selectedCourse[activeCertificationConsultation.id],
                             session: session
                           }));
-                          navigate(
-                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(session)}`
-                          );
+                          navigate(`/lesson/${activeCertificationConsultation.id}`);
                         }}
                         className="text-left p-3 rounded-lg border border-green-400/40 bg-green-500/10 hover:bg-green-500/20 transition-all font-medium text-green-300 text-sm"
                       >
@@ -701,7 +573,7 @@ const Dashboard: React.FC = () => {
 
                 {ownerInboxError && (
                   <div className="rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
-                    {ownerInboxError} Check that the deployed backend has the correct owner email and API configuration.
+                    {ownerInboxError} Check that the deployed backend has the correct owner email and D1 binding configured.
                   </div>
                 )}
 
@@ -935,8 +807,8 @@ const Dashboard: React.FC = () => {
                                   className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
                                 >
                                   <option value="">Choose a course</option>
-                                  {[c.service].map(key => (
-                                    <option key={key} value={key}>{getCertificationTrack(key).title}</option>
+                                  {(certificationCatalog[c.service] ? [c.service] : Object.keys(certificationCatalog)).map(key => (
+                                    <option key={key} value={key}>{certificationCatalog[key]?.title || key}</option>
                                   ))}
                                 </select>
 
@@ -949,7 +821,7 @@ const Dashboard: React.FC = () => {
                                       className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
                                     >
                                       <option value="">Choose a session</option>
-                                      {getCertificationTrack(selectedCourse[c.id]).sessions.map(session => (
+                                      {(certificationCatalog[selectedCourse[c.id]]?.sessions || []).map(session => (
                                         <option key={session} value={session}>{session}</option>
                                       ))}
                                     </select>
@@ -960,9 +832,7 @@ const Dashboard: React.FC = () => {
                                   onClick={() => {
                                     if (!selectedCourse[c.id] || !selectedSession[c.id]) return;
                                     sessionStorage.setItem(`lesson_${c.id}`, JSON.stringify({ course: selectedCourse[c.id], session: selectedSession[c.id] }));
-                                    navigate(
-                                      `/lesson/${c.id}?course=${encodeURIComponent(selectedCourse[c.id])}&session=${encodeURIComponent(selectedSession[c.id])}`
-                                    );
+                                    navigate(`/lesson/${c.id}`);
                                   }}
                                   disabled={!selectedCourse[c.id] || !selectedSession[c.id]}
                                   className="mt-3 w-full rounded-xl bg-gradient-to-r from-violet-500 to-indigo-500 px-3 py-2 text-sm font-bold text-white hover:opacity-90 disabled:opacity-50"
