@@ -1359,7 +1359,7 @@ const Lesson: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-[#0a1628] to-[#0f1f35] pt-20 pb-12">
-      <div className="max-w-3xl mx-auto px-4">
+      <div className="max-w-4xl mx-auto px-4">
         {/* Header */}
         <div className="mb-8">
           <button
@@ -1387,33 +1387,72 @@ const Lesson: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-6 rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-5">
-              <p className="text-xs uppercase tracking-[0.25em] text-cyan-300 mb-2">
-                Chapter {chapterNumber}{sessionLabels.length ? ` of ${sessionLabels.length}` : ''}
-              </p>
-              <h3 className="text-2xl font-bold text-white mb-2">{courseData.title}</h3>
-              <p className="text-sm text-slate-200">
-                This session is arranged like student notes: chapter overview, objectives, topic sections, subtopics, practice work, summary, then assessment.
-              </p>
+            {/* COURSE CONTENT - List all sessions like notes */}
+            <div className="mb-8 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-6">
+              <h3 className="text-xl font-bold text-violet-200 mb-4">COURSE CONTENT</h3>
+              <div className="space-y-2">
+                {sessionLabels.map((label, idx) => (
+                  <p key={idx} className="text-sm text-slate-200">
+                    {idx + 1}. {label}
+                  </p>
+                ))}
+              </div>
             </div>
 
-            <div className="space-y-4 mb-6">
-              {courseData.notes.map((note, idx) => (
-                <div
-                  key={idx}
-                  className={`p-4 rounded-lg border transition-all ${
-                    narrating
-                      ? 'bg-cyan-500/10 border-cyan-400/40 text-cyan-100'
-                      : 'bg-white/5 border-white/10 text-gray-300'
-                  }`}
-                >
-                  <p className="text-sm leading-relaxed">{note}</p>
+            {/* TOPIC HEADING WITH NUMBER */}
+            <div className="mb-8 rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-6">
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-300 mb-3">
+                TOPIC {chapterNumber}{sessionLabels.length ? ` OF ${sessionLabels.length}` : ''}
+              </p>
+              <h3 className="text-3xl font-bold text-white">{courseData.title}</h3>
+            </div>
+
+            {/* STRUCTURED NOTES SECTIONS */}
+            <div className="space-y-6 mb-8">
+              {/* Definition Section */}
+              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
+                <h4 className="text-lg font-bold text-cyan-300 mb-4">Definition of {courseData.title.toLowerCase()}</h4>
+                <div className="space-y-2">
+                  {courseData.notes.slice(0, Math.ceil(courseData.notes.length / 4)).map((note, idx) => (
+                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
+                  ))}
                 </div>
-              ))}
+              </div>
+
+              {/* Characteristics Section */}
+              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
+                <h4 className="text-lg font-bold text-cyan-300 mb-4">Characteristics of {courseData.title.toLowerCase()}</h4>
+                <div className="space-y-2">
+                  {courseData.notes.slice(Math.ceil(courseData.notes.length / 4), Math.ceil(courseData.notes.length / 2)).map((note, idx) => (
+                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Functions Section */}
+              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
+                <h4 className="text-lg font-bold text-cyan-300 mb-4">Functions of {courseData.title.toLowerCase()}</h4>
+                <div className="space-y-2">
+                  {courseData.notes.slice(Math.ceil(courseData.notes.length / 2), Math.ceil((courseData.notes.length * 3) / 4)).map((note, idx) => (
+                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
+                  ))}
+                </div>
+              </div>
+
+              {/* Types/Applications Section */}
+              <div className="rounded-xl border border-white/20 bg-white/5 p-6">
+                <h4 className="text-lg font-bold text-cyan-300 mb-4">Types and Applications of {courseData.title.toLowerCase()}</h4>
+                <div className="space-y-2">
+                  {courseData.notes.slice(Math.ceil((courseData.notes.length * 3) / 4)).map((note, idx) => (
+                    <p key={idx} className="text-sm leading-relaxed text-slate-100">{note}</p>
+                  ))}
+                </div>
+              </div>
             </div>
 
-            <div className="mb-8 rounded-2xl border border-emerald-400/20 bg-emerald-500/10 p-5">
-              <h3 className="text-lg font-semibold text-emerald-200 mb-4">Learning Objectives</h3>
+            {/* DETAILED SECTIONS FROM CURRICULUM */}
+            <div className="mb-8 rounded-2xl border border-emerald-400/30 bg-emerald-500/10 p-6">
+              <h3 className="text-lg font-bold text-emerald-200 mb-4">Learning Objectives</h3>
               <div className="space-y-2">
                 {courseData.learningObjectives.map((objective, idx) => (
                   <p key={idx} className="text-sm leading-relaxed text-slate-100">
@@ -1423,20 +1462,19 @@ const Lesson: React.FC = () => {
               </div>
             </div>
 
+            {/* Topic Sections with Subtopics */}
             <div className="space-y-6 mb-8">
               {courseData.sections.map((section, sectionIdx) => (
-                <div key={sectionIdx} className="rounded-2xl border border-white/10 bg-white/5 p-5">
-                  <h3 className="text-lg font-semibold text-cyan-200 mb-4">{section.title}</h3>
-                  <div className="space-y-4">
+                <div key={sectionIdx} className="rounded-xl border border-blue-400/20 bg-blue-500/10 p-6">
+                  <h3 className="text-lg font-semibold text-blue-300 mb-4">{section.title}</h3>
+                  <div className="space-y-3">
                     {section.subtopics.map((subtopic, subtopicIdx) => (
-                      <div key={subtopicIdx} className="rounded-xl border border-white/10 bg-[#13233b] p-4">
-                        <h4 className="text-sm font-semibold uppercase tracking-wide text-cyan-300 mb-3">
-                          {subtopic.title}
-                        </h4>
-                        <div className="space-y-2">
+                      <div key={subtopicIdx} className="rounded-lg border border-blue-400/10 bg-[#13233b] p-4">
+                        <h4 className="text-sm font-bold uppercase text-blue-200 mb-2">{subtopic.title}</h4>
+                        <div className="space-y-1">
                           {subtopic.content.map((item, itemIdx) => (
-                            <p key={itemIdx} className="text-sm leading-relaxed text-slate-200">
-                              {item}
+                            <p key={itemIdx} className="text-xs leading-relaxed text-slate-200">
+                              • {item}
                             </p>
                           ))}
                         </div>
@@ -1447,32 +1485,33 @@ const Lesson: React.FC = () => {
               ))}
             </div>
 
-            <div className="grid gap-6 lg:grid-cols-2 mb-8">
-              <div className="rounded-2xl border border-violet-400/20 bg-violet-500/10 p-5">
-                <h3 className="text-lg font-semibold text-violet-200 mb-4">Key Terms</h3>
-                <div className="flex flex-wrap gap-2">
-                  {courseData.keyTerms.map((term, idx) => (
-                    <span key={idx} className="rounded-full border border-violet-300/30 bg-[#13233b] px-3 py-1 text-sm text-violet-100">
-                      {term}
-                    </span>
-                  ))}
-                </div>
-              </div>
-
-              <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 p-5">
-                <h3 className="text-lg font-semibold text-amber-200 mb-4">Practice Tasks</h3>
-                <div className="space-y-2">
-                  {courseData.practiceTasks.map((task, idx) => (
-                    <p key={idx} className="text-sm leading-relaxed text-slate-100">
-                      {idx + 1}. {task}
-                    </p>
-                  ))}
-                </div>
+            {/* Key Terms */}
+            <div className="mb-8 rounded-xl border border-violet-400/30 bg-violet-500/10 p-6">
+              <h3 className="text-lg font-bold text-violet-200 mb-4">Key Terms and Concepts</h3>
+              <div className="flex flex-wrap gap-2">
+                {courseData.keyTerms.map((term, idx) => (
+                  <span key={idx} className="rounded-full border border-violet-300/30 bg-[#13233b] px-3 py-1 text-xs text-violet-100">
+                    {term}
+                  </span>
+                ))}
               </div>
             </div>
 
-            <div className="mb-8 rounded-2xl border border-sky-400/20 bg-sky-500/10 p-5">
-              <h3 className="text-lg font-semibold text-sky-200 mb-4">Background Reading</h3>
+            {/* Practice Work / Lab */}
+            <div className="mb-8 rounded-xl border border-amber-400/30 bg-amber-500/10 p-6">
+              <h3 className="text-lg font-bold text-amber-200 mb-4">Practice Work (Lab/Activity)</h3>
+              <div className="space-y-2">
+                {courseData.practiceTasks.map((task, idx) => (
+                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
+                    {idx + 1}. {task}
+                  </p>
+                ))}
+              </div>
+            </div>
+
+            {/* Background Reading */}
+            <div className="mb-8 rounded-xl border border-sky-400/30 bg-sky-500/10 p-6">
+              <h3 className="text-lg font-bold text-sky-200 mb-4">Background Reading and Resources</h3>
               <div className="space-y-2">
                 {courseData.background.map((item, idx) => (
                   <p key={idx} className="text-sm leading-relaxed text-slate-100">
@@ -1482,8 +1521,9 @@ const Lesson: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-8 rounded-2xl border border-rose-400/20 bg-rose-500/10 p-5">
-              <h3 className="text-lg font-semibold text-rose-200 mb-4">Worked Example</h3>
+            {/* Worked Example */}
+            <div className="mb-8 rounded-xl border border-rose-400/30 bg-rose-500/10 p-6">
+              <h3 className="text-lg font-bold text-rose-200 mb-4">Worked Example</h3>
               <div className="space-y-2">
                 {courseData.workedExample.map((item, idx) => (
                   <p key={idx} className="text-sm leading-relaxed text-slate-100">
@@ -1493,14 +1533,29 @@ const Lesson: React.FC = () => {
               </div>
             </div>
 
-            <div className="mb-8 rounded-2xl border border-blue-400/20 bg-blue-500/10 p-5">
-              <h3 className="text-lg font-semibold text-blue-200 mb-4">Session Summary</h3>
+            {/* Summary Points */}
+            <div className="mb-8 rounded-xl border border-blue-400/30 bg-blue-500/10 p-6">
+              <h3 className="text-lg font-bold text-blue-200 mb-4">Session Summary</h3>
               <div className="space-y-2">
                 {courseData.summaryPoints.map((point, idx) => (
                   <p key={idx} className="text-sm leading-relaxed text-slate-100">
                     {idx + 1}. {point}
                   </p>
                 ))}
+              </div>
+            </div>
+
+            {/* Short Test Tips */}
+            <div className="mb-8 rounded-xl border border-orange-400/30 bg-orange-500/10 p-6">
+              <h3 className="text-lg font-bold text-orange-200 mb-4">Tips for Assessment</h3>
+              <div className="space-y-2">
+                {courseData.shortTestTips.map((tip, idx) => (
+                  <p key={idx} className="text-sm leading-relaxed text-slate-100">
+                    {idx + 1}. {tip}
+                  </p>
+                ))}
+              </div>
+            </div>
               </div>
             </div>
 
