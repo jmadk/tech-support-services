@@ -187,6 +187,36 @@ const Dashboard: React.FC = () => {
     // Add additional computer science track courses as needed.
   };
 
+  const buildGenericTrackSessions = (courseTitle: string) => [
+    `Introduction to ${courseTitle} (1h)`,
+    `${courseTitle} Foundations (1h 30m)`,
+    `${courseTitle} Core Components (1h 30m)`,
+    `${courseTitle} Design & Architecture (1h 30m)`,
+    `${courseTitle} Methods & Techniques (1h)`,
+    `${courseTitle} Implementation Practice (1h 30m)`,
+    `${courseTitle} Analysis & Troubleshooting (1h)`,
+    `${courseTitle} Security & Best Practices (1h)`,
+    `${courseTitle} Applications & Case Studies (1h 30m)`,
+    `${courseTitle} Capstone Review (1h)`,
+  ];
+
+  const getCertificationTrack = (courseTitle: string) => {
+    if (!courseTitle) {
+      return {
+        title: 'Select a course',
+        description: 'Choose a course to load its structured certification path.',
+        sessions: [] as string[],
+      };
+    }
+    const existing = certificationCatalog[courseTitle];
+    if (existing) return existing;
+    return {
+      title: `${courseTitle} Certification`,
+      description: `A structured ${courseTitle} learning path with topic-to-subtopic progression, lab-style practice, and review checkpoints.`,
+      sessions: buildGenericTrackSessions(courseTitle),
+    };
+  };
+
   // Profile form
   const [profileForm, setProfileForm] = useState({
     full_name: '', username: '', phone: '', bio: '', company: '',
@@ -530,17 +560,17 @@ const Dashboard: React.FC = () => {
                   >
                     ← Back
                   </button>
-                  <span className="text-sm font-semibold text-cyan-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.title}</span>
+                  <span className="text-sm font-semibold text-cyan-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).title}</span>
                 </div>
 
                 <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-xs text-gray-300">{certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.description}</p>
+                  <p className="text-xs text-gray-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).description}</p>
                 </div>
 
                 <div>
                   <p className="text-xs text-indigo-300 mb-3 font-medium">Select a session to start learning:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    {(certificationCatalog[selectedCourse[activeCertificationConsultation.id]]?.sessions || []).map((session, idx) => (
+                    {getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).sessions.map((session, idx) => (
                       <button
                         key={idx}
                         onClick={() => {
@@ -905,8 +935,8 @@ const Dashboard: React.FC = () => {
                                   className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
                                 >
                                   <option value="">Choose a course</option>
-                                  {(certificationCatalog[c.service] ? [c.service] : Object.keys(certificationCatalog)).map(key => (
-                                    <option key={key} value={key}>{certificationCatalog[key]?.title || key}</option>
+                                  {[c.service].map(key => (
+                                    <option key={key} value={key}>{getCertificationTrack(key).title}</option>
                                   ))}
                                 </select>
 
@@ -919,7 +949,7 @@ const Dashboard: React.FC = () => {
                                       className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
                                     >
                                       <option value="">Choose a session</option>
-                                      {(certificationCatalog[selectedCourse[c.id]]?.sessions || []).map(session => (
+                                      {getCertificationTrack(selectedCourse[c.id]).sessions.map(session => (
                                         <option key={session} value={session}>{session}</option>
                                       ))}
                                     </select>

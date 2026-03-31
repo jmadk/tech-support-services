@@ -287,6 +287,22 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
     },
   };
 
+  const buildGenericTrackSessions = (courseTitle: string) => [
+    `Introduction to ${courseTitle} (1h)`,
+    `${courseTitle} Foundations (1h 30m)`,
+    `${courseTitle} Core Components (1h 30m)`,
+    `${courseTitle} Design & Architecture (1h 30m)`,
+    `${courseTitle} Methods & Techniques (1h)`,
+    `${courseTitle} Implementation Practice (1h 30m)`,
+    `${courseTitle} Analysis & Troubleshooting (1h)`,
+    `${courseTitle} Security & Best Practices (1h)`,
+    `${courseTitle} Applications & Case Studies (1h 30m)`,
+    `${courseTitle} Capstone Review (1h)`,
+  ];
+
+  const getTrackSessions = (courseTitle: string) =>
+    certificationCatalog[courseTitle]?.sessions || buildGenericTrackSessions(courseTitle);
+
   // Load saved services for the user
   useEffect(() => {
     if (!user) { setSavedTitles(new Set()); return; }
@@ -339,7 +355,7 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
     setServiceCertificationStarted(prev => ({ ...prev, [serviceId]: true }));
 
     const selectedCourse = serviceTitle;
-    const selectedSession = certificationCatalog[serviceTitle]?.sessions?.[0] || 'Introduction';
+    const selectedSession = getTrackSessions(serviceTitle)[0] || `Introduction to ${serviceTitle} (1h)`;
 
     // Store the selection for Lesson page
     sessionStorage.setItem(`lesson_service_${serviceId}`, JSON.stringify({ course: selectedCourse, session: selectedSession }));

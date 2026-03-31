@@ -9,6 +9,7 @@ interface LessonPhase {
 type LessonData = {
   title: string;
   notes: string[];
+  sections: Array<{ title: string; subtopics: Array<{ title: string; content: string[] }> }>;
   qaQuestions: Array<{ q: string; options: string[]; correct: number }>;
   quizQuestions: Array<{ q: string; options: string[]; correct: number }>;
 };
@@ -868,6 +869,50 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `Use the end-of-session questions to confirm you can explain the topic in your own words and apply it in project work.`,
       `As you move through the lesson, focus on how the concepts support software development, infrastructure design, troubleshooting, and professional certification readiness.`,
     ],
+    sections: [
+      {
+        title: 'Topic Overview',
+        subtopics: [
+          {
+            title: 'Session Focus',
+            content: [
+              `${session.title} centers on ${session.focus}.`,
+              `This unit is positioned to support diploma and degree learners with both theoretical grounding and practical application.`,
+            ],
+          },
+          {
+            title: 'Learning Outcomes',
+            content: session.outcomes.map((outcome) => `You should be able to ${outcome}.`),
+          },
+        ],
+      },
+      {
+        title: 'Core Concepts',
+        subtopics: [
+          {
+            title: 'Key Study Terms',
+            content: session.tools.map((tool) => `${tool} is a core term you should be able to define and apply.`),
+          },
+          {
+            title: 'Subtopic Breakdown',
+            content: session.concepts.map((concept) => `${concept} is an essential subtopic within ${session.title}.`),
+          },
+        ],
+      },
+      {
+        title: 'Practice & Application',
+        subtopics: [
+          {
+            title: 'Laboratory Exercise',
+            content: [session.lab],
+          },
+          {
+            title: 'Real-World Relevance',
+            content: session.applications.map((application) => `${session.title} supports work in ${application}.`),
+          },
+        ],
+      },
+    ],
     qaQuestions: [
       {
         q: `What is the primary focus of ${session.title}?`,
@@ -972,6 +1017,50 @@ const lessonContent: Record<string, Record<string, LessonData>> = Object.fromEnt
   ]),
 );
 
+function buildGenericTrackSessions(course: string) {
+  return [
+    `Introduction to ${course} (1h)`,
+    `${course} Foundations (1h 30m)`,
+    `${course} Core Components (1h 30m)`,
+    `${course} Design & Architecture (1h 30m)`,
+    `${course} Methods & Techniques (1h)`,
+    `${course} Implementation Practice (1h 30m)`,
+    `${course} Analysis & Troubleshooting (1h)`,
+    `${course} Security & Best Practices (1h)`,
+    `${course} Applications & Case Studies (1h 30m)`,
+    `${course} Capstone Review (1h)`,
+  ];
+}
+
+function buildGenericTrack(course: string): CurriculumSession[] {
+  return buildGenericTrackSessions(course).map((label, index) => {
+    const sessionTitle = label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+    return {
+      label,
+      title: sessionTitle,
+      focus: `${course.toLowerCase()} principles, subtopics, workflows, and academic-practical links for computer science learners`,
+      outcomes: [
+        `explain the main ideas in ${sessionTitle}`,
+        `connect ${sessionTitle} to coursework and lab tasks`,
+        `apply ${sessionTitle} ideas to real computing scenarios`,
+      ],
+      tools: ['theory', 'practice', 'case studies', 'review'],
+      concepts: [
+        `${course} terminology`,
+        `${course} workflow`,
+        `${course} problem-solving`,
+        `${course} professional application`,
+      ],
+      lab: `Prepare a structured exercise for ${sessionTitle} that combines explanation, analysis, and implementation steps.`,
+      applications: ['coursework', 'projects', 'professional practice'],
+    };
+  });
+}
+
+function resolveTrackSessions(course: string): CurriculumSession[] {
+  return curriculumTracks[course] || buildGenericTrack(course);
+}
+
 function buildFallbackLesson(course: string, session: string): LessonData {
   const sessionTitle = session.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Lesson Session';
   const courseTitle = course || 'Certification Track';
@@ -984,6 +1073,39 @@ function buildFallbackLesson(course: string, session: string): LessonData {
       `Pay attention to the core concepts introduced in ${sessionTitle}, because they will support later sessions and certification tasks.`,
       `As you proceed, connect each concept to a real project or support scenario so the lesson becomes practical and memorable.`,
       `Use the Q&A and quiz sections to confirm understanding before moving to the next milestone.`,
+    ],
+    sections: [
+      {
+        title: 'Topic Overview',
+        subtopics: [
+          {
+            title: 'What This Session Covers',
+            content: [
+              `${sessionTitle} introduces foundational ideas used throughout the ${courseTitle} curriculum.`,
+              `The purpose is to help the learner move from broad awareness into structured understanding.`,
+            ],
+          },
+        ],
+      },
+      {
+        title: 'Subtopics',
+        subtopics: [
+          {
+            title: 'Core Principles',
+            content: [
+              `Identify the definitions, workflows, and reasoning patterns related to ${sessionTitle}.`,
+              `Connect these principles to the larger ${courseTitle} learning path.`,
+            ],
+          },
+          {
+            title: 'Practical Context',
+            content: [
+              `Relate ${sessionTitle} to coursework, labs, service delivery, and project problem-solving.`,
+              `Use examples and case studies to make the topic concrete and memorable.`,
+            ],
+          },
+        ],
+      },
     ],
     qaQuestions: [
       {
@@ -1050,6 +1172,12 @@ function resolveLessonData(course: string, session: string): LessonData | null {
   const exactCourse = lessonContent[course];
   if (exactCourse?.[session]) {
     return exactCourse[session];
+  }
+
+  const generatedTrack = resolveTrackSessions(course);
+  const generatedSession = generatedTrack.find((entry) => entry.label === session);
+  if (generatedSession) {
+    return createLessonFromCurriculum(generatedSession);
   }
 
   return buildFallbackLesson(course, session);
@@ -1196,6 +1324,30 @@ const Lesson: React.FC = () => {
                   }`}
                 >
                   <p className="text-sm leading-relaxed">{note}</p>
+                </div>
+              ))}
+            </div>
+
+            <div className="space-y-6 mb-8">
+              {courseData.sections.map((section, sectionIdx) => (
+                <div key={sectionIdx} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                  <h3 className="text-lg font-semibold text-cyan-200 mb-4">{section.title}</h3>
+                  <div className="space-y-4">
+                    {section.subtopics.map((subtopic, subtopicIdx) => (
+                      <div key={subtopicIdx} className="rounded-xl border border-white/10 bg-[#13233b] p-4">
+                        <h4 className="text-sm font-semibold uppercase tracking-wide text-cyan-300 mb-3">
+                          {subtopic.title}
+                        </h4>
+                        <div className="space-y-2">
+                          {subtopic.content.map((item, itemIdx) => (
+                            <p key={itemIdx} className="text-sm leading-relaxed text-slate-200">
+                              {item}
+                            </p>
+                          ))}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               ))}
             </div>
