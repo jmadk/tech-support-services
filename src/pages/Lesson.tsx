@@ -873,70 +873,302 @@ const curriculumTracks: Record<string, CurriculumSession[]> = {
 };
 
 function createLessonFromCurriculum(session: CurriculumSession): LessonData {
+  const isITSupportLesson = session.label.includes('IT Support & Customer Care');
+  const notes = isITSupportLesson
+    ? [
+        `${session.title} focuses on ${session.focus}.`,
+        `You will use this topic to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
+        `Key tools and terms in this topic include ${session.tools.join(', ')}.`,
+        `Core smaller topics include ${session.concepts.join(', ')}.`,
+        `Practice activity: ${session.lab}`,
+        `Common real-world uses include ${session.applications.join(', ')}.`,
+      ]
+    : [
+        `${session.title} covers ${session.focus}.`,
+        `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
+        `This session is aligned with computer science degree and diploma expectations, where learners are expected to connect theory to lab work, coursework, and real deployments.`,
+        `Key study terms in this session include ${session.tools.join(', ')}.`,
+        `Core concepts explored here include ${session.concepts.join(', ')}.`,
+        `Practical lab focus: ${session.lab}`,
+        `Real-world applications tied to this session include ${session.applications.join(', ')}.`,
+        `During revision, connect the theory to system analysis, implementation choices, troubleshooting decisions, and professional communication.`,
+        `Use the end-of-session questions to confirm you can explain the topic in your own words and apply it in project work.`,
+        `As you move through the lesson, focus on how the concepts support software development, infrastructure design, troubleshooting, and professional certification readiness.`,
+      ];
+
+  const learningObjectives = isITSupportLesson
+    ? [
+        `Explain what ${session.title} means in practical support work.`,
+        `Describe the key smaller topics inside ${session.title}.`,
+        `Apply ${session.title} ideas to user support situations.`,
+      ]
+    : [
+        `Explain the main purpose of ${session.title}.`,
+        `Describe the major concepts behind ${session.title}.`,
+        `Apply the ideas in ${session.title} to labs, coursework, and practical computer science tasks.`,
+        `Use the terminology of ${session.title} confidently in discussion and written work.`,
+      ];
+
+  const sections = isITSupportLesson
+    ? [
+        {
+          title: 'Smaller Topic 1: Topic Overview',
+          subtopics: [
+            {
+              title: 'Main Idea',
+              content: [
+                `${session.title} focuses on ${session.focus}.`,
+                `This topic gives the learner a practical support perspective instead of theory alone.`,
+              ],
+            },
+            {
+              title: 'Expected Outcome',
+              content: session.outcomes.slice(0, 2).map((outcome) => `By the end of this topic you should be able to ${outcome}.`),
+            },
+          ],
+        },
+        {
+          title: 'Smaller Topic 2: Key Support Areas',
+          subtopics: [
+            {
+              title: 'Tools and Terms',
+              content: session.tools.map((tool) => `${tool} is a key term used in this topic.`),
+            },
+            {
+              title: 'Subtopics',
+              content: session.concepts.map((concept) => `${concept} is one of the smaller topics under ${session.title}.`),
+            },
+          ],
+        },
+        {
+          title: 'Smaller Topic 3: Practice and Real Use',
+          subtopics: [
+            {
+              title: 'Practice Task',
+              content: [session.lab],
+            },
+            {
+              title: 'Where It Is Used',
+              content: session.applications.map((application) => `${session.title} is useful in ${application}.`),
+            },
+          ],
+        },
+      ]
+    : [
+        {
+          title: 'Topic Overview',
+          subtopics: [
+            {
+              title: 'Session Focus',
+              content: [
+                `${session.title} centers on ${session.focus}.`,
+                `This unit is positioned to support diploma and degree learners with both theoretical grounding and practical application.`,
+              ],
+            },
+            {
+              title: 'Learning Outcomes',
+              content: session.outcomes.map((outcome) => `You should be able to ${outcome}.`),
+            },
+          ],
+        },
+        {
+          title: 'Core Concepts',
+          subtopics: [
+            {
+              title: 'Key Study Terms',
+              content: session.tools.map((tool) => `${tool} is a core term you should be able to define and apply.`),
+            },
+            {
+              title: 'Subtopic Breakdown',
+              content: session.concepts.map((concept) => `${concept} is an essential subtopic within ${session.title}.`),
+            },
+          ],
+        },
+        {
+          title: 'Practice & Application',
+          subtopics: [
+            {
+              title: 'Laboratory Exercise',
+              content: [session.lab],
+            },
+            {
+              title: 'Real-World Relevance',
+              content: session.applications.map((application) => `${session.title} supports work in ${application}.`),
+            },
+          ],
+        },
+      ];
+
+  const summaryPoints = isITSupportLesson
+    ? [
+        `${session.title} is an important part of the full IT support and customer care learning path.`,
+        `The topic connects ${session.concepts.slice(0, 3).join(', ')} to practical support work.`,
+        `You should be ready to explain the topic clearly before moving to the quiz.`,
+      ]
+    : [
+        `${session.title} is a core session in this curriculum because it builds both theory and practical readiness.`,
+        `The session connects key concepts such as ${session.concepts.slice(0, 3).join(', ')} to real computing work.`,
+        `You should leave this lesson able to discuss ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
+        `Before progressing, make sure you understand the key terms, practical exercise, and assessment questions.`,
+      ];
+
+  const qaQuestions = isITSupportLesson
+    ? [
+        {
+          q: `What is the main focus of ${session.title}?`,
+          options: [
+            session.focus,
+            'Avoiding users and customer communication',
+            'Skipping practical support work',
+            'Removing all need for documentation',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Which outcome matches ${session.title}?`,
+          options: [
+            'Ignoring the service workflow',
+            session.outcomes[1],
+            'Working without communication',
+            'Avoiding user support completely',
+          ],
+          correct: 1,
+        },
+      ]
+    : [
+        {
+          q: `What is the primary focus of ${session.title}?`,
+          options: [
+            session.focus,
+            'Only memorizing terms without application',
+            'Avoiding practical work completely',
+            'Replacing every other module in the curriculum',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Which outcome is expected from ${session.title}?`,
+          options: [
+            'Ignoring implementation details',
+            session.outcomes[1],
+            'Skipping assessment tasks',
+            'Removing the need for foundational knowledge',
+          ],
+          correct: 1,
+        },
+        {
+          q: `Which practical task best fits ${session.title}?`,
+          options: [
+            session.lab,
+            'Avoiding all labs and coursework',
+            'Replacing the whole curriculum with one topic',
+            'Studying unrelated office work only',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Which area is strongly connected to ${session.title}?`,
+          options: [
+            'Unrelated non-technical duties only',
+            session.applications[1],
+            'Ignoring systems and users',
+            'Eliminating all analysis and design',
+          ],
+          correct: 1,
+        },
+      ];
+
+  const quizQuestions = isITSupportLesson
+    ? [
+        {
+          q: `Which set best belongs to ${session.title}?`,
+          options: [
+            session.tools.join(', '),
+            'Payroll, accounting, and taxation',
+            'Fashion design and modeling',
+            'Cargo tracking and customs clearance',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Why does ${session.title} matter in an IT support course?`,
+          options: [
+            'It builds practical support and customer care ability',
+            'It removes the need for future topics',
+            'It avoids real service work',
+            'It replaces all technical communication',
+          ],
+          correct: 0,
+        },
+        {
+          q: `What is the best way to study ${session.title}?`,
+          options: [
+            'Connect the topic to real user support situations',
+            'Read the title only',
+            'Skip the smaller topics',
+            'Ignore the practice activity',
+          ],
+          correct: 0,
+        },
+      ]
+    : [
+        {
+          q: `Which set contains concepts central to ${session.title}?`,
+          options: [
+            session.tools.join(', '),
+            'Payroll, accounting, and taxation only',
+            'Graphic design and illustration only',
+            'Unrelated office stationery terms',
+          ],
+          correct: 0,
+        },
+        {
+          q: 'Why is this session included in the curriculum?',
+          options: [
+            'To build academic and practical competency in the track',
+            'To delay progress without learning value',
+            'To remove the need for future modules',
+            'To avoid assessment and review',
+          ],
+          correct: 0,
+        },
+        {
+          q: 'What is the best approach while studying this lesson?',
+          options: [
+            'Connect each concept to labs, projects, and real support scenarios',
+            'Read only the title and leave',
+            'Skip all questions and feedback',
+            'Treat all topics as unrelated facts',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Which phrase best reflects the learning style for ${session.title}?`,
+          options: [
+            'Theory, lab practice, and applied reasoning should work together',
+            'Memorization alone is enough for mastery',
+            'This session should be isolated from other units',
+            'There is no need to link the topic to projects',
+          ],
+          correct: 0,
+        },
+        {
+          q: `Why is ${session.title} important in a computer science curriculum?`,
+          options: [
+            'It supports technical understanding, implementation, and professional readiness',
+            'It avoids all technical decisions',
+            'It removes the need for future study',
+            'It focuses only on unrelated business routines',
+          ],
+          correct: 0,
+        },
+      ];
+
   return {
     title: session.title,
-    notes: [
-      `${session.title} covers ${session.focus}.`,
-      `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
-      `This session is aligned with computer science degree and diploma expectations, where learners are expected to connect theory to lab work, coursework, and real deployments.`,
-      `Key study terms in this session include ${session.tools.join(', ')}.`,
-      `Core concepts explored here include ${session.concepts.join(', ')}.`,
-      `Practical lab focus: ${session.lab}`,
-      `Real-world applications tied to this session include ${session.applications.join(', ')}.`,
-      `During revision, connect the theory to system analysis, implementation choices, troubleshooting decisions, and professional communication.`,
-      `Use the end-of-session questions to confirm you can explain the topic in your own words and apply it in project work.`,
-      `As you move through the lesson, focus on how the concepts support software development, infrastructure design, troubleshooting, and professional certification readiness.`,
-    ],
-    learningObjectives: [
-      `Explain the main purpose of ${session.title}.`,
-      `Describe the major concepts behind ${session.title}.`,
-      `Apply the ideas in ${session.title} to labs, coursework, and practical computer science tasks.`,
-      `Use the terminology of ${session.title} confidently in discussion and written work.`,
-    ],
-    sections: [
-      {
-        title: 'Topic Overview',
-        subtopics: [
-          {
-            title: 'Session Focus',
-            content: [
-              `${session.title} centers on ${session.focus}.`,
-              `This unit is positioned to support diploma and degree learners with both theoretical grounding and practical application.`,
-            ],
-          },
-          {
-            title: 'Learning Outcomes',
-            content: session.outcomes.map((outcome) => `You should be able to ${outcome}.`),
-          },
-        ],
-      },
-      {
-        title: 'Core Concepts',
-        subtopics: [
-          {
-            title: 'Key Study Terms',
-            content: session.tools.map((tool) => `${tool} is a core term you should be able to define and apply.`),
-          },
-          {
-            title: 'Subtopic Breakdown',
-            content: session.concepts.map((concept) => `${concept} is an essential subtopic within ${session.title}.`),
-          },
-        ],
-      },
-      {
-        title: 'Practice & Application',
-        subtopics: [
-          {
-            title: 'Laboratory Exercise',
-            content: [session.lab],
-          },
-          {
-            title: 'Real-World Relevance',
-            content: session.applications.map((application) => `${session.title} supports work in ${application}.`),
-          },
-        ],
-      },
-    ],
+    notes,
+    learningObjectives,
+    sections,
     keyTerms: [...session.tools, ...session.concepts].slice(0, 8),
     background: [
       `${session.title} sits within the broader computer science curriculum because it helps learners connect theory, systems thinking, and practical implementation.`,
@@ -954,111 +1186,14 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `Write short notes explaining how ${session.title} fits into the wider ${session.applications[0]} context.`,
       `Compare the theory in ${session.title} with one real project or support case you know.`,
     ],
-    summaryPoints: [
-      `${session.title} is a core session in this curriculum because it builds both theory and practical readiness.`,
-      `The session connects key concepts such as ${session.concepts.slice(0, 3).join(', ')} to real computing work.`,
-      `You should leave this lesson able to discuss ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
-      `Before progressing, make sure you understand the key terms, practical exercise, and assessment questions.`,
-    ],
+    summaryPoints,
     shortTestTips: [
       `Review the definitions of ${session.tools.slice(0, 3).join(', ')} before answering the short test.`,
       `Check that you can explain at least two subtopics from this session in your own words.`,
       `Use the practice task and worked example as revision references before submitting your answers.`,
     ],
-    qaQuestions: [
-      {
-        q: `What is the primary focus of ${session.title}?`,
-        options: [
-          session.focus,
-          'Only memorizing terms without application',
-          'Avoiding practical work completely',
-          'Replacing every other module in the curriculum',
-        ],
-        correct: 0,
-      },
-      {
-        q: `Which outcome is expected from ${session.title}?`,
-        options: [
-          'Ignoring implementation details',
-          session.outcomes[1],
-          'Skipping assessment tasks',
-          'Removing the need for foundational knowledge',
-        ],
-        correct: 1,
-      },
-      {
-        q: `Which practical task best fits ${session.title}?`,
-        options: [
-          session.lab,
-          'Avoiding all labs and coursework',
-          'Replacing the whole curriculum with one topic',
-          'Studying unrelated office work only',
-        ],
-        correct: 0,
-      },
-      {
-        q: `Which area is strongly connected to ${session.title}?`,
-        options: [
-          'Unrelated non-technical duties only',
-          session.applications[1],
-          'Ignoring systems and users',
-          'Eliminating all analysis and design',
-        ],
-        correct: 1,
-      },
-    ],
-    quizQuestions: [
-      {
-        q: `Which set contains concepts central to ${session.title}?`,
-        options: [
-          session.tools.join(', '),
-          'Payroll, accounting, and taxation only',
-          'Graphic design and illustration only',
-          'Unrelated office stationery terms',
-        ],
-        correct: 0,
-      },
-      {
-        q: 'Why is this session included in the curriculum?',
-        options: [
-          'To build academic and practical competency in the track',
-          'To delay progress without learning value',
-          'To remove the need for future modules',
-          'To avoid assessment and review',
-        ],
-        correct: 0,
-      },
-      {
-        q: 'What is the best approach while studying this lesson?',
-        options: [
-          'Connect each concept to labs, projects, and real support scenarios',
-          'Read only the title and leave',
-          'Skip all questions and feedback',
-          'Treat all topics as unrelated facts',
-        ],
-        correct: 0,
-      },
-      {
-        q: `Which phrase best reflects the learning style for ${session.title}?`,
-        options: [
-          'Theory, lab practice, and applied reasoning should work together',
-          'Memorization alone is enough for mastery',
-          'This session should be isolated from other units',
-          'There is no need to link the topic to projects',
-        ],
-        correct: 0,
-      },
-      {
-        q: `Why is ${session.title} important in a computer science curriculum?`,
-        options: [
-          'It supports technical understanding, implementation, and professional readiness',
-          'It avoids all technical decisions',
-          'It removes the need for future study',
-          'It focuses only on unrelated business routines',
-        ],
-        correct: 0,
-      },
-    ],
+    qaQuestions,
+    quizQuestions,
   };
 }
 
@@ -1273,6 +1408,30 @@ function formatDuration(seconds: number): string {
   return `${hrs ? `${hrs}h ` : ''}${mins}m ${secs}s`;
 }
 
+function normalizeSessionTitle(label: string): string {
+  return label
+    .replace(/^\d+\.\s*/, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+    .toLowerCase();
+}
+
+function resolveSessionLabel(course: string, session: string): string {
+  if (!course || !session) {
+    return session;
+  }
+
+  const track = resolveTrackSessions(course);
+  const exactMatch = track.find((item) => item.label === session);
+  if (exactMatch) {
+    return exactMatch.label;
+  }
+
+  const normalizedSession = normalizeSessionTitle(session);
+  const looseMatch = track.find((item) => normalizeSessionTitle(item.label) === normalizedSession);
+  return looseMatch?.label || session;
+}
+
 function createEmptyCourseProgress(): CourseProgress {
   return {
     topicScores: {},
@@ -1398,11 +1557,12 @@ const Lesson: React.FC = () => {
 
   const course = payload.course || queryCourse;
   const session = payload.session || querySession;
+  const resolvedSession = resolveSessionLabel(course, session);
 
-  const courseData = resolveLessonData(course, session);
+  const courseData = resolveLessonData(course, resolvedSession);
   const trackSessions = resolveTrackSessions(course);
   const sessionLabels = trackSessions.map((item) => item.label);
-  const currentSessionIndex = sessionLabels.indexOf(session);
+  const currentSessionIndex = sessionLabels.indexOf(resolvedSession);
   const nextSessionLabel = currentSessionIndex >= 0 ? sessionLabels[currentSessionIndex + 1] || '' : '';
   const isLastSession = currentSessionIndex >= 0 && currentSessionIndex === sessionLabels.length - 1;
   const chapterNumber = currentSessionIndex >= 0 ? currentSessionIndex + 1 : 1;
@@ -1421,9 +1581,13 @@ const Lesson: React.FC = () => {
   const allTopicQuizzesComplete =
     sessionLabels.length > 0 && sessionLabels.every((label) => Boolean(courseProgress.topicScores[label]));
   const firstIncompleteSession = sessionLabels.find((label) => !courseProgress.topicScores[label]) || '';
-  const currentTopicResult = latestTopicResult || courseProgress.topicScores[session] || null;
+  const currentTopicResult = latestTopicResult || courseProgress.topicScores[resolvedSession] || null;
   const finalExamQuestions = createFinalExamQuestions(course);
   const finalExamResult = latestFinalExamResult || courseProgress.finalExamResult;
+  const isITSupportCourse = course === IT_SUPPORT_CUSTOMER_CARE_COURSE;
+  const isFixedTopicPhase =
+    isITSupportCourse && ['loading', 'narrator', 'qa', 'quiz', 'complete'].includes(phase);
+  const resolvedSessionDuration = resolvedSession.match(/\(([^)]+)\)/)?.[1] || '';
 
   const goToDashboard = () => {
     navigate('/?view=dashboard');
@@ -1458,10 +1622,21 @@ const Lesson: React.FC = () => {
   };
 
   useEffect(() => {
-    if (storageKey && course && session) {
-      sessionStorage.setItem(storageKey, JSON.stringify({ course, session }));
+    if (storageKey && course && resolvedSession) {
+      sessionStorage.setItem(storageKey, JSON.stringify({ course, session: resolvedSession }));
     }
-  }, [storageKey, course, session]);
+  }, [storageKey, course, resolvedSession]);
+
+  useEffect(() => {
+    if (!consultationId || !course || !session || session === resolvedSession) {
+      return;
+    }
+
+    navigate(
+      `/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(resolvedSession)}`,
+      { replace: true },
+    );
+  }, [consultationId, course, session, resolvedSession, navigate]);
 
   useEffect(() => {
     if (!progressStorageKey) {
@@ -1512,8 +1687,8 @@ const Lesson: React.FC = () => {
   }, [user, courseData, loading, navigate]);
 
   useEffect(() => {
-    if (!session) return;
-    const totalSeconds = parseSessionDurationSeconds(session);
+    if (!resolvedSession) return;
+    const totalSeconds = parseSessionDurationSeconds(resolvedSession);
     setQaAnswers({});
     setQuizAnswers({});
     setFinalExamAnswers({});
@@ -1522,7 +1697,7 @@ const Lesson: React.FC = () => {
     setNarratorSeconds(0);
     setNarratorReady(false);
     setNarrating(true);
-  }, [session]);
+  }, [resolvedSession]);
 
   const narratorSimulatedTarget = import.meta.env.DEV ? Math.min(narratorTotalSeconds, 120) : narratorTotalSeconds;
   const narratorProgressPercent = narratorSimulatedTarget
@@ -1571,7 +1746,7 @@ const Lesson: React.FC = () => {
       ...prev,
       topicScores: {
         ...prev.topicScores,
-        [session]: result,
+        [resolvedSession]: result,
       },
     }));
     setPhase(isLastSession ? 'course-summary' : 'complete');
@@ -1602,6 +1777,56 @@ const Lesson: React.FC = () => {
     goToSession(nextSessionLabel);
   };
 
+  const fixedLayoutRootClass = isFixedTopicPhase
+    ? 'h-screen overflow-hidden bg-gradient-to-br from-[#08111f] via-[#0b1730] to-[#101f3c] pt-16 pb-4'
+    : 'min-h-screen bg-gradient-to-br from-[#0a1628] to-[#0f1f35] pt-20 pb-12';
+  const fixedLayoutContainerClass = isFixedTopicPhase
+    ? 'max-w-7xl mx-auto px-4 h-full flex flex-col'
+    : 'max-w-4xl mx-auto px-4';
+
+  const topicNavigationPanel = (
+    <aside className="rounded-3xl border border-cyan-500/20 bg-[#0d1b31]/95 p-4 flex flex-col">
+      <div className="mb-4">
+        <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80 mb-2">Course Content</p>
+        <h2 className="text-lg font-bold text-white">{course}</h2>
+        <p className="text-xs text-slate-400 mt-1">One topic at a time. Complete the quiz to unlock the next one.</p>
+      </div>
+      <div className="space-y-2">
+        {sessionLabels.map((label, index) => {
+          const isCurrentTopic = label === resolvedSession;
+          const isCompletedTopic = Boolean(courseProgress.topicScores[label]);
+          return (
+            <div
+              key={label}
+              className={`rounded-2xl border px-3 py-2 transition-all ${
+                isCurrentTopic
+                  ? 'border-cyan-400/40 bg-cyan-500/10'
+                  : isCompletedTopic
+                    ? 'border-emerald-400/25 bg-emerald-500/10'
+                    : 'border-white/10 bg-white/5'
+              }`}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <p className="text-[11px] font-semibold leading-4 text-white">{label}</p>
+                <span
+                  className={`mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
+                    isCurrentTopic
+                      ? 'bg-cyan-400/20 text-cyan-200'
+                      : isCompletedTopic
+                        ? 'bg-emerald-400/20 text-emerald-200'
+                        : 'bg-white/10 text-slate-300'
+                  }`}
+                >
+                  {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Done' : index <= completedTopicCount ? 'Open' : 'Next'}
+                </span>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
+  );
+
   if (!courseData) {
     return (
       <div className="min-h-screen bg-[#0a1628] flex items-center justify-center">
@@ -1613,43 +1838,179 @@ const Lesson: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-[#0a1628] to-[#0f1f35] pt-20 pb-12">
-      <div className="max-w-4xl mx-auto px-4">
+    <div className={fixedLayoutRootClass}>
+      <div className={fixedLayoutContainerClass}>
         {/* Header */}
-        <div className="mb-8">
+        <div className={isFixedTopicPhase ? 'mb-4' : 'mb-8'}>
           <button
             onClick={goToDashboard}
             className="text-cyan-400 hover:text-cyan-300 text-sm mb-4"
           >
             {'< '}Back to Dashboard
           </button>
-          <h1 className="text-4xl font-bold text-white mb-2">{courseData.title}</h1>
-          <p className="text-gray-400">{session}</p>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Topic Progress</p>
-              <p className="text-2xl font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
-              <p className="text-sm text-slate-300">Topic quizzes completed</p>
+          <div className={isFixedTopicPhase ? 'flex flex-wrap items-end justify-between gap-4' : ''}>
+            <div>
+              <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/70 mb-2">{course}</p>
+              <h1 className={`${isFixedTopicPhase ? 'text-2xl' : 'text-4xl'} font-bold text-white mb-2`}>
+                {courseData.title}
+              </h1>
+              <p className="text-gray-400">{resolvedSession}</p>
             </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Current Topic Score</p>
-              <p className="text-2xl font-bold text-white">{currentTopicResult ? `${currentTopicResult.score}%` : 'Pending'}</p>
-              <p className="text-sm text-slate-300">
-                {currentTopicResult ? `${currentTopicResult.correct}/${currentTopicResult.total} correct` : 'Submit the topic quiz to record a score'}
-              </p>
-            </div>
-            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-              <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Final Exam</p>
-              <p className="text-2xl font-bold text-white">{finalExamResult ? `${finalExamResult.score}/100` : allTopicQuizzesComplete ? 'Unlocked' : 'Locked'}</p>
-              <p className="text-sm text-slate-300">
-                {finalExamResult ? `${finalExamResult.correct}/${finalExamResult.total} correct` : allTopicQuizzesComplete ? 'Available after the topic summary' : 'Complete all topic quizzes first'}
-              </p>
-            </div>
+
+            {isFixedTopicPhase ? (
+              <div className="flex flex-wrap gap-3">
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300/80 mb-1">Progress</p>
+                  <p className="text-lg font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-300/80 mb-1">Current Score</p>
+                  <p className="text-lg font-bold text-white">{currentTopicResult ? `${currentTopicResult.score}%` : 'Pending'}</p>
+                </div>
+                <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-[11px] uppercase tracking-[0.2em] text-violet-300/80 mb-1">Duration</p>
+                  <p className="text-lg font-bold text-white">{resolvedSessionDuration || '1h'}</p>
+                </div>
+              </div>
+            ) : (
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Topic Progress</p>
+                  <p className="text-2xl font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
+                  <p className="text-sm text-slate-300">Topic quizzes completed</p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Current Topic Score</p>
+                  <p className="text-2xl font-bold text-white">{currentTopicResult ? `${currentTopicResult.score}%` : 'Pending'}</p>
+                  <p className="text-sm text-slate-300">
+                    {currentTopicResult ? `${currentTopicResult.correct}/${currentTopicResult.total} correct` : 'Submit the topic quiz to record a score'}
+                  </p>
+                </div>
+                <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                  <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Final Exam</p>
+                  <p className="text-2xl font-bold text-white">{finalExamResult ? `${finalExamResult.score}/100` : allTopicQuizzesComplete ? 'Unlocked' : 'Locked'}</p>
+                  <p className="text-sm text-slate-300">
+                    {finalExamResult ? `${finalExamResult.correct}/${finalExamResult.total} correct` : allTopicQuizzesComplete ? 'Available after the topic summary' : 'Complete all topic quizzes first'}
+                  </p>
+                </div>
+              </div>
+            )}
           </div>
         </div>
 
         {/* NARRATOR PHASE */}
         {(phase === 'loading' || phase === 'narrator') && (
+          isITSupportCourse ? (
+            <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
+              {topicNavigationPanel}
+
+              <div className="rounded-3xl border border-cyan-500/20 bg-[#0d1b31]/95 p-5 flex flex-col min-h-0">
+                <div className="flex items-start justify-between gap-4 mb-4">
+                  <div>
+                    <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80 mb-2">AI Narrator</p>
+                    <h2 className="text-2xl font-bold text-white">Topic {chapterNumber} of {sessionLabels.length}</h2>
+                    <p className="text-sm text-slate-300 mt-2">{courseData.notes[0]}</p>
+                  </div>
+                  <div className="min-w-[220px] rounded-2xl border border-white/10 bg-white/5 p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Reading Timer</p>
+                    <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
+                      <div className="h-2 bg-cyan-500" style={{ width: `${narratorProgressPercent}%` }} />
+                    </div>
+                    <p className="text-sm text-white">{formatDuration(narratorSeconds)} / {formatDuration(narratorSimulatedTarget)}</p>
+                    <p className="text-xs text-slate-400 mt-1">Planned topic duration: {formatDuration(narratorTotalSeconds)}</p>
+                  </div>
+                </div>
+
+                <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_320px] flex-1 min-h-0">
+                  <div className="grid gap-4 content-start">
+                    <div className="grid gap-4 md:grid-cols-3">
+                      {courseData.sections.slice(0, 3).map((section, sectionIdx) => (
+                        <div key={section.title} className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                          <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300/80 mb-2">
+                            Smaller Topic {sectionIdx + 1}
+                          </p>
+                          <h3 className="text-base font-semibold text-white mb-3">{section.title}</h3>
+                          <div className="space-y-3">
+                            {section.subtopics.slice(0, 2).map((subtopic) => (
+                              <div key={subtopic.title}>
+                                <p className="text-sm font-medium text-cyan-200">{subtopic.title}</p>
+                                <ul className="mt-2 space-y-1">
+                                  {subtopic.content.slice(0, 2).map((item) => (
+                                    <li key={item} className="text-xs leading-5 text-slate-300">
+                                      {item}
+                                    </li>
+                                  ))}
+                                </ul>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">What You Should Leave With</p>
+                      <div className="grid gap-3 md:grid-cols-3">
+                        {courseData.learningObjectives.slice(0, 3).map((objective) => (
+                          <div key={objective} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
+                            {objective}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 content-start">
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Key Terms</p>
+                      <div className="flex flex-wrap gap-2">
+                        {courseData.keyTerms.slice(0, 6).map((term) => (
+                          <span key={term} className="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
+                            {term}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-2">Practice</p>
+                      <p className="text-sm text-slate-200">{courseData.practiceTasks[0]}</p>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-sky-300/80 mb-2">Quick Summary</p>
+                      <ul className="space-y-2">
+                        {courseData.summaryPoints.slice(0, 3).map((point) => (
+                          <li key={point} className="text-sm text-slate-200">{point}</li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-rose-300/80 mb-2">Worked Example</p>
+                      <p className="text-sm text-slate-200">{courseData.workedExample[0]}</p>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="grid gap-3 md:grid-cols-2 mt-4">
+                  <button
+                    onClick={() => speakText(courseData.notes.join(' '))}
+                    className="px-4 py-3 rounded-2xl bg-cyan-500/15 border border-cyan-400/30 text-cyan-200 font-medium hover:bg-cyan-500/25 transition-all"
+                  >
+                    Replay Narrator
+                  </button>
+                  <button
+                    onClick={handleNarratorComplete}
+                    disabled={!narratorReady}
+                    className="px-4 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
+                  >
+                    {narratorReady ? 'Proceed to Quiz' : 'Wait for reading time to finish'}
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
           <div className="bg-white/5 border border-cyan-500/30 rounded-2xl p-8 mb-6">
             <div className="flex items-start gap-4 mb-6">
               <div className="w-12 h-12 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center flex-shrink-0">
@@ -1911,6 +2272,7 @@ const Lesson: React.FC = () => {
               </button>
             </div>
           </div>
+          )
         )}
 
         {/* Q&A PHASE */}
