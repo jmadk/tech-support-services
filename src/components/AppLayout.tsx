@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from './site/Navbar';
 import HeroSection from './site/HeroSection';
@@ -17,8 +18,10 @@ import Dashboard from './site/Dashboard';
 
 const AppLayout: React.FC = () => {
   const { loading } = useAuth();
+  const navigate = useNavigate();
+  const location = useLocation();
   const [authOpen, setAuthOpen] = useState(false);
-  const [showDashboard, setShowDashboard] = useState(false);
+  const showDashboard = new URLSearchParams(location.search).get('view') === 'dashboard';
 
   if (loading) {
     return (
@@ -37,9 +40,9 @@ const AppLayout: React.FC = () => {
     <div className="min-h-screen bg-[#0a1628]">
       <Navbar
         onAuthClick={() => setAuthOpen(true)}
-        onDashboardClick={() => setShowDashboard(true)}
+        onDashboardClick={() => navigate('/?view=dashboard')}
         showDashboard={showDashboard}
-        onHomeClick={() => setShowDashboard(false)}
+        onHomeClick={() => navigate('/')}
       />
 
       {showDashboard ? (

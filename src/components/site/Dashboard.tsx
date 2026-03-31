@@ -2,6 +2,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 import { OWNER_EMAIL } from '@/lib/site-config';
 
 interface Consultation {
@@ -55,6 +56,7 @@ const Dashboard: React.FC = () => {
   const [activeLessonConsultationId, setActiveLessonConsultationId] = useState<string | null>(null);
 
   const certificationCatalog: Record<string, {title: string; description: string; sessions: string[]}> = {
+    [IT_SUPPORT_CUSTOMER_CARE_COURSE]: IT_SUPPORT_CUSTOMER_CARE_TRACK,
     'Database Systems': {
       title: 'Database Systems Certification',
       description: 'Comprehensive database theory, relational design, and admin skills.',

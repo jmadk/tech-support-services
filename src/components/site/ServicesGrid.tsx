@@ -2,6 +2,7 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 
 const serviceCategories = [
   { id: 'all', label: 'All Services', icon: 'grid' },
@@ -172,6 +173,9 @@ const ServicesGrid: React.FC = () => {  const navigate = useNavigate();  const {
   const [serviceCertificationStarted, setServiceCertificationStarted] = useState<Record<number, boolean>>({});
 
   const certificationCatalog: Record<string, {sessions: string[]}> = {
+    [IT_SUPPORT_CUSTOMER_CARE_COURSE]: {
+      sessions: IT_SUPPORT_CUSTOMER_CARE_TRACK.sessions,
+    },
     'Database Systems': {
       sessions: [
         'Introduction to Databases (1h)',

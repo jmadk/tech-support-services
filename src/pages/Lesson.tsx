@@ -1,10 +1,20 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_CURRICULUM } from '@/lib/it-support-course';
 
-interface LessonPhase {
-  phase: 'loading' | 'narrator' | 'qa' | 'quiz' | 'complete';
-}
+type LessonPhase = 'loading' | 'narrator' | 'qa' | 'quiz' | 'complete' | 'course-summary' | 'final-exam' | 'final-result';
+type QuestionSet = Array<{ q: string; options: string[]; correct: number }>;
+type QuizResult = {
+  score: number;
+  correct: number;
+  total: number;
+  submittedAt: string;
+};
+type CourseProgress = {
+  topicScores: Record<string, QuizResult>;
+  finalExamResult: QuizResult | null;
+};
 
 type LessonData = {
   title: string;
@@ -33,6 +43,7 @@ type CurriculumSession = {
 };
 
 const curriculumTracks: Record<string, CurriculumSession[]> = {
+  [IT_SUPPORT_CUSTOMER_CARE_COURSE]: IT_SUPPORT_CUSTOMER_CARE_CURRICULUM,
   'Database Systems': [
     {
       label: 'Introduction to Databases (1h)',
@@ -1262,6 +1273,67 @@ function formatDuration(seconds: number): string {
   return `${hrs ? `${hrs}h ` : ''}${mins}m ${secs}s`;
 }
 
+function createEmptyCourseProgress(): CourseProgress {
+  return {
+    topicScores: {},
+    finalExamResult: null,
+  };
+}
+
+function slugifyStorageValue(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+function buildCourseProgressKey(storageKey: string, course: string): string {
+  if (!storageKey || !course) {
+    return '';
+  }
+
+  return `${storageKey}_progress_${slugifyStorageValue(course)}`;
+}
+
+function calculateQuizResult(questions: QuestionSet, answers: Record<number, number>): QuizResult {
+  const total = questions.length;
+  const correct = questions.reduce((sum, question, index) => {
+    return sum + (answers[index] === question.correct ? 1 : 0);
+  }, 0);
+
+  return {
+    score: total ? Math.round((correct / total) * 100) : 0,
+    correct,
+    total,
+    submittedAt: new Date().toISOString(),
+  };
+}
+
+function createFinalExamQuestions(course: string): QuestionSet {
+  return resolveTrackSessions(course).map((session, index) => {
+    if (index % 2 === 0) {
+      return {
+        q: `Topic ${index + 1}: What best describes ${session.title}?`,
+        options: [
+          `It focuses on ${session.focus}.`,
+          'It is mainly about unrelated payroll and finance routines.',
+          'It avoids technical service delivery and customer-care practice.',
+          'It replaces the need for every other topic in the course.',
+        ],
+        correct: 0,
+      };
+    }
+
+    return {
+      q: `Topic ${index + 1}: Which set is most associated with ${session.title}?`,
+      options: [
+        session.tools.slice(0, 2).join(' and '),
+        'budgeting and customs clearance',
+        'animation and illustration',
+        'warehouse dispatch and fleet tracking',
+      ],
+      correct: 0,
+    };
+  });
+}
+
 function resolveLessonData(course: string, session: string): LessonData | null {
   if (!course || !session) {
     return null;
@@ -1286,13 +1358,17 @@ const Lesson: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user, loading } = useAuth();
-  const [phase, setPhase] = useState<'loading' | 'narrator' | 'qa' | 'quiz' | 'complete'>('narrator');
+  const [phase, setPhase] = useState<LessonPhase>('loading');
   const [qaAnswers, setQaAnswers] = useState<Record<number, number>>({});
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
+  const [finalExamAnswers, setFinalExamAnswers] = useState<Record<number, number>>({});
   const [narrating, setNarrating] = useState(true);
   const [narratorSeconds, setNarratorSeconds] = useState(0);
   const [narratorTotalSeconds, setNarratorTotalSeconds] = useState(3600);
   const [narratorReady, setNarratorReady] = useState(false);
+  const [courseProgress, setCourseProgress] = useState<CourseProgress>(createEmptyCourseProgress());
+  const [latestTopicResult, setLatestTopicResult] = useState<QuizResult | null>(null);
+  const [latestFinalExamResult, setLatestFinalExamResult] = useState<QuizResult | null>(null);
 
   // Parse from sessionStorage (passed from Dashboard or ServicesGrid)
   let storageKey = '';
@@ -1310,21 +1386,118 @@ const Lesson: React.FC = () => {
   const searchParams = new URLSearchParams(location.search);
   const queryCourse = searchParams.get('course') || '';
   const querySession = searchParams.get('session') || '';
-  const payload = sessionData ? JSON.parse(sessionData) : { course: queryCourse, session: querySession };
+  let payload = { course: queryCourse, session: querySession };
+
+  if (sessionData) {
+    try {
+      payload = JSON.parse(sessionData);
+    } catch (error) {
+      console.error('Could not parse stored lesson payload:', error);
+    }
+  }
+
   const course = payload.course || queryCourse;
   const session = payload.session || querySession;
 
   const courseData = resolveLessonData(course, session);
-  const sessionLabels = resolveTrackSessions(course).map((item) => item.label);
+  const trackSessions = resolveTrackSessions(course);
+  const sessionLabels = trackSessions.map((item) => item.label);
   const currentSessionIndex = sessionLabels.indexOf(session);
   const nextSessionLabel = currentSessionIndex >= 0 ? sessionLabels[currentSessionIndex + 1] || '' : '';
+  const isLastSession = currentSessionIndex >= 0 && currentSessionIndex === sessionLabels.length - 1;
   const chapterNumber = currentSessionIndex >= 0 ? currentSessionIndex + 1 : 1;
+  const progressStorageKey = buildCourseProgressKey(storageKey, course);
+  const orderedTopicResults = sessionLabels.map((label, index) => ({
+    label,
+    topicNumber: index + 1,
+    result: courseProgress.topicScores[label] || null,
+  }));
+  const completedTopicCount = orderedTopicResults.filter((item) => Boolean(item.result)).length;
+  const topicAverageScore = completedTopicCount
+    ? Math.round(
+        orderedTopicResults.reduce((sum, item) => sum + (item.result?.score || 0), 0) / completedTopicCount,
+      )
+    : 0;
+  const allTopicQuizzesComplete =
+    sessionLabels.length > 0 && sessionLabels.every((label) => Boolean(courseProgress.topicScores[label]));
+  const firstIncompleteSession = sessionLabels.find((label) => !courseProgress.topicScores[label]) || '';
+  const currentTopicResult = latestTopicResult || courseProgress.topicScores[session] || null;
+  const finalExamQuestions = createFinalExamQuestions(course);
+  const finalExamResult = latestFinalExamResult || courseProgress.finalExamResult;
+
+  const goToDashboard = () => {
+    navigate('/?view=dashboard');
+  };
+
+  const goToSession = (targetSession: string) => {
+    if (!consultationId || !storageKey || !targetSession) {
+      goToDashboard();
+      return;
+    }
+
+    sessionStorage.setItem(storageKey, JSON.stringify({ course, session: targetSession }));
+    setQaAnswers({});
+    setQuizAnswers({});
+    setFinalExamAnswers({});
+    setLatestTopicResult(null);
+    setNarrating(true);
+    setPhase('narrator');
+
+    navigate(`/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(targetSession)}`);
+  };
+
+  const restartCurrentTopic = () => {
+    setQaAnswers({});
+    setQuizAnswers({});
+    setFinalExamAnswers({});
+    setLatestTopicResult(null);
+    setNarratorSeconds(0);
+    setNarratorReady(false);
+    setNarrating(true);
+    setPhase('narrator');
+  };
 
   useEffect(() => {
     if (storageKey && course && session) {
       sessionStorage.setItem(storageKey, JSON.stringify({ course, session }));
     }
   }, [storageKey, course, session]);
+
+  useEffect(() => {
+    if (!progressStorageKey) {
+      setLatestFinalExamResult(null);
+      setCourseProgress(createEmptyCourseProgress());
+      return;
+    }
+
+    const storedProgress = sessionStorage.getItem(progressStorageKey);
+    if (!storedProgress) {
+      setLatestFinalExamResult(null);
+      setCourseProgress(createEmptyCourseProgress());
+      return;
+    }
+
+    try {
+      const parsed = JSON.parse(storedProgress);
+      setLatestFinalExamResult(null);
+      setCourseProgress({
+        topicScores: parsed?.topicScores || {},
+        finalExamResult: parsed?.finalExamResult || null,
+      });
+    } catch (error) {
+      console.error('Could not parse stored course progress:', error);
+      setLatestFinalExamResult(null);
+      setCourseProgress(createEmptyCourseProgress());
+    }
+  }, [progressStorageKey]);
+
+  useEffect(() => {
+    if (!progressStorageKey) {
+      return;
+    }
+
+    sessionStorage.setItem(progressStorageKey, JSON.stringify(courseProgress));
+  }, [progressStorageKey, courseProgress]);
 
   useEffect(() => {
     if (loading) {
@@ -1341,14 +1514,20 @@ const Lesson: React.FC = () => {
   useEffect(() => {
     if (!session) return;
     const totalSeconds = parseSessionDurationSeconds(session);
+    setQaAnswers({});
+    setQuizAnswers({});
+    setFinalExamAnswers({});
+    setLatestTopicResult(null);
     setNarratorTotalSeconds(totalSeconds);
     setNarratorSeconds(0);
     setNarratorReady(false);
     setNarrating(true);
   }, [session]);
 
-  const narratorSimulatedTarget = Math.min(narratorTotalSeconds, 120);
-  const narratorProgressPercent = Math.round((narratorSeconds / narratorSimulatedTarget) * 100);
+  const narratorSimulatedTarget = import.meta.env.DEV ? Math.min(narratorTotalSeconds, 120) : narratorTotalSeconds;
+  const narratorProgressPercent = narratorSimulatedTarget
+    ? Math.round((narratorSeconds / narratorSimulatedTarget) * 100)
+    : 0;
 
   useEffect(() => {
     if (phase !== 'narrator' || !narrating) return;
@@ -1386,22 +1565,41 @@ const Lesson: React.FC = () => {
   };
 
   const handleQuizSubmit = () => {
-    setPhase('complete');
+    const result = calculateQuizResult(courseData.quizQuestions, quizAnswers);
+    setLatestTopicResult(result);
+    setCourseProgress((prev) => ({
+      ...prev,
+      topicScores: {
+        ...prev.topicScores,
+        [session]: result,
+      },
+    }));
+    setPhase(isLastSession ? 'course-summary' : 'complete');
+  };
+
+  const handleStartFinalExam = () => {
+    setFinalExamAnswers({});
+    setLatestFinalExamResult(null);
+    setPhase('final-exam');
+  };
+
+  const handleFinalExamSubmit = () => {
+    const result = calculateQuizResult(finalExamQuestions, finalExamAnswers);
+    setLatestFinalExamResult(result);
+    setCourseProgress((prev) => ({
+      ...prev,
+      finalExamResult: result,
+    }));
+    setPhase('final-result');
   };
 
   const handleNextSession = () => {
-    if (!consultationId || !nextSessionLabel) {
-      navigate('/dashboard');
+    if (!nextSessionLabel) {
+      goToDashboard();
       return;
     }
 
-    const nextPayload = { course, session: nextSessionLabel };
-    sessionStorage.setItem(`lesson_${consultationId}`, JSON.stringify(nextPayload));
-    setQaAnswers({});
-    setQuizAnswers({});
-    setNarrating(true);
-    setPhase('narrator');
-    navigate(`/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(nextSessionLabel)}`);
+    goToSession(nextSessionLabel);
   };
 
   if (!courseData) {
@@ -1420,13 +1618,34 @@ const Lesson: React.FC = () => {
         {/* Header */}
         <div className="mb-8">
           <button
-            onClick={() => navigate('/dashboard')}
+            onClick={goToDashboard}
             className="text-cyan-400 hover:text-cyan-300 text-sm mb-4"
           >
-            ← Back to Dashboard
+            {'< '}Back to Dashboard
           </button>
           <h1 className="text-4xl font-bold text-white mb-2">{courseData.title}</h1>
           <p className="text-gray-400">{session}</p>
+          <div className="mt-4 grid gap-3 md:grid-cols-3">
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Topic Progress</p>
+              <p className="text-2xl font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
+              <p className="text-sm text-slate-300">Topic quizzes completed</p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Current Topic Score</p>
+              <p className="text-2xl font-bold text-white">{currentTopicResult ? `${currentTopicResult.score}%` : 'Pending'}</p>
+              <p className="text-sm text-slate-300">
+                {currentTopicResult ? `${currentTopicResult.correct}/${currentTopicResult.total} correct` : 'Submit the topic quiz to record a score'}
+              </p>
+            </div>
+            <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+              <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Final Exam</p>
+              <p className="text-2xl font-bold text-white">{finalExamResult ? `${finalExamResult.score}/100` : allTopicQuizzesComplete ? 'Unlocked' : 'Locked'}</p>
+              <p className="text-sm text-slate-300">
+                {finalExamResult ? `${finalExamResult.correct}/${finalExamResult.total} correct` : allTopicQuizzesComplete ? 'Available after the topic summary' : 'Complete all topic quizzes first'}
+              </p>
+            </div>
+          </div>
         </div>
 
         {/* NARRATOR PHASE */}
@@ -1447,7 +1666,12 @@ const Lesson: React.FC = () => {
             <div className="mb-8 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-6">
               <h3 className="text-xl font-bold text-violet-200 mb-3">TOPIC & SUBTOPIC CONTENT</h3>
               <p className="text-slate-300 text-sm mb-2">This page is dedicated to one whole topic (no cards, one page at a time).</p>
-              <p className="text-slate-300 text-sm mb-2">Narrator duration requested by lesson: {formatDuration(narratorTotalSeconds)} (simulated: {formatDuration(narratorSimulatedTarget)}).</p>
+              <p className="text-slate-300 text-sm mb-2">
+                Planned study time: {formatDuration(narratorTotalSeconds)}
+                {import.meta.env.DEV && narratorSimulatedTarget !== narratorTotalSeconds
+                  ? ` | development fast-track timer: ${formatDuration(narratorSimulatedTarget)}`
+                  : ''}
+              </p>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-1">
                 <div
                   className="h-2 bg-cyan-500"
@@ -1717,9 +1941,10 @@ const Lesson: React.FC = () => {
             </div>
             <button
               onClick={handleQASubmit}
-              className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold hover:opacity-90 transition-all"
+              disabled={Object.keys(qaAnswers).length < courseData.qaQuestions.length}
+              className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              Proceed to Certification Quiz →
+              {'Proceed to Topic Quiz ->'}
             </button>
           </div>
         )}
@@ -1727,8 +1952,8 @@ const Lesson: React.FC = () => {
         {/* QUIZ PHASE */}
         {phase === 'quiz' && (
           <div className="bg-white/5 border border-green-500/30 rounded-2xl p-8 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-2">🏆 Certification Quiz</h2>
-            <p className="text-gray-400 mb-6">Answer these questions to earn your certification.</p>
+            <h2 className="text-2xl font-bold text-white mb-2">Topic Quiz</h2>
+            <p className="text-gray-400 mb-6">Answer these questions before moving to the next topic.</p>
             <div className="space-y-6 mb-8">
               {courseData.quizQuestions.map((q, idx) => (
                 <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-5">
@@ -1756,7 +1981,7 @@ const Lesson: React.FC = () => {
               disabled={Object.keys(quizAnswers).length < courseData.quizQuestions.length}
               className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:opacity-90 disabled:opacity-50 transition-all disabled:cursor-not-allowed"
             >
-              Submit Certification Quiz
+              Submit Topic Quiz
             </button>
           </div>
         )}
@@ -1769,31 +1994,222 @@ const Lesson: React.FC = () => {
                 <polyline points="20 6 9 17 4 12"/>
               </svg>
             </div>
-            <h2 className="text-3xl font-bold text-green-300 mb-3">🎓 Certification Complete!</h2>
-            <p className="text-green-200 mb-2">Congratulations! You've successfully completed the {session} session.</p>
-            <p className="text-green-100/70 mb-8">Your certification has been recorded and you can now advance to the next session in the {course} curriculum.</p>
-            
+            <h2 className="text-3xl font-bold text-green-300 mb-3">Topic Quiz Submitted</h2>
+            <p className="text-green-200 mb-2">Topic {chapterNumber} has been completed successfully.</p>
+            <p className="text-green-100/70 mb-8">Your score has been recorded and you can continue to the next topic in the {course} course.</p>
+
+            {currentTopicResult && (
+              <div className="mx-auto mb-8 max-w-md rounded-2xl border border-white/10 bg-[#0d2038] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-green-300/80 mb-2">Recorded Score</p>
+                <p className="text-4xl font-bold text-white">{currentTopicResult.score}%</p>
+                <p className="text-sm text-slate-300 mt-2">{currentTopicResult.correct} out of {currentTopicResult.total} answers were correct.</p>
+              </div>
+            )}
+
             <div className={`grid gap-4 ${nextSessionLabel ? 'grid-cols-3' : 'grid-cols-2'}`}>
               <button
-                onClick={() => navigate('/')}
+                onClick={restartCurrentTopic}
                 className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
               >
-                Home
+                Review Topic Again
               </button>
               {nextSessionLabel && (
                 <button
                   onClick={handleNextSession}
                   className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all"
                 >
-                  Proceed to Next Topic
+                  Proceed to {nextSessionLabel}
                 </button>
               )}
               <button
-                onClick={() => {
-                  sessionStorage.removeItem(`lesson_${consultationId}`);
-                  navigate('/dashboard');
-                }}
+                onClick={goToDashboard}
                 className="px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-medium hover:opacity-90 transition-all"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'course-summary' && (
+          <div className="bg-white/5 border border-cyan-500/30 rounded-2xl p-8 mb-6">
+            <h2 className="text-3xl font-bold text-white mb-2">All Topic Quiz Scores</h2>
+            <p className="text-slate-300 mb-8">
+              Topic {chapterNumber} has been submitted. Review every topic score below before proceeding to the final exam.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-2 mb-8">
+              <div className="rounded-2xl border border-white/10 bg-[#11243f] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Completed Topic Quizzes</p>
+                <p className="text-3xl font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
+                <p className="text-sm text-slate-300 mt-2">Every topic needs a recorded quiz score before the final exam unlocks.</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#11243f] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Average Topic Score</p>
+                <p className="text-3xl font-bold text-white">{topicAverageScore}%</p>
+                <p className="text-sm text-slate-300 mt-2">This is the average across all completed topic quizzes.</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-8">
+              {orderedTopicResults.map((item) => (
+                <div key={item.label} className="rounded-xl border border-white/10 bg-[#11243f] p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.label}</p>
+                    <p className="text-xs text-slate-400">
+                      {item.result ? `${item.result.correct}/${item.result.total} correct` : 'Quiz not completed yet'}
+                    </p>
+                  </div>
+                  <div className={`rounded-full px-4 py-2 text-sm font-bold ${item.result ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                    {item.result ? `${item.result.score}%` : 'Incomplete'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className={`grid gap-4 ${allTopicQuizzesComplete || firstIncompleteSession ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
+              <button
+                onClick={goToDashboard}
+                className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
+              >
+                Back to Dashboard
+              </button>
+              {allTopicQuizzesComplete ? (
+                <button
+                  onClick={handleStartFinalExam}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all"
+                >
+                  Proceed to Final Exam (100 Marks)
+                </button>
+              ) : firstIncompleteSession ? (
+                <button
+                  onClick={() => goToSession(firstIncompleteSession)}
+                  className="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white font-medium hover:opacity-90 transition-all"
+                >
+                  Go to First Incomplete Topic
+                </button>
+              ) : null}
+            </div>
+          </div>
+        )}
+
+        {phase === 'final-exam' && (
+          <div className="bg-white/5 border border-amber-500/30 rounded-2xl p-8 mb-6">
+            <h2 className="text-3xl font-bold text-white mb-2">Final Exam</h2>
+            <p className="text-slate-300 mb-6">
+              This exam covers every topic in the course and is graded out of 100.
+            </p>
+
+            <div className="grid gap-4 md:grid-cols-3 mb-8">
+              <div className="rounded-xl border border-white/10 bg-[#11243f] p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-2">Questions</p>
+                <p className="text-2xl font-bold text-white">{finalExamQuestions.length}</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#11243f] p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-2">Score Scale</p>
+                <p className="text-2xl font-bold text-white">0 - 100</p>
+              </div>
+              <div className="rounded-xl border border-white/10 bg-[#11243f] p-4">
+                <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-2">Coverage</p>
+                <p className="text-2xl font-bold text-white">{sessionLabels.length} Topics</p>
+              </div>
+            </div>
+
+            <div className="space-y-6 mb-8">
+              {finalExamQuestions.map((q, idx) => (
+                <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-5">
+                  <p className="text-white font-medium mb-4">{idx + 1}. {q.q}</p>
+                  <div className="space-y-2">
+                    {q.options.map((option, optIdx) => (
+                      <label key={optIdx} className="flex items-center gap-3 p-3 rounded-lg border border-white/10 hover:bg-white/10 cursor-pointer transition-all">
+                        <input
+                          type="radio"
+                          name={`final-${idx}`}
+                          value={optIdx}
+                          checked={finalExamAnswers[idx] === optIdx}
+                          onChange={() => setFinalExamAnswers((prev) => ({ ...prev, [idx]: optIdx }))}
+                          className="w-4 h-4"
+                        />
+                        <span className="text-gray-300">{option}</span>
+                      </label>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <button
+                onClick={() => setPhase('course-summary')}
+                className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
+              >
+                Back to Topic Scores
+              </button>
+              <button
+                onClick={handleFinalExamSubmit}
+                disabled={Object.keys(finalExamAnswers).length < finalExamQuestions.length}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold hover:opacity-90 disabled:opacity-50 transition-all disabled:cursor-not-allowed"
+              >
+                Submit Final Exam
+              </button>
+            </div>
+          </div>
+        )}
+
+        {phase === 'final-result' && finalExamResult && (
+          <div className="bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/40 rounded-2xl p-8 text-center">
+            <div className="w-20 h-20 mx-auto mb-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <svg xmlns="http://www.w3.org/2000/svg" width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" className="text-emerald-300">
+                <polyline points="20 6 9 17 4 12"/>
+              </svg>
+            </div>
+            <h2 className="text-3xl font-bold text-emerald-200 mb-3">Final Exam Submitted</h2>
+            <p className="text-emerald-100 mb-8">The course has been completed and your final exam score is now recorded.</p>
+
+            <div className="mx-auto mb-8 max-w-2xl grid gap-4 md:grid-cols-3">
+              <div className="rounded-2xl border border-white/10 bg-[#0d2038] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">Final Exam Score</p>
+                <p className="text-4xl font-bold text-white">{finalExamResult.score}/100</p>
+                <p className="text-sm text-slate-300 mt-2">{finalExamResult.correct}/{finalExamResult.total} correct</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#0d2038] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Topic Average</p>
+                <p className="text-4xl font-bold text-white">{topicAverageScore}%</p>
+                <p className="text-sm text-slate-300 mt-2">Across all topic quizzes</p>
+              </div>
+              <div className="rounded-2xl border border-white/10 bg-[#0d2038] p-5">
+                <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Topic Quizzes</p>
+                <p className="text-4xl font-bold text-white">{completedTopicCount}/{sessionLabels.length}</p>
+                <p className="text-sm text-slate-300 mt-2">Completed topic assessments</p>
+              </div>
+            </div>
+
+            <div className="space-y-3 mb-8 text-left">
+              {orderedTopicResults.map((item) => (
+                <div key={item.label} className="rounded-xl border border-white/10 bg-[#11243f] p-4 flex items-center justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-semibold text-white">{item.label}</p>
+                    <p className="text-xs text-slate-400">
+                      {item.result ? `${item.result.correct}/${item.result.total} correct` : 'Not completed'}
+                    </p>
+                  </div>
+                  <div className={`rounded-full px-4 py-2 text-sm font-bold ${item.result ? 'bg-emerald-500/15 text-emerald-300' : 'bg-rose-500/15 text-rose-300'}`}>
+                    {item.result ? `${item.result.score}%` : 'Incomplete'}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="grid gap-4 md:grid-cols-2">
+              <button
+                onClick={() => setPhase('course-summary')}
+                className="px-6 py-3 rounded-lg bg-white/10 border border-white/20 text-white font-medium hover:bg-white/20 transition-all"
+              >
+                Review Topic Scores
+              </button>
+              <button
+                onClick={goToDashboard}
+                className="px-6 py-3 rounded-lg bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-medium hover:opacity-90 transition-all"
               >
                 Back to Dashboard
               </button>
