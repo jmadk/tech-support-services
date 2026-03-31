@@ -1237,6 +1237,31 @@ function buildFallbackLesson(course: string, session: string): LessonData {
   };
 }
 
+function parseSessionDurationSeconds(sessionLabel: string): number {
+  if (!sessionLabel) return 3600;
+
+  const hMatch = sessionLabel.match(/(\d+(?:\.\d+)?)\s*h(?:\s*(\d+)\s*m)?/i);
+  if (hMatch) {
+    const hrs = parseFloat(hMatch[1]);
+    const mins = hMatch[2] ? parseInt(hMatch[2], 10) : 0;
+    return Math.round(hrs * 3600 + mins * 60);
+  }
+
+  const mMatch = sessionLabel.match(/(\d+)\s*m/i);
+  if (mMatch) {
+    return parseInt(mMatch[1], 10) * 60;
+  }
+
+  return 3600;
+}
+
+function formatDuration(seconds: number): string {
+  const hrs = Math.floor(seconds / 3600);
+  const mins = Math.floor((seconds % 3600) / 60);
+  const secs = seconds % 60;
+  return `${hrs ? `${hrs}h ` : ''}${mins}m ${secs}s`;
+}
+
 function resolveLessonData(course: string, session: string): LessonData | null {
   if (!course || !session) {
     return null;
@@ -1265,6 +1290,9 @@ const Lesson: React.FC = () => {
   const [qaAnswers, setQaAnswers] = useState<Record<number, number>>({});
   const [quizAnswers, setQuizAnswers] = useState<Record<number, number>>({});
   const [narrating, setNarrating] = useState(true);
+  const [narratorSeconds, setNarratorSeconds] = useState(0);
+  const [narratorTotalSeconds, setNarratorTotalSeconds] = useState(3600);
+  const [narratorReady, setNarratorReady] = useState(false);
 
   // Parse from sessionStorage (passed from Dashboard or ServicesGrid)
   let storageKey = '';
@@ -1310,6 +1338,32 @@ const Lesson: React.FC = () => {
     setPhase((current) => (current === 'loading' ? 'narrator' : current));
   }, [user, courseData, loading, navigate]);
 
+  useEffect(() => {
+    if (!session) return;
+    const totalSeconds = parseSessionDurationSeconds(session);
+    setNarratorTotalSeconds(totalSeconds);
+    setNarratorSeconds(0);
+    setNarratorReady(false);
+    setNarrating(true);
+  }, [session]);
+
+  const narratorSimulatedTarget = Math.min(narratorTotalSeconds, 120);
+  const narratorProgressPercent = Math.round((narratorSeconds / narratorSimulatedTarget) * 100);
+
+  useEffect(() => {
+    if (phase !== 'narrator' || !narrating) return;
+    if (narratorSeconds >= narratorSimulatedTarget) {
+      setNarratorReady(true);
+      return;
+    }
+
+    const interval = window.setInterval(() => {
+      setNarratorSeconds((prev) => Math.min(prev + 1, narratorSimulatedTarget));
+    }, 1000);
+
+    return () => window.clearInterval(interval);
+  }, [phase, narrating, narratorSeconds, narratorSimulatedTarget]);
+
   const speakText = (text: string) => {
     if ('speechSynthesis' in window) {
       const utterance = new SpeechSynthesisUtterance(text);
@@ -1320,8 +1374,11 @@ const Lesson: React.FC = () => {
   };
 
   const handleNarratorComplete = () => {
+    if (!narratorReady) {
+      return;
+    }
     setNarrating(false);
-    setTimeout(() => setPhase('qa'), 1000);
+    setPhase('qa');
   };
 
   const handleQASubmit = () => {
@@ -1387,13 +1444,28 @@ const Lesson: React.FC = () => {
               </div>
             </div>
 
-            {/* COURSE CONTENT - List all sessions like notes */}
             <div className="mb-8 rounded-2xl border border-violet-400/30 bg-violet-500/10 p-6">
-              <h3 className="text-xl font-bold text-violet-200 mb-4">COURSE CONTENT</h3>
-              <div className="space-y-3">
-                {sessionLabels.map((label, idx) => (
-                  <div key={idx} className="border-l-2 border-violet-400/30 pl-4">
-                    <p className="text-sm font-semibold text-violet-100">{idx + 1}. {label}</p>
+              <h3 className="text-xl font-bold text-violet-200 mb-3">TOPIC & SUBTOPIC CONTENT</h3>
+              <p className="text-slate-300 text-sm mb-2">This page is dedicated to one whole topic (no cards, one page at a time).</p>
+              <p className="text-slate-300 text-sm mb-2">Narrator duration requested by lesson: {formatDuration(narratorTotalSeconds)} (simulated: {formatDuration(narratorSimulatedTarget)}).</p>
+              <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-1">
+                <div
+                  className="h-2 bg-cyan-500"
+                  style={{ width: `${narratorProgressPercent}%` }}
+                />
+              </div>
+              <p className="text-xs text-slate-300 mb-4">{formatDuration(narratorSeconds)} / {formatDuration(narratorSimulatedTarget)} read</p>
+              <div className="space-y-2">
+                {courseData.sections.map((section, sectionIdx) => (
+                  <div key={sectionIdx} className="rounded-lg border border-white/10 bg-[#11243f] p-4">
+                    <h4 className="text-sm font-semibold text-cyan-300 mb-2">{section.title}</h4>
+                    <ul className="list-disc list-inside text-slate-200">
+                      {section.subtopics.map((subtopic, subIdx) => (
+                        <li key={subIdx} className="mb-1">
+                          <strong className="text-slate-100">{subtopic.title}:</strong> {subtopic.content.join(' ')}
+                        </li>
+                      ))}
+                    </ul>
                   </div>
                 ))}
               </div>
@@ -1608,9 +1680,10 @@ const Lesson: React.FC = () => {
               </button>
               <button
                 onClick={handleNarratorComplete}
-                className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all"
+                disabled={!narratorReady}
+                className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               >
-                Continue →
+                {narratorReady ? 'Proceed to Quiz →' : 'Proceed after reading completes'}
               </button>
             </div>
           </div>
@@ -1712,7 +1785,7 @@ const Lesson: React.FC = () => {
                   onClick={handleNextSession}
                   className="px-6 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 transition-all"
                 >
-                  Next Session
+                  Proceed to Next Topic
                 </button>
               )}
               <button
