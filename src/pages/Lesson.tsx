@@ -22,7 +22,9 @@ type LessonData = {
   learningObjectives: string[];
   sections: Array<{ title: string; subtopics: Array<{ title: string; content: string[] }> }>;
   keyTerms: string[];
+  keyTermDetails: string[];
   background: string[];
+  analysisPrompts: string[];
   workedExample: string[];
   practiceTasks: string[];
   summaryPoints: string[];
@@ -1196,8 +1198,59 @@ function createProfiledGenericSession(course: string, label: string, index: numb
   };
 }
 
+const APPLICATION_IMPACTS = [
+  'performance, predictability, and decision quality',
+  'reliability, maintainability, and long-term stability',
+  'resource efficiency, observability, and troubleshooting speed',
+  'security, control, and resilience under stress',
+];
+
+const ANALYSIS_LENSES = [
+  'what the system is optimizing',
+  'where the main bottleneck or weakness is likely to appear',
+  'which tradeoff is being made between speed, simplicity, reliability, or control',
+  'how a small design choice can change the final outcome',
+];
+
+function buildKeyTermDetails(session: CurriculumSession, limit = 4): string[] {
+  return session.tools.slice(0, limit).map((tool, index) => {
+    const concept = session.concepts[index % session.concepts.length] || session.title.toLowerCase();
+    const outcome = session.outcomes[index % session.outcomes.length] || `explain ${session.title}`;
+    const application = session.applications[index % session.applications.length] || 'real technical work';
+    return `${tool} matters in ${session.title} because it gives you a precise way to reason about ${concept}; in ${application}, it helps you ${outcome}.`;
+  });
+}
+
+function buildConceptDetails(session: CurriculumSession, limit = 4): string[] {
+  return session.concepts.slice(0, limit).map((concept, index) => {
+    const tool = session.tools[index % session.tools.length] || session.title;
+    const lens = ANALYSIS_LENSES[index % ANALYSIS_LENSES.length];
+    return `${concept} is a core idea in ${session.title} because it shapes how you interpret ${tool}, evaluate ${lens}, and justify technical choices.`;
+  });
+}
+
+function buildApplicationDetails(session: CurriculumSession): string[] {
+  return session.applications.slice(0, 3).map((application, index) => {
+    const concepts = joinList(session.concepts.slice(index, index + 2), 2) || session.title.toLowerCase();
+    const impact = APPLICATION_IMPACTS[index % APPLICATION_IMPACTS.length];
+    return `In ${application}, ${session.title} influences ${impact} because ideas such as ${concepts} affect how solutions are designed, reviewed, and improved.`;
+  });
+}
+
+function buildAnalysisPrompts(session: CurriculumSession): string[] {
+  return [
+    `When reviewing ${session.title}, ask ${ANALYSIS_LENSES[0]} and how ${joinList(session.tools.slice(0, 2), 2)} contribute to it.`,
+    `Trace where ${joinList(session.concepts.slice(0, 2), 2)} create benefits, delays, risks, or hidden constraints in a real scenario.`,
+    `Compare two plausible approaches and explain which one better supports ${joinList(session.applications.slice(0, 2), 2)} and why.`,
+  ];
+}
+
 function createLessonFromCurriculum(session: CurriculumSession): LessonData {
   const isITSupportLesson = session.label.includes('IT Support & Customer Care');
+  const keyTermDetails = buildKeyTermDetails(session);
+  const conceptDetails = buildConceptDetails(session);
+  const applicationDetails = buildApplicationDetails(session);
+  const analysisPrompts = buildAnalysisPrompts(session);
   const notes = isITSupportLesson
     ? [
         `${session.title} focuses on ${session.focus}.`,
@@ -1214,6 +1267,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
         `Practice focus: ${session.lab}`,
         `You will see these ideas again in ${joinList(session.applications, 3)}, where clear reasoning and good design choices directly affect the outcome.`,
+        `The deeper skill in ${session.title} is not memorizing definitions, but explaining what changes when one component, constraint, or design choice shifts.`,
       ];
 
   const learningObjectives = isITSupportLesson
@@ -1283,6 +1337,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
               content: [
                 `${session.title} centers on ${session.focus}.`,
                 `The goal is to move beyond naming parts and toward understanding how those parts behave, interact, and create tradeoffs in real situations.`,
+                `As you read, keep asking how the topic changes system behavior, design choices, and the way engineers explain technical results.`,
               ],
             },
             {
@@ -1292,6 +1347,13 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
                 `When you understand the topic well, you can justify technical decisions instead of relying on guesswork or memorized definitions.`,
               ],
             },
+            {
+              title: 'Technical Lens',
+              content: [
+                `A useful way to study ${session.title} is to trace cause and effect: what inputs matter, what process happens next, and what output or consequence follows.`,
+                `This lens helps you connect isolated concepts into one working model instead of treating each idea as a separate fact.`,
+              ],
+            },
           ],
         },
         {
@@ -1299,11 +1361,18 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           subtopics: [
             {
               title: 'Key Study Terms',
-              content: session.tools.map((tool) => `${tool} is a key term in ${session.title} because it helps describe how the topic behaves in practice.`),
+              content: keyTermDetails,
             },
             {
               title: 'Subtopic Breakdown',
-              content: session.concepts.map((concept) => `${concept} is a core idea inside ${session.title}, and it shapes the way technical decisions are made.`),
+              content: conceptDetails,
+            },
+            {
+              title: 'Decision Impact',
+              content: [
+                `The concepts in ${session.title} affect how you judge speed, reliability, maintainability, scalability, and control.`,
+                `If you can explain which concept is driving a decision, you are much closer to true mastery than if you only remember the definition.`,
+              ],
             },
           ],
         },
@@ -1315,11 +1384,16 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
               content: [
                 session.lab,
                 `A strong answer should explain not just what to do, but why each step improves understanding of the topic.`,
+                `Go one level deeper by explaining what could go wrong, what tradeoff appears, and how you would defend your choices.`,
               ],
             },
             {
               title: 'Real-World Relevance',
-              content: session.applications.map((application) => `${session.title} plays a direct role in ${application}, where sound reasoning affects the final result.`),
+              content: applicationDetails,
+            },
+            {
+              title: 'Analysis Lens',
+              content: analysisPrompts,
             },
           ],
         },
@@ -1336,6 +1410,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `The key terms in this lesson give you the language needed to explain behavior, compare options, and justify decisions.`,
         `You should now be ready to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
         `Before progressing, make sure you can explain the topic in your own words and connect it to at least one real use case.`,
+        `The strongest answers in this topic are the ones that connect a concept, a technical consequence, and a justified decision in one clear explanation.`,
       ];
 
   const qaQuestions = isITSupportLesson
@@ -1496,27 +1571,33 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
     learningObjectives,
     sections,
     keyTerms: [...session.tools, ...session.concepts].slice(0, 8),
+    keyTermDetails,
     background: [
       `${session.title} gives you the mental model needed to understand how ${joinList([session.concepts[0], session.concepts[1], session.concepts[2]].filter(Boolean))} influence real technical work.`,
       `Before going deeper, recall what you already know about ${joinList([session.tools[0], session.tools[1], session.concepts[0]].filter(Boolean))}.`,
       `As you study, look for cause-and-effect relationships: what changes, what stays stable, and what tradeoffs appear when the topic is applied.`,
+      `A deeper reading of ${session.title} asks not only what each part does, but how the entire system behaves when those parts interact under load, failure, or changing requirements.`,
     ],
+    analysisPrompts,
     workedExample: [
       `Scenario: a team needs to use ${session.title} while building, reviewing, or improving a solution used in ${session.applications[0]}.`,
       `Step 1: identify the real objective and isolate the concepts that matter most, especially ${joinList(session.concepts, 2)}.`,
       `Step 2: use ${joinList(session.tools, 2)} to explain what is happening, where the risk or opportunity appears, and what choice should be made.`,
-      `Step 3: justify the result by linking it to performance, reliability, maintainability, security, or user impact in the final system.`,
+      `Step 3: test the decision against tradeoffs such as speed, cost, reliability, maintainability, or security before accepting it.`,
+      `Step 4: justify the result by linking it to performance, reliability, maintainability, security, or user impact in the final system.`,
     ],
     practiceTasks: [
       session.lab,
       `Write a short explanation showing how ${joinList(session.concepts, 2)} affect the success of a real implementation.`,
       `Compare two practical situations and explain how ${session.title} changes the decisions you would make in each one.`,
+      `Choose one design or troubleshooting choice related to ${session.title} and defend it against a realistic alternative.`,
     ],
     summaryPoints,
     shortTestTips: [
       `Review ${joinList(session.tools, 3)} until you can explain each term in plain technical language.`,
       `Be ready to describe how ${joinList(session.concepts, 2)} influence behavior, design choices, or troubleshooting steps.`,
       `Use the practice task and worked example to prepare for application-based questions instead of memorizing isolated definitions.`,
+      `Push your revision one step further by explaining not only what happens, but why that behavior matters in a real system.`,
     ],
     qaQuestions,
     quizQuestions,
@@ -1557,6 +1638,17 @@ function resolveTrackSessions(course: string): CurriculumSession[] {
 function buildFallbackLesson(course: string, session: string): LessonData {
   const sessionTitle = session.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Lesson Session';
   const courseTitle = course || 'Learning Track';
+  const keyTermDetails = [
+    `${courseTitle} is the broader technical space that gives meaning to ${sessionTitle}.`,
+    `${sessionTitle} should be studied as a working topic, not just a label, so focus on behavior, tradeoffs, and practical consequences.`,
+    `Analysis helps you break the topic into decisions, causes, and effects instead of memorizing isolated facts.`,
+    `Implementation shows whether your explanation can survive contact with a real task or scenario.`,
+  ];
+  const analysisPrompts = [
+    `Ask what the topic is optimizing, protecting, or making easier to understand.`,
+    `Identify which decision would change if one assumption, resource limit, or system requirement shifted.`,
+    `Explain the topic using one concrete scenario instead of staying at definition level.`,
+  ];
 
   return {
     title: sessionTitle,
@@ -1565,6 +1657,7 @@ function buildFallbackLesson(course: string, session: string): LessonData {
       `This lesson focuses on the main ideas, technical vocabulary, and practical workflow used in ${courseTitle}.`,
       `Pay attention to the core concepts introduced in ${sessionTitle}, because they will support later sessions and stronger decision-making.`,
       `As you proceed, connect each concept to a real project or technical scenario so the lesson becomes practical and memorable.`,
+      `The strongest explanations in this lesson should connect a concept, a technical consequence, and a justified choice.`,
       `Use the Q&A and quiz sections to confirm understanding before moving to the next milestone.`,
     ],
     learningObjectives: [
@@ -1582,6 +1675,7 @@ function buildFallbackLesson(course: string, session: string): LessonData {
             content: [
               `${sessionTitle} introduces foundational ideas used throughout the ${courseTitle} curriculum.`,
               `The purpose is to move from broad awareness into clear technical understanding and usable judgment.`,
+              `Treat each idea as part of a wider system, workflow, or design choice rather than as an isolated definition.`,
             ],
           },
         ],
@@ -1603,34 +1697,45 @@ function buildFallbackLesson(course: string, session: string): LessonData {
               `Use examples and case studies to make the topic concrete, testable, and memorable.`,
             ],
           },
+          {
+            title: 'Analysis Lens',
+            content: analysisPrompts,
+          },
         ],
       },
     ],
     keyTerms: [courseTitle, sessionTitle, 'analysis', 'workflow', 'implementation', 'application'],
+    keyTermDetails,
     background: [
       `${sessionTitle} is part of the wider ${courseTitle} learning path and should be read as a foundational chapter rather than a standalone note.`,
       `This background section helps connect the session to earlier knowledge, practical work, and later problem-solving tasks.`,
+      `A deeper reading should always ask what tradeoffs, constraints, or system effects become visible once the concept is applied.`,
     ],
+    analysisPrompts,
     workedExample: [
       `Scenario: a team applies ${sessionTitle} to a practical ${courseTitle} task or project problem.`,
       `Step 1: identify the important ideas in the topic and the decision that depends on them.`,
       `Step 2: connect those ideas to a real technical situation and explain the likely tradeoffs.`,
-      `Step 3: explain the result clearly and use it as revision before the short test.`,
+      `Step 3: compare at least two possible approaches and explain why one is stronger.`,
+      `Step 4: explain the result clearly and use it as revision before the short test.`,
     ],
     practiceTasks: [
       `Prepare short notes summarizing the main ideas behind ${sessionTitle}.`,
       `List two practical scenarios where ${sessionTitle} would be useful in ${courseTitle}.`,
       `Discuss the topic with examples from projects, debugging work, or implementation tasks.`,
+      `Write a short decision note explaining how ${sessionTitle} would guide one technical choice in practice.`,
     ],
     summaryPoints: [
       `${sessionTitle} introduces important ideas used throughout the ${courseTitle} curriculum.`,
       `The lesson should be understood both conceptually and practically.`,
       `The review and quiz stages are meant to confirm readiness before moving to the next session.`,
+      `A solid explanation should show not just what the topic is, but how it changes technical reasoning.`,
     ],
     shortTestTips: [
       `Revise the core terms and topic summary before answering.`,
       `Check that you can explain the lesson without copying the wording directly.`,
       `Use the practice and worked example sections as your final review.`,
+      `If possible, defend one decision or tradeoff out loud before submitting your answers.`,
     ],
     qaQuestions: [
       {
@@ -2215,7 +2320,7 @@ const Lesson: React.FC = () => {
                     <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80 mb-2">AI Narrator</p>
                     <h2 className="text-2xl font-bold text-white">Topic {chapterNumber} of {sessionLabels.length}</h2>
                     <div className="mt-2 space-y-2">
-                      {courseData.notes.slice(0, 2).map((note) => (
+                      {courseData.notes.slice(0, 3).map((note) => (
                         <p key={note} className="text-sm text-slate-300">
                           {note}
                         </p>
@@ -2281,6 +2386,13 @@ const Lesson: React.FC = () => {
                           </span>
                         ))}
                       </div>
+                      <ul className="mt-4 space-y-2">
+                        {courseData.keyTermDetails.map((detail) => (
+                          <li key={detail} className="text-sm leading-6 text-slate-200">
+                            {detail}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
@@ -2309,6 +2421,17 @@ const Lesson: React.FC = () => {
                         {courseData.workedExample.map((step) => (
                           <li key={step} className="text-sm leading-6 text-slate-200">
                             {step}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-fuchsia-300/80 mb-2">Analysis Lens</p>
+                      <ul className="space-y-2">
+                        {courseData.analysisPrompts.map((prompt) => (
+                          <li key={prompt} className="text-sm leading-6 text-slate-200">
+                            {prompt}
                           </li>
                         ))}
                       </ul>
