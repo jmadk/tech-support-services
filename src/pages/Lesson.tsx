@@ -58,7 +58,7 @@ const curriculumTracks: Record<string, CurriculumSession[]> = {
     {
       label: 'Data Modeling & ERD (1h 30m)',
       title: 'Data Modeling & ERD',
-      focus: 'Definition of data modeling, Characteristics of data models, Functions of ERD, Types of data models, Entity analysis techniques, Relationship mapping methods, Cardinality determination, Normalization principles, Schema planning strategies, Business rules identification, Normal forms application, Diploma and degree project considerations',
+      focus: 'Definition of data modeling, characteristics of data models, functions of ERD, types of data models, entity analysis techniques, relationship mapping methods, cardinality determination, normalization principles, schema planning strategies, business rules identification, normal forms application, and project planning considerations',
       outcomes: ['define data modeling using comprehensive frameworks', 'analyze key characteristics of effective data models', 'evaluate different types of data models and their applications', 'explain the core functions of ERD in database design', 'build ER diagrams with proper entities and relationships', 'identify entities, attributes, and cardinalities correctly', 'apply normalization principles to schema design', 'map business rules to database constraints'],
       tools: ['ERD', 'entities', 'attributes', 'normalization', 'cardinality notation', 'relationship types', 'business rules', 'normal forms', 'schema planning tools'],
       concepts: ['entity identification', 'attribute classification', 'relationship mapping', 'cardinality rules', 'normalization theory', 'business rule constraints', 'schema optimization', 'project-specific modeling'],
@@ -68,7 +68,7 @@ const curriculumTracks: Record<string, CurriculumSession[]> = {
     {
       label: 'SQL Basics & Advanced Queries (1h 30m)',
       title: 'SQL Basics & Advanced Queries',
-      focus: 'Definition of SQL, Characteristics of SQL queries, Functions of SQL in data retrieval, Types of SQL statements, Data retrieval techniques, Join operations and types, Grouping and aggregation methods, Subquery construction and usage, Query writing best practices, Academic and industry applications, Result interpretation strategies, Advanced query optimization',
+      focus: 'Definition of SQL, characteristics of SQL queries, functions of SQL in data retrieval, types of SQL statements, data retrieval techniques, join operations and types, grouping and aggregation methods, subquery construction and usage, query writing best practices, practical and industry applications, result interpretation strategies, and advanced query optimization',
       outcomes: ['define SQL and its role in database systems', 'analyze characteristics of effective SQL queries', 'evaluate different types of SQL statements and their purposes', 'explain functions of SQL in data manipulation and retrieval', 'write SELECT queries with proper syntax', 'use joins, grouping, and subqueries effectively', 'interpret query results for business insights', 'apply advanced query techniques in real scenarios'],
       tools: ['SELECT', 'JOIN', 'GROUP BY', 'subqueries', 'WHERE clauses', 'ORDER BY', 'HAVING', 'aggregate functions', 'query optimization tools'],
       concepts: ['query structure', 'data projection', 'selection criteria', 'aggregation operations', 'nested queries', 'join algorithms', 'result interpretation', 'performance optimization'],
@@ -160,7 +160,7 @@ const curriculumTracks: Record<string, CurriculumSession[]> = {
     {
       label: 'Networking Fundamentals (1h)',
       title: 'Networking Fundamentals',
-      focus: 'network concepts, topology, addressing, and communication basics used across diploma and degree curricula',
+      focus: 'network concepts, topology, addressing, and communication basics used in real network design, deployment, and troubleshooting',
       outcomes: ['define network components', 'explain topologies', 'describe network communication flow'],
       tools: ['hosts', 'switches', 'routers', 'media'],
       concepts: ['network scope', 'packet transfer', 'peer communication', 'topology choices'],
@@ -872,6 +872,330 @@ const curriculumTracks: Record<string, CurriculumSession[]> = {
   ],
 };
 
+type CourseProfile = {
+  overview: string;
+  foundations: string[];
+  components: string[];
+  workflows: string[];
+  methods: string[];
+  designConcerns: string[];
+  troubleshooting: string[];
+  applications: string[];
+};
+
+function joinList(items: string[], limit = items.length): string {
+  const values = items.filter(Boolean).slice(0, limit);
+  if (!values.length) return '';
+  if (values.length === 1) return values[0];
+  if (values.length === 2) return `${values[0]} and ${values[1]}`;
+  return `${values.slice(0, -1).join(', ')}, and ${values[values.length - 1]}`;
+}
+
+const GENERIC_COURSE_PROFILES: Record<string, CourseProfile> = {
+  'Computer Systems': {
+    overview: 'how hardware, software, storage, users, and services work together as one complete computing environment',
+    foundations: ['system purpose', 'component interaction', 'resource coordination'],
+    components: ['CPU', 'memory', 'storage', 'operating system', 'input and output devices'],
+    workflows: ['boot process', 'data processing flow', 'resource sharing'],
+    methods: ['system mapping', 'component comparison', 'performance observation'],
+    designConcerns: ['reliability', 'interoperability', 'capacity planning'],
+    troubleshooting: ['fault isolation', 'resource bottlenecks', 'configuration analysis'],
+    applications: ['desktop support', 'enterprise workstations', 'lab environments'],
+  },
+  'Computer Architecture': {
+    overview: 'how processors, memory, buses, and control logic work together to execute instructions and move data efficiently',
+    foundations: ['instruction execution', 'hardware organization', 'performance tradeoffs'],
+    components: ['ALU', 'control unit', 'registers', 'cache', 'memory hierarchy'],
+    workflows: ['fetch-decode-execute cycle', 'data movement', 'interrupt handling'],
+    methods: ['instruction tracing', 'block-diagram reading', 'performance comparison'],
+    designConcerns: ['latency', 'throughput', 'resource coordination'],
+    troubleshooting: ['bottleneck analysis', 'timing issues', 'hardware behavior review'],
+    applications: ['processor design', 'embedded systems', 'system optimization'],
+  },
+  'System Analysis & Design': {
+    overview: 'how requirements are discovered, analyzed, modeled, and translated into workable system designs',
+    foundations: ['problem definition', 'stakeholder needs', 'solution planning'],
+    components: ['requirements', 'process models', 'data models', 'interfaces', 'design specifications'],
+    workflows: ['requirements gathering', 'analysis modeling', 'design validation'],
+    methods: ['use cases', 'data flow diagrams', 'UML modeling'],
+    designConcerns: ['scope control', 'traceability', 'usability'],
+    troubleshooting: ['requirement gaps', 'process mismatches', 'design defects'],
+    applications: ['business systems', 'service platforms', 'project delivery'],
+  },
+  'Digital Electronics': {
+    overview: 'how digital signals, logic gates, and sequential circuits produce reliable machine behavior',
+    foundations: ['binary logic', 'signal behavior', 'circuit timing'],
+    components: ['logic gates', 'flip-flops', 'registers', 'counters', 'combinational circuits'],
+    workflows: ['signal evaluation', 'state transitions', 'timing analysis'],
+    methods: ['truth tables', 'Boolean simplification', 'circuit simulation'],
+    designConcerns: ['propagation delay', 'stability', 'timing accuracy'],
+    troubleshooting: ['logic faults', 'wiring issues', 'unstable outputs'],
+    applications: ['embedded controllers', 'processor logic', 'digital control systems'],
+  },
+  'Programming Fundamentals': {
+    overview: 'how programs represent data, make decisions, repeat logic, and solve problems step by step',
+    foundations: ['algorithmic thinking', 'control flow', 'data handling'],
+    components: ['variables', 'data types', 'conditions', 'loops', 'functions'],
+    workflows: ['input-process-output flow', 'debugging cycle', 'stepwise refinement'],
+    methods: ['pseudocode', 'dry runs', 'incremental testing'],
+    designConcerns: ['correctness', 'readability', 'efficiency'],
+    troubleshooting: ['syntax errors', 'logic bugs', 'edge cases'],
+    applications: ['automation scripts', 'software development', 'problem solving'],
+  },
+  'Web-Based Programming': {
+    overview: 'how browsers, servers, page structure, styling, and scripts combine to deliver interactive web experiences',
+    foundations: ['request-response flow', 'client-side behavior', 'server-side integration'],
+    components: ['HTML', 'CSS', 'JavaScript', 'forms', 'APIs'],
+    workflows: ['page rendering', 'event handling', 'data exchange'],
+    methods: ['interface building', 'API integration', 'debugging with browser tools'],
+    designConcerns: ['responsiveness', 'accessibility', 'performance'],
+    troubleshooting: ['layout defects', 'script errors', 'integration failures'],
+    applications: ['web portals', 'business sites', 'interactive applications'],
+  },
+  'OO Analysis & Design': {
+    overview: 'how objects, responsibilities, and relationships are modeled before code is written',
+    foundations: ['abstraction', 'responsibility assignment', 'object collaboration'],
+    components: ['objects', 'classes', 'relationships', 'use cases', 'design models'],
+    workflows: ['use-case discovery', 'class modeling', 'design refinement'],
+    methods: ['UML diagrams', 'CRC cards', 'responsibility-driven design'],
+    designConcerns: ['cohesion', 'coupling', 'extensibility'],
+    troubleshooting: ['weak abstractions', 'dependency issues', 'model inconsistencies'],
+    applications: ['modular software', 'enterprise systems', 'reusable designs'],
+  },
+  'OO Programming': {
+    overview: 'how object-oriented designs become working classes, interfaces, and reusable behavior in code',
+    foundations: ['encapsulation', 'inheritance', 'polymorphism'],
+    components: ['classes', 'objects', 'methods', 'interfaces', 'constructors'],
+    workflows: ['class design', 'object interaction', 'behavior reuse'],
+    methods: ['refactoring', 'unit testing', 'composition'],
+    designConcerns: ['maintainability', 'clarity', 'reuse'],
+    troubleshooting: ['state bugs', 'inheritance misuse', 'design smells'],
+    applications: ['desktop apps', 'backend services', 'business systems'],
+  },
+  'Software System Project': {
+    overview: 'how planning, implementation, testing, documentation, and delivery come together in one software project',
+    foundations: ['project structure', 'delivery planning', 'quality control'],
+    components: ['requirements', 'tasks', 'codebase', 'tests', 'documentation'],
+    workflows: ['planning cycle', 'implementation flow', 'review and release'],
+    methods: ['task breakdown', 'version control', 'demo-based review'],
+    designConcerns: ['scope management', 'quality assurance', 'team coordination'],
+    troubleshooting: ['blockers', 'defect handling', 'delivery risks'],
+    applications: ['client projects', 'team delivery', 'portfolio systems'],
+  },
+  'E-Systems & E-Commerce': {
+    overview: 'how digital platforms support product discovery, transactions, fulfillment, and customer interaction',
+    foundations: ['online transaction flow', 'digital trust', 'service integration'],
+    components: ['catalog', 'cart', 'checkout', 'payments', 'customer accounts'],
+    workflows: ['browse-to-purchase flow', 'order handling', 'service support'],
+    methods: ['checkout analysis', 'platform integration', 'conversion review'],
+    designConcerns: ['usability', 'transaction reliability', 'trust'],
+    troubleshooting: ['payment failures', 'cart abandonment', 'integration issues'],
+    applications: ['online stores', 'booking platforms', 'digital service businesses'],
+  },
+  'Techno-Entrepreneurship': {
+    overview: 'how technical ideas are validated, shaped into products, and grown into viable ventures',
+    foundations: ['problem validation', 'value creation', 'product-market fit'],
+    components: ['customer segment', 'value proposition', 'MVP', 'pricing', 'operations'],
+    workflows: ['idea validation', 'customer discovery', 'product iteration'],
+    methods: ['market research', 'lean experiments', 'pitch design'],
+    designConcerns: ['feasibility', 'scalability', 'differentiation'],
+    troubleshooting: ['weak positioning', 'poor fit', 'pricing mistakes'],
+    applications: ['startups', 'innovation labs', 'product launches'],
+  },
+  'Business Management': {
+    overview: 'how planning, organization, leadership, finance, and operations shape effective business performance',
+    foundations: ['planning', 'coordination', 'performance control'],
+    components: ['strategy', 'staffing', 'budgeting', 'operations', 'leadership'],
+    workflows: ['decision-making flow', 'resource allocation', 'performance review'],
+    methods: ['SWOT analysis', 'KPI tracking', 'process improvement'],
+    designConcerns: ['efficiency', 'accountability', 'sustainability'],
+    troubleshooting: ['coordination issues', 'resource waste', 'performance gaps'],
+    applications: ['service organizations', 'small businesses', 'operations management'],
+  },
+  'Research Methods in CS': {
+    overview: 'how computing questions are investigated using clear problem statements, evidence, and structured analysis',
+    foundations: ['research framing', 'evidence gathering', 'method selection'],
+    components: ['problem statement', 'literature review', 'methodology', 'data', 'findings'],
+    workflows: ['topic definition', 'data collection', 'analysis and reporting'],
+    methods: ['surveys', 'experiments', 'interviews', 'evaluation studies'],
+    designConcerns: ['validity', 'reliability', 'ethics'],
+    troubleshooting: ['weak scope', 'bias', 'poor evidence quality'],
+    applications: ['project studies', 'product evaluation', 'technical investigations'],
+  },
+  'Seminar & Report Writing': {
+    overview: 'how technical ideas are organized into clear reports, presentations, and evidence-driven arguments',
+    foundations: ['structure', 'clarity', 'evidence use'],
+    components: ['outline', 'sections', 'citations', 'visuals', 'delivery'],
+    workflows: ['research synthesis', 'drafting', 'editing and presentation'],
+    methods: ['outlining', 'referencing', 'revision', 'presentation practice'],
+    designConcerns: ['flow', 'credibility', 'readability'],
+    troubleshooting: ['weak arguments', 'unsupported claims', 'poor formatting'],
+    applications: ['project reports', 'seminars', 'technical proposals'],
+  },
+};
+
+function getCourseProfile(course: string): CourseProfile {
+  return (
+    GENERIC_COURSE_PROFILES[course] || {
+      overview: `the core ideas, moving parts, and practical use of ${course.toLowerCase()}`,
+      foundations: ['core principles', 'structured reasoning', 'real-world behavior'],
+      components: ['key elements', 'supporting components', 'working flow', 'tradeoffs'],
+      workflows: ['analysis flow', 'implementation path', 'review cycle'],
+      methods: ['guided explanation', 'comparison', 'applied practice'],
+      designConcerns: ['clarity', 'reliability', 'maintainability'],
+      troubleshooting: ['error analysis', 'bottleneck detection', 'decision review'],
+      applications: ['real systems', 'project work', 'professional delivery'],
+    }
+  );
+}
+
+function createProfiledGenericSession(course: string, label: string, index: number, profile: CourseProfile): CurriculumSession {
+  const sessionTitle = label.replace(/\s*\([^)]*\)\s*$/, '').trim();
+  const [foundationA, foundationB, foundationC] = profile.foundations;
+  const [componentA, componentB, componentC, componentD, componentE = componentA] = profile.components;
+  const [workflowA, workflowB, workflowC] = profile.workflows;
+  const [methodA, methodB, methodC] = profile.methods;
+  const [designA, designB, designC] = profile.designConcerns;
+  const [troubleA, troubleB, troubleC] = profile.troubleshooting;
+  const [appA, appB, appC] = profile.applications;
+
+  const stagePlans = [
+    {
+      focus: `${profile.overview}. This opening session introduces ${joinList([componentA, componentB, componentC])}, the role of ${joinList([workflowA, workflowB])}, and the reasons these ideas matter in practice`,
+      outcomes: [
+        `describe the scope and purpose of ${course}`,
+        `identify the main elements behind ${sessionTitle}`,
+        `explain how ${joinList([workflowA, workflowB], 2)} influence real outcomes`,
+      ],
+      tools: [componentA, componentB, workflowA, methodA],
+      concepts: [foundationA, workflowA, designA, appA],
+      lab: `Create a guided walkthrough showing how ${joinList([componentA, componentB], 2)} interact during ${workflowA}.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `the principles that support ${course.toLowerCase()}, especially ${joinList([foundationA, foundationB, foundationC])}, and how they shape stable, understandable solutions`,
+      outcomes: [
+        `explain the foundational principles behind ${sessionTitle}`,
+        `connect ${joinList([foundationA, foundationB], 2)} to system behavior`,
+        `use those principles to reason about practical decisions`,
+      ],
+      tools: [foundationA, foundationB, methodA, designA],
+      concepts: [foundationC, workflowB, designB, appA],
+      lab: `Break down a practical scenario and explain which foundational principles drive the result and why.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `the major building blocks of ${course.toLowerCase()}, including ${joinList([componentA, componentB, componentC, componentD])}, and the way those parts depend on one another`,
+      outcomes: [
+        `identify the core components inside ${sessionTitle}`,
+        `explain the job performed by ${joinList([componentA, componentB], 2)}`,
+        `relate component-level behavior to the performance of the full system`,
+      ],
+      tools: [componentA, componentB, componentC, componentD],
+      concepts: [workflowA, designA, troubleA, appA],
+      lab: `Draw or document the main components involved in ${sessionTitle} and explain how information or control moves between them.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `the structural decisions behind ${course.toLowerCase()}, with emphasis on ${joinList([designA, designB, designC])}, the arrangement of ${joinList([componentA, componentB, componentE])}, and the tradeoffs that follow`,
+      outcomes: [
+        `explain how architecture choices shape ${course.toLowerCase()} behavior`,
+        `compare two design approaches using clear technical criteria`,
+        `justify design decisions in terms of ${joinList([designA, designB], 2)}`,
+      ],
+      tools: [componentA, componentE, designA, designB],
+      concepts: [workflowB, workflowC, troubleA, appB],
+      lab: `Prepare a design review showing why one architecture choice is stronger than another for a specific scenario.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `the techniques used to work effectively with ${course.toLowerCase()}, especially ${joinList([methodA, methodB, methodC])}, and how those approaches improve accuracy and understanding`,
+      outcomes: [
+        `use practical techniques to study or apply ${sessionTitle}`,
+        `select suitable methods for explanation, analysis, and comparison`,
+        `improve technical reasoning through structured practice`,
+      ],
+      tools: [methodA, methodB, methodC, workflowA],
+      concepts: [designA, troubleA, appA, appB],
+      lab: `Apply ${joinList([methodA, methodB], 2)} to a focused problem and explain what each method reveals.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `putting ${course.toLowerCase()} ideas into action by turning concepts such as ${joinList([workflowA, workflowB, componentA])} into practical steps, working results, or demonstrations`,
+      outcomes: [
+        `apply ${sessionTitle} ideas in a realistic implementation task`,
+        `translate theory into clear working steps`,
+        `evaluate whether the implementation behaves as expected`,
+      ],
+      tools: [workflowA, workflowB, componentA, methodA],
+      concepts: [designB, troubleA, appA, appC],
+      lab: `Build, document, or simulate a small implementation task that demonstrates the key ideas in ${sessionTitle}.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `examining how ${course.toLowerCase()} behaves under problems or stress, including ${joinList([troubleA, troubleB, troubleC])}, and how disciplined analysis leads to better fixes`,
+      outcomes: [
+        `diagnose common issues related to ${sessionTitle}`,
+        `trace causes using evidence instead of guesswork`,
+        `recommend practical corrective actions`,
+      ],
+      tools: [troubleA, troubleB, workflowA, methodB],
+      concepts: [designA, designC, workflowC, appB],
+      lab: `Analyze a fault scenario and document the symptoms, likely causes, and best corrective response.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `the practices that protect and strengthen ${course.toLowerCase()}, especially ${joinList([designA, designB, troubleA])}, consistency, and long-term quality`,
+      outcomes: [
+        `identify the best practices that improve ${sessionTitle}`,
+        `explain why preventive thinking matters before problems appear`,
+        `connect quality habits to safer and more dependable outcomes`,
+      ],
+      tools: [designA, designB, troubleA, methodC],
+      concepts: [designC, troubleB, workflowB, appC],
+      lab: `Create a best-practice checklist for ${sessionTitle} and justify each item with a clear technical reason.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `how ${course.toLowerCase()} is used in real situations, using case studies that highlight ${joinList([appA, appB, appC])}, common constraints, and practical decision-making`,
+      outcomes: [
+        `connect ${sessionTitle} to real-world scenarios`,
+        `analyze case studies using the vocabulary of the topic`,
+        `draw lessons that can guide future implementation work`,
+      ],
+      tools: [appA, appB, appC, methodA],
+      concepts: [workflowA, designA, troubleA, foundationA],
+      lab: `Review a case study and explain which ideas from ${sessionTitle} had the greatest impact on the final outcome.`,
+      applications: [appA, appB, appC],
+    },
+    {
+      focus: `bringing the full ${course.toLowerCase()} track together by reviewing the most important concepts, methods, decisions, and real-use patterns across the earlier sessions`,
+      outcomes: [
+        `synthesize the major ideas covered across ${course}`,
+        `explain how the main concepts connect instead of treating them separately`,
+        `prepare confidently for deeper practice, review, and final assessment`,
+      ],
+      tools: [foundationA, componentA, workflowA, methodA],
+      concepts: [designA, troubleA, appA, appB],
+      lab: `Prepare a capstone-style review that ties together the key concepts, working steps, and real uses from the full course.`,
+      applications: [appA, appB, appC],
+    },
+  ];
+
+  const plan = stagePlans[index] || stagePlans[0];
+
+  return {
+    label,
+    title: sessionTitle,
+    focus: plan.focus,
+    outcomes: plan.outcomes,
+    tools: plan.tools,
+    concepts: plan.concepts,
+    lab: plan.lab,
+    applications: plan.applications,
+  };
+}
+
 function createLessonFromCurriculum(session: CurriculumSession): LessonData {
   const isITSupportLesson = session.label.includes('IT Support & Customer Care');
   const notes = isITSupportLesson
@@ -884,16 +1208,12 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `Common real-world uses include ${session.applications.join(', ')}.`,
       ]
     : [
-        `${session.title} covers ${session.focus}.`,
+        `${session.title} explains ${session.focus}.`,
+        `A strong understanding of this topic depends on seeing how ${joinList(session.concepts, 3)} shape real technical behavior and practical decisions.`,
+        `As you study, pay attention to ${joinList(session.tools, 3)} because they give you the vocabulary needed to explain what the system is doing and why it matters.`,
         `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
-        `This session is aligned with computer science degree and diploma expectations, where learners are expected to connect theory to lab work, coursework, and real deployments.`,
-        `Key study terms in this session include ${session.tools.join(', ')}.`,
-        `Core concepts explored here include ${session.concepts.join(', ')}.`,
-        `Practical lab focus: ${session.lab}`,
-        `Real-world applications tied to this session include ${session.applications.join(', ')}.`,
-        `During revision, connect the theory to system analysis, implementation choices, troubleshooting decisions, and professional communication.`,
-        `Use the end-of-session questions to confirm you can explain the topic in your own words and apply it in project work.`,
-        `As you move through the lesson, focus on how the concepts support software development, infrastructure design, troubleshooting, and professional certification readiness.`,
+        `Practice focus: ${session.lab}`,
+        `You will see these ideas again in ${joinList(session.applications, 3)}, where clear reasoning and good design choices directly affect the outcome.`,
       ];
 
   const learningObjectives = isITSupportLesson
@@ -903,10 +1223,10 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `Apply ${session.title} ideas to user support situations.`,
       ]
     : [
-        `Explain the main purpose of ${session.title}.`,
-        `Describe the major concepts behind ${session.title}.`,
-        `Apply the ideas in ${session.title} to labs, coursework, and practical computer science tasks.`,
-        `Use the terminology of ${session.title} confidently in discussion and written work.`,
+        `Explain how the main parts of ${session.title} work together.`,
+        `Describe the most important concepts, tradeoffs, and technical terms inside ${session.title}.`,
+        `Apply ${session.title} to design choices, troubleshooting steps, or implementation work.`,
+        `Discuss ${session.title} clearly using precise technical language and examples.`,
       ];
 
   const sections = isITSupportLesson
@@ -962,12 +1282,15 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
               title: 'Session Focus',
               content: [
                 `${session.title} centers on ${session.focus}.`,
-                `This unit is positioned to support diploma and degree learners with both theoretical grounding and practical application.`,
+                `The goal is to move beyond naming parts and toward understanding how those parts behave, interact, and create tradeoffs in real situations.`,
               ],
             },
             {
-              title: 'Learning Outcomes',
-              content: session.outcomes.map((outcome) => `You should be able to ${outcome}.`),
+              title: 'Why It Matters',
+              content: [
+                `${session.title} matters because it influences how systems are designed, evaluated, optimized, and explained.`,
+                `When you understand the topic well, you can justify technical decisions instead of relying on guesswork or memorized definitions.`,
+              ],
             },
           ],
         },
@@ -976,11 +1299,11 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           subtopics: [
             {
               title: 'Key Study Terms',
-              content: session.tools.map((tool) => `${tool} is a core term you should be able to define and apply.`),
+              content: session.tools.map((tool) => `${tool} is a key term in ${session.title} because it helps describe how the topic behaves in practice.`),
             },
             {
               title: 'Subtopic Breakdown',
-              content: session.concepts.map((concept) => `${concept} is an essential subtopic within ${session.title}.`),
+              content: session.concepts.map((concept) => `${concept} is a core idea inside ${session.title}, and it shapes the way technical decisions are made.`),
             },
           ],
         },
@@ -989,11 +1312,14 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           subtopics: [
             {
               title: 'Laboratory Exercise',
-              content: [session.lab],
+              content: [
+                session.lab,
+                `A strong answer should explain not just what to do, but why each step improves understanding of the topic.`,
+              ],
             },
             {
               title: 'Real-World Relevance',
-              content: session.applications.map((application) => `${session.title} supports work in ${application}.`),
+              content: session.applications.map((application) => `${session.title} plays a direct role in ${application}, where sound reasoning affects the final result.`),
             },
           ],
         },
@@ -1006,10 +1332,10 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `You should be ready to explain the topic clearly before moving to the quiz.`,
       ]
     : [
-        `${session.title} is a core session in this curriculum because it builds both theory and practical readiness.`,
-        `The session connects key concepts such as ${session.concepts.slice(0, 3).join(', ')} to real computing work.`,
-        `You should leave this lesson able to discuss ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
-        `Before progressing, make sure you understand the key terms, practical exercise, and assessment questions.`,
+        `${session.title} is about understanding how ${joinList(session.concepts, 3)} work together in real technical situations.`,
+        `The key terms in this lesson give you the language needed to explain behavior, compare options, and justify decisions.`,
+        `You should now be ready to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
+        `Before progressing, make sure you can explain the topic in your own words and connect it to at least one real use case.`,
       ];
 
   const qaQuestions = isITSupportLesson
@@ -1060,7 +1386,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           q: `Which practical task best fits ${session.title}?`,
           options: [
             session.lab,
-            'Avoiding all labs and coursework',
+            'Avoiding all practice and technical analysis',
             'Replacing the whole curriculum with one topic',
             'Studying unrelated office work only',
           ],
@@ -1123,9 +1449,9 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           correct: 0,
         },
         {
-          q: 'Why is this session included in the curriculum?',
+          q: 'Why is this session important in the course?',
           options: [
-            'To build academic and practical competency in the track',
+            'To build strong technical understanding and practical reasoning',
             'To delay progress without learning value',
             'To remove the need for future modules',
             'To avoid assessment and review',
@@ -1135,7 +1461,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         {
           q: 'What is the best approach while studying this lesson?',
           options: [
-            'Connect each concept to labs, projects, and real support scenarios',
+            'Connect each concept to system behavior, projects, and real technical scenarios',
             'Read only the title and leave',
             'Skip all questions and feedback',
             'Treat all topics as unrelated facts',
@@ -1145,7 +1471,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         {
           q: `Which phrase best reflects the learning style for ${session.title}?`,
           options: [
-            'Theory, lab practice, and applied reasoning should work together',
+            'Concepts, practice, and applied reasoning should work together',
             'Memorization alone is enough for mastery',
             'This session should be isolated from other units',
             'There is no need to link the topic to projects',
@@ -1153,9 +1479,9 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
           correct: 0,
         },
         {
-          q: `Why is ${session.title} important in a computer science curriculum?`,
+          q: `Why is ${session.title} important in this course?`,
           options: [
-            'It supports technical understanding, implementation, and professional readiness',
+            'It supports technical understanding, implementation, and sound problem-solving',
             'It avoids all technical decisions',
             'It removes the need for future study',
             'It focuses only on unrelated business routines',
@@ -1171,26 +1497,26 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
     sections,
     keyTerms: [...session.tools, ...session.concepts].slice(0, 8),
     background: [
-      `${session.title} sits within the broader computer science curriculum because it helps learners connect theory, systems thinking, and practical implementation.`,
-      `Before studying this topic deeply, recall any earlier ideas related to ${session.concepts[0]}, ${session.concepts[1]}, and ${session.tools[0]}.`,
-      `A strong background in this session helps when handling coursework, projects, support tasks, and later certification assessments.`,
+      `${session.title} gives you the mental model needed to understand how ${joinList([session.concepts[0], session.concepts[1], session.concepts[2]].filter(Boolean))} influence real technical work.`,
+      `Before going deeper, recall what you already know about ${joinList([session.tools[0], session.tools[1], session.concepts[0]].filter(Boolean))}.`,
+      `As you study, look for cause-and-effect relationships: what changes, what stays stable, and what tradeoffs appear when the topic is applied.`,
     ],
     workedExample: [
-      `Scenario: a learner or practitioner is asked to apply ${session.title} in a real system or project context.`,
-      `Step 1: identify the problem and the concepts from this chapter that matter most, such as ${session.concepts.slice(0, 2).join(' and ')}.`,
-      `Step 2: choose an approach using the relevant tools or methods, including ${session.tools.slice(0, 2).join(' and ')}.`,
-      `Step 3: explain the outcome clearly and relate it to ${session.applications[0]} so the theory becomes practical.`,
+      `Scenario: a team needs to use ${session.title} while building, reviewing, or improving a solution used in ${session.applications[0]}.`,
+      `Step 1: identify the real objective and isolate the concepts that matter most, especially ${joinList(session.concepts, 2)}.`,
+      `Step 2: use ${joinList(session.tools, 2)} to explain what is happening, where the risk or opportunity appears, and what choice should be made.`,
+      `Step 3: justify the result by linking it to performance, reliability, maintainability, security, or user impact in the final system.`,
     ],
     practiceTasks: [
       session.lab,
-      `Write short notes explaining how ${session.title} fits into the wider ${session.applications[0]} context.`,
-      `Compare the theory in ${session.title} with one real project or support case you know.`,
+      `Write a short explanation showing how ${joinList(session.concepts, 2)} affect the success of a real implementation.`,
+      `Compare two practical situations and explain how ${session.title} changes the decisions you would make in each one.`,
     ],
     summaryPoints,
     shortTestTips: [
-      `Review the definitions of ${session.tools.slice(0, 3).join(', ')} before answering the short test.`,
-      `Check that you can explain at least two subtopics from this session in your own words.`,
-      `Use the practice task and worked example as revision references before submitting your answers.`,
+      `Review ${joinList(session.tools, 3)} until you can explain each term in plain technical language.`,
+      `Be ready to describe how ${joinList(session.concepts, 2)} influence behavior, design choices, or troubleshooting steps.`,
+      `Use the practice task and worked example to prepare for application-based questions instead of memorizing isolated definitions.`,
     ],
     qaQuestions,
     quizQuestions,
@@ -1220,28 +1546,8 @@ function buildGenericTrackSessions(course: string) {
 }
 
 function buildGenericTrack(course: string): CurriculumSession[] {
-  return buildGenericTrackSessions(course).map((label, index) => {
-    const sessionTitle = label.replace(/\s*\([^)]*\)\s*$/, '').trim();
-    return {
-      label,
-      title: sessionTitle,
-      focus: `${course.toLowerCase()} principles, subtopics, workflows, and academic-practical links for computer science learners`,
-      outcomes: [
-        `explain the main ideas in ${sessionTitle}`,
-        `connect ${sessionTitle} to coursework and lab tasks`,
-        `apply ${sessionTitle} ideas to real computing scenarios`,
-      ],
-      tools: ['theory', 'practice', 'case studies', 'review'],
-      concepts: [
-        `${course} terminology`,
-        `${course} workflow`,
-        `${course} problem-solving`,
-        `${course} professional application`,
-      ],
-      lab: `Prepare a structured exercise for ${sessionTitle} that combines explanation, analysis, and implementation steps.`,
-      applications: ['coursework', 'projects', 'professional practice'],
-    };
-  });
+  const profile = getCourseProfile(course);
+  return buildGenericTrackSessions(course).map((label, index) => createProfiledGenericSession(course, label, index, profile));
 }
 
 function resolveTrackSessions(course: string): CurriculumSession[] {
@@ -1250,22 +1556,22 @@ function resolveTrackSessions(course: string): CurriculumSession[] {
 
 function buildFallbackLesson(course: string, session: string): LessonData {
   const sessionTitle = session.replace(/\s*\([^)]*\)\s*$/, '').trim() || 'Lesson Session';
-  const courseTitle = course || 'Certification Track';
+  const courseTitle = course || 'Learning Track';
 
   return {
     title: sessionTitle,
     notes: [
       `Welcome to ${sessionTitle} in the ${courseTitle} track.`,
-      `This lesson focuses on the main ideas, vocabulary, and practical workflow used in ${courseTitle}.`,
-      `Pay attention to the core concepts introduced in ${sessionTitle}, because they will support later sessions and certification tasks.`,
-      `As you proceed, connect each concept to a real project or support scenario so the lesson becomes practical and memorable.`,
+      `This lesson focuses on the main ideas, technical vocabulary, and practical workflow used in ${courseTitle}.`,
+      `Pay attention to the core concepts introduced in ${sessionTitle}, because they will support later sessions and stronger decision-making.`,
+      `As you proceed, connect each concept to a real project or technical scenario so the lesson becomes practical and memorable.`,
       `Use the Q&A and quiz sections to confirm understanding before moving to the next milestone.`,
     ],
     learningObjectives: [
       `Describe the main purpose of ${sessionTitle}.`,
-      `Identify the important ideas covered in ${sessionTitle}.`,
+      `Identify the important ideas and tradeoffs covered in ${sessionTitle}.`,
       `Relate the lesson to practical work in ${courseTitle}.`,
-      `Prepare for review questions and certification checks based on ${sessionTitle}.`,
+      `Prepare for review questions based on ${sessionTitle}.`,
     ],
     sections: [
       {
@@ -1275,7 +1581,7 @@ function buildFallbackLesson(course: string, session: string): LessonData {
             title: 'What This Session Covers',
             content: [
               `${sessionTitle} introduces foundational ideas used throughout the ${courseTitle} curriculum.`,
-              `The purpose is to help the learner move from broad awareness into structured understanding.`,
+              `The purpose is to move from broad awareness into clear technical understanding and usable judgment.`,
             ],
           },
         ],
@@ -1293,32 +1599,32 @@ function buildFallbackLesson(course: string, session: string): LessonData {
           {
             title: 'Practical Context',
             content: [
-              `Relate ${sessionTitle} to coursework, labs, service delivery, and project problem-solving.`,
-              `Use examples and case studies to make the topic concrete and memorable.`,
+              `Relate ${sessionTitle} to implementation work, troubleshooting, design review, and project problem-solving.`,
+              `Use examples and case studies to make the topic concrete, testable, and memorable.`,
             ],
           },
         ],
       },
     ],
-    keyTerms: [courseTitle, sessionTitle, 'theory', 'practice', 'analysis', 'application'],
+    keyTerms: [courseTitle, sessionTitle, 'analysis', 'workflow', 'implementation', 'application'],
     background: [
       `${sessionTitle} is part of the wider ${courseTitle} learning path and should be read as a foundational chapter rather than a standalone note.`,
-      `This background section helps the learner connect the session to earlier knowledge, practical work, and future assessment tasks.`,
+      `This background section helps connect the session to earlier knowledge, practical work, and later problem-solving tasks.`,
     ],
     workedExample: [
-      `Scenario: a learner applies ${sessionTitle} to a practical ${courseTitle} task or project problem.`,
-      `Step 1: identify the important ideas in the topic.`,
-      `Step 2: connect those ideas to a real computing or support situation.`,
+      `Scenario: a team applies ${sessionTitle} to a practical ${courseTitle} task or project problem.`,
+      `Step 1: identify the important ideas in the topic and the decision that depends on them.`,
+      `Step 2: connect those ideas to a real technical situation and explain the likely tradeoffs.`,
       `Step 3: explain the result clearly and use it as revision before the short test.`,
     ],
     practiceTasks: [
       `Prepare short notes summarizing the main ideas behind ${sessionTitle}.`,
       `List two practical scenarios where ${sessionTitle} would be useful in ${courseTitle}.`,
-      `Discuss the topic with examples from projects, labs, or coursework.`,
+      `Discuss the topic with examples from projects, debugging work, or implementation tasks.`,
     ],
     summaryPoints: [
       `${sessionTitle} introduces important ideas used throughout the ${courseTitle} curriculum.`,
-      `The lesson should be understood both theoretically and practically.`,
+      `The lesson should be understood both conceptually and practically.`,
       `The review and quiz stages are meant to confirm readiness before moving to the next session.`,
     ],
     shortTestTips: [
@@ -1331,7 +1637,7 @@ function buildFallbackLesson(course: string, session: string): LessonData {
         q: `What is the main goal of the ${sessionTitle} session?`,
         options: [
           'To build understanding of the session fundamentals',
-          'To skip directly to certification',
+          'To skip directly to the final review',
           'To avoid practical examples',
           'To replace all previous lessons',
         ],
@@ -1353,7 +1659,7 @@ function buildFallbackLesson(course: string, session: string): LessonData {
         q: `Which statement best describes ${sessionTitle}?`,
         options: [
           'It introduces concepts you can apply in practice',
-          'It has no connection to the certification path',
+          'It has no connection to the rest of the course',
           'It is only for entertainment',
           'It replaces every other session',
         ],
@@ -1908,7 +2214,13 @@ const Lesson: React.FC = () => {
                   <div>
                     <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80 mb-2">AI Narrator</p>
                     <h2 className="text-2xl font-bold text-white">Topic {chapterNumber} of {sessionLabels.length}</h2>
-                    <p className="text-sm text-slate-300 mt-2">{courseData.notes[0]}</p>
+                    <div className="mt-2 space-y-2">
+                      {courseData.notes.slice(0, 2).map((note) => (
+                        <p key={note} className="text-sm text-slate-300">
+                          {note}
+                        </p>
+                      ))}
+                    </div>
                   </div>
                   <div className="min-w-[220px] rounded-2xl border border-white/10 bg-white/5 p-4">
                     <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">Reading Timer</p>
@@ -1922,7 +2234,7 @@ const Lesson: React.FC = () => {
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_320px] flex-1 min-h-0">
                   <div className="grid gap-4 content-start">
-                    <div className="grid gap-4 md:grid-cols-3">
+                    <div className="grid gap-4 xl:grid-cols-3">
                       {courseData.sections.slice(0, 3).map((section, sectionIdx) => (
                         <div key={section.title} className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                           <p className="text-[11px] uppercase tracking-[0.2em] text-cyan-300/80 mb-2">
@@ -1930,11 +2242,11 @@ const Lesson: React.FC = () => {
                           </p>
                           <h3 className="text-base font-semibold text-white mb-3">{section.title}</h3>
                           <div className="space-y-3">
-                            {section.subtopics.slice(0, 2).map((subtopic) => (
+                            {section.subtopics.map((subtopic) => (
                               <div key={subtopic.title}>
                                 <p className="text-sm font-medium text-cyan-200">{subtopic.title}</p>
                                 <ul className="mt-2 space-y-1">
-                                  {subtopic.content.slice(0, 2).map((item) => (
+                                  {subtopic.content.map((item) => (
                                     <li key={item} className="text-xs leading-5 text-slate-300">
                                       {item}
                                     </li>
@@ -1949,8 +2261,8 @@ const Lesson: React.FC = () => {
 
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-2">What You Should Leave With</p>
-                      <div className="grid gap-3 md:grid-cols-3">
-                        {courseData.learningObjectives.slice(0, 3).map((objective) => (
+                      <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+                        {courseData.learningObjectives.map((objective) => (
                           <div key={objective} className="rounded-xl border border-white/10 bg-white/5 p-3 text-sm text-slate-200">
                             {objective}
                           </div>
@@ -1963,7 +2275,7 @@ const Lesson: React.FC = () => {
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-violet-300/80 mb-2">Key Terms</p>
                       <div className="flex flex-wrap gap-2">
-                        {courseData.keyTerms.slice(0, 6).map((term) => (
+                        {courseData.keyTerms.map((term) => (
                           <span key={term} className="rounded-full border border-violet-400/20 bg-violet-500/10 px-3 py-1 text-xs text-violet-100">
                             {term}
                           </span>
@@ -1973,13 +2285,19 @@ const Lesson: React.FC = () => {
 
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-2">Practice</p>
-                      <p className="text-sm text-slate-200">{courseData.practiceTasks[0]}</p>
+                      <ul className="space-y-2">
+                        {courseData.practiceTasks.map((task) => (
+                          <li key={task} className="text-sm leading-6 text-slate-200">
+                            {task}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
 
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-sky-300/80 mb-2">Quick Summary</p>
                       <ul className="space-y-2">
-                        {courseData.summaryPoints.slice(0, 3).map((point) => (
+                        {courseData.summaryPoints.map((point) => (
                           <li key={point} className="text-sm text-slate-200">{point}</li>
                         ))}
                       </ul>
@@ -1987,7 +2305,35 @@ const Lesson: React.FC = () => {
 
                     <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
                       <p className="text-xs uppercase tracking-[0.2em] text-rose-300/80 mb-2">Worked Example</p>
-                      <p className="text-sm text-slate-200">{courseData.workedExample[0]}</p>
+                      <ul className="space-y-2">
+                        {courseData.workedExample.map((step) => (
+                          <li key={step} className="text-sm leading-6 text-slate-200">
+                            {step}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-teal-300/80 mb-2">Deeper Context</p>
+                      <ul className="space-y-2">
+                        {courseData.background.map((item) => (
+                          <li key={item} className="text-sm leading-6 text-slate-200">
+                            {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-orange-300/80 mb-2">Revision Focus</p>
+                      <ul className="space-y-2">
+                        {courseData.shortTestTips.map((tip) => (
+                          <li key={tip} className="text-sm leading-6 text-slate-200">
+                            {tip}
+                          </li>
+                        ))}
+                      </ul>
                     </div>
                   </div>
                 </div>
