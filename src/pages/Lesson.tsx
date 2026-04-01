@@ -1777,10 +1777,10 @@ const Lesson: React.FC = () => {
   };
 
   const fixedLayoutRootClass = isFixedTopicPhase
-    ? 'h-screen overflow-hidden bg-gradient-to-br from-[#08111f] via-[#0b1730] to-[#101f3c] pt-16 pb-4'
+    ? 'min-h-screen overflow-x-hidden bg-gradient-to-br from-[#08111f] via-[#0b1730] to-[#101f3c] pt-16 pb-6'
     : 'min-h-screen bg-gradient-to-br from-[#0a1628] to-[#0f1f35] pt-20 pb-12';
   const fixedLayoutContainerClass = isFixedTopicPhase
-    ? 'max-w-7xl mx-auto px-4 h-full flex flex-col'
+    ? 'max-w-7xl mx-auto px-4 flex flex-col'
     : 'max-w-4xl mx-auto px-4';
 
   const topicNavigationPanel = (
