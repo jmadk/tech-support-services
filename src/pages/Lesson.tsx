@@ -1584,9 +1584,8 @@ const Lesson: React.FC = () => {
   const currentTopicResult = latestTopicResult || courseProgress.topicScores[resolvedSession] || null;
   const finalExamQuestions = createFinalExamQuestions(course);
   const finalExamResult = latestFinalExamResult || courseProgress.finalExamResult;
-  const isITSupportCourse = course === IT_SUPPORT_CUSTOMER_CARE_COURSE;
-  const isFixedTopicPhase =
-    isITSupportCourse && ['loading', 'narrator', 'qa', 'quiz', 'complete'].includes(phase);
+  const useUnifiedTopicCards = ['loading', 'narrator'].includes(phase);
+  const isFixedTopicPhase = useUnifiedTopicCards;
   const resolvedSessionDuration = resolvedSession.match(/\(([^)]+)\)/)?.[1] || '';
 
   const goToDashboard = () => {
@@ -1900,7 +1899,7 @@ const Lesson: React.FC = () => {
 
         {/* NARRATOR PHASE */}
         {(phase === 'loading' || phase === 'narrator') && (
-          isITSupportCourse ? (
+          useUnifiedTopicCards ? (
             <div className="flex-1 min-h-0 grid gap-4 lg:grid-cols-[300px_minmax(0,1fr)]">
               {topicNavigationPanel}
 
