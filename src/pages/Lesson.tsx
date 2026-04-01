@@ -16,6 +16,20 @@ type CourseProgress = {
   finalExamResult: QuizResult | null;
 };
 
+type LessonInsightCard = {
+  title: string;
+  detail: string;
+};
+
+type LessonVisualExplainer = {
+  title: string;
+  caption: string;
+  variant: 'system' | 'flow' | 'application';
+  primary: string;
+  items: string[];
+  highlights: string[];
+};
+
 type LessonData = {
   title: string;
   notes: string[];
@@ -23,8 +37,15 @@ type LessonData = {
   sections: Array<{ title: string; subtopics: Array<{ title: string; content: string[] }> }>;
   keyTerms: string[];
   keyTermDetails: string[];
+  visualExplainers: LessonVisualExplainer[];
   background: string[];
   analysisPrompts: string[];
+  processFlow: LessonInsightCard[];
+  decisionFrames: LessonInsightCard[];
+  scenarioSnapshots: LessonInsightCard[];
+  commonPitfalls: string[];
+  failureSignals: string[];
+  deepDiveQuestions: string[];
   workedExample: string[];
   practiceTasks: string[];
   summaryPoints: string[];
@@ -1212,7 +1233,7 @@ const ANALYSIS_LENSES = [
   'how a small design choice can change the final outcome',
 ];
 
-function buildKeyTermDetails(session: CurriculumSession, limit = 4): string[] {
+function buildKeyTermDetails(session: CurriculumSession, limit = 6): string[] {
   return session.tools.slice(0, limit).map((tool, index) => {
     const concept = session.concepts[index % session.concepts.length] || session.title.toLowerCase();
     const outcome = session.outcomes[index % session.outcomes.length] || `explain ${session.title}`;
@@ -1221,7 +1242,7 @@ function buildKeyTermDetails(session: CurriculumSession, limit = 4): string[] {
   });
 }
 
-function buildConceptDetails(session: CurriculumSession, limit = 4): string[] {
+function buildConceptDetails(session: CurriculumSession, limit = 6): string[] {
   return session.concepts.slice(0, limit).map((concept, index) => {
     const tool = session.tools[index % session.tools.length] || session.title;
     const lens = ANALYSIS_LENSES[index % ANALYSIS_LENSES.length];
@@ -1245,12 +1266,336 @@ function buildAnalysisPrompts(session: CurriculumSession): string[] {
   ];
 }
 
+function buildProcessFlow(session: CurriculumSession): LessonInsightCard[] {
+  const toolA = session.tools[0] || session.title;
+  const toolB = session.tools[1] || session.tools[0] || session.title;
+  const conceptA = session.concepts[0] || session.title.toLowerCase();
+  const conceptB = session.concepts[1] || conceptA;
+  const application = session.applications[0] || 'real systems';
+
+  return [
+    {
+      title: '1. Starting Point',
+      detail: `Begin with the objective of ${session.title} and identify the role of ${toolA}. This creates the baseline for every later explanation and decision.`,
+    },
+    {
+      title: '2. Core Interaction',
+      detail: `Trace how ${toolA} works with ${toolB}, and connect that interaction to ${conceptA} so the topic becomes a working model rather than a definition list.`,
+    },
+    {
+      title: '3. Decision Point',
+      detail: `Evaluate where ${conceptB} introduces a tradeoff. Ask what is gained, what is constrained, and which choice best supports the intended result.`,
+    },
+    {
+      title: '4. Practical Effect',
+      detail: `Carry the explanation into ${application} and describe how the decision changes performance, reliability, maintainability, control, or user impact.`,
+    },
+    {
+      title: '5. Review Loop',
+      detail: `Stress-test your explanation under failure, scale, timing pressure, or changing requirements; if it no longer holds, refine the model and defend the revision.`,
+    },
+  ];
+}
+
+function buildDecisionFrames(session: CurriculumSession): LessonInsightCard[] {
+  const toolA = session.tools[0] || session.title;
+  const conceptA = session.concepts[0] || session.title.toLowerCase();
+  const conceptB = session.concepts[1] || conceptA;
+  const applicationA = session.applications[0] || 'real systems';
+  const applicationB = session.applications[1] || applicationA;
+
+  return [
+    {
+      title: 'Performance vs Control',
+      detail: `${session.title} often forces a balance between raw speed and clear control. In ${applicationA}, a faster path can reduce the time or visibility needed to inspect what is happening.`,
+    },
+    {
+      title: 'Simplicity vs Flexibility',
+      detail: `A simpler explanation of ${toolA} may be easier to learn, but stronger systems usually need the flexibility to handle ${conceptA} and ${conceptB} under different conditions.`,
+    },
+    {
+      title: 'Short-Term Fix vs Long-Term Design',
+      detail: `A quick adjustment can solve an immediate issue, but a stronger design asks how ${session.title} will behave over time, especially in ${applicationB}.`,
+    },
+    {
+      title: 'Local Choice vs System Consequence',
+      detail: `What looks like a small change in one component can create larger consequences for coordination, timing, observability, or maintenance across the whole system.`,
+    },
+  ];
+}
+
+function buildScenarioSnapshots(session: CurriculumSession): LessonInsightCard[] {
+  return session.applications.slice(0, 3).map((application, index) => {
+    const concepts = joinList(session.concepts.slice(index, index + 2), 2) || session.title.toLowerCase();
+    const tool = session.tools[index % session.tools.length] || session.title;
+    return {
+      title: `Scenario: ${application}`,
+      detail: `In ${application}, teams rely on ${session.title} to reason about ${concepts}. A weak understanding of ${tool} can lead to poor decisions, hidden bottlenecks, or misleading explanations.`,
+    };
+  });
+}
+
+function buildCommonPitfalls(session: CurriculumSession): string[] {
+  return [
+    `Treating ${session.title} as a list of definitions instead of a model of interacting parts and consequences.`,
+    `Using ${session.tools[0] || session.title} without relating it to ${session.concepts[0] || 'the wider system'} and the actual technical objective.`,
+    `Explaining the final result without tracing the steps, dependencies, and constraints that produced it.`,
+    `Ignoring how the topic behaves differently under scale, failure, timing pressure, or limited resources.`,
+  ];
+}
+
+function buildFailureSignals(session: CurriculumSession): string[] {
+  return [
+    `The explanation of ${joinList(session.tools.slice(0, 2), 2)} is unclear, inconsistent, or disconnected from real behavior.`,
+    `Decisions are made without discussing tradeoffs such as speed, reliability, maintainability, control, or observability.`,
+    `The topic is applied mechanically in ${session.applications[0] || 'real work'} without checking whether the assumptions still hold.`,
+    `Symptoms are described, but root causes tied to ${joinList(session.concepts.slice(0, 2), 2)} are never identified.`,
+  ];
+}
+
+function buildDeepDiveQuestions(session: CurriculumSession): string[] {
+  return [
+    `If one key assumption changed, which part of ${session.title} would fail first, and why?`,
+    `Which tradeoff in ${session.title} matters most in ${session.applications[0] || 'this scenario'}, and how would you defend your decision?`,
+    `What evidence would convince you that your explanation of ${session.title} is correct rather than merely plausible?`,
+    `How would you teach ${session.title} using one real system, one failure case, and one design decision?`,
+  ];
+}
+
+function buildVisualExplainers(session: CurriculumSession): LessonVisualExplainer[] {
+  const mapItems = [...session.tools, ...session.concepts].slice(0, 4);
+  const flowItems = [
+    session.tools[0],
+    session.concepts[0],
+    session.concepts[1] || session.tools[1],
+    session.applications[0],
+  ].filter(Boolean) as string[];
+
+  return [
+    {
+      title: 'Visual Concept Map',
+      caption: `Use this map to see how the central topic connects to its most important parts before you dive into the detailed explanation.`,
+      variant: 'system',
+      primary: session.title,
+      items: mapItems,
+      highlights: session.concepts.slice(0, 3),
+    },
+    {
+      title: 'Process Flow Diagram',
+      caption: `Read this flow from left to right to understand how the topic moves from building blocks to practical effect.`,
+      variant: 'flow',
+      primary: session.title,
+      items: flowItems,
+      highlights: session.outcomes.slice(0, 3),
+    },
+    {
+      title: 'Application Impact View',
+      caption: `This visual links the topic to real environments where design choices, constraints, and outcomes become visible.`,
+      variant: 'application',
+      primary: session.title,
+      items: session.applications.slice(0, 3),
+      highlights: session.outcomes.slice(0, 3),
+    },
+  ];
+}
+
+function buildFallbackVisualExplainers(courseTitle: string, sessionTitle: string): LessonVisualExplainer[] {
+  return [
+    {
+      title: 'Visual Concept Map',
+      caption: `A quick image-first way to see the main parts that support ${sessionTitle}.`,
+      variant: 'system',
+      primary: sessionTitle,
+      items: [courseTitle, 'core ideas', 'workflow', 'tradeoffs'],
+      highlights: ['structure', 'reasoning', 'application'],
+    },
+    {
+      title: 'Process Flow Diagram',
+      caption: `This flow helps you move from topic definition to practical explanation and justified decisions.`,
+      variant: 'flow',
+      primary: sessionTitle,
+      items: ['goal', 'parts', 'tradeoff', 'result'],
+      highlights: ['explain clearly', 'compare options', 'justify decisions'],
+    },
+    {
+      title: 'Application Impact View',
+      caption: `See how the lesson transfers into implementation, troubleshooting, and design work.`,
+      variant: 'application',
+      primary: sessionTitle,
+      items: ['implementation', 'troubleshooting', 'design review'],
+      highlights: ['clarity', 'control', 'technical judgment'],
+    },
+  ];
+}
+
+function wrapSvgText(text: string, maxChars = 18): string[] {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxChars && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines.slice(0, 4);
+}
+
+type SvgTextProps = {
+  text: string;
+  x: number;
+  y: number;
+  maxChars?: number;
+  lineHeight?: number;
+  anchor?: 'start' | 'middle' | 'end';
+  className?: string;
+};
+
+function SvgTextBlock({ text, x, y, maxChars = 18, lineHeight = 18, anchor = 'middle', className }: SvgTextProps) {
+  const lines = wrapSvgText(text, maxChars);
+  return (
+    <text x={x} y={y} textAnchor={anchor} className={className}>
+      {lines.map((line, index) => (
+        <tspan key={`${text}-${index}`} x={x} dy={index === 0 ? 0 : lineHeight}>
+          {line}
+        </tspan>
+      ))}
+    </text>
+  );
+}
+
+function LessonVisualGraphic({ explainer }: { explainer: LessonVisualExplainer }) {
+  if (explainer.variant === 'system') {
+    return (
+      <svg viewBox="0 0 640 360" className="h-full w-full">
+        <defs>
+          <linearGradient id="systemGlow" x1="0%" x2="100%" y1="0%" y2="100%">
+            <stop offset="0%" stopColor="#22d3ee" stopOpacity="0.35" />
+            <stop offset="100%" stopColor="#60a5fa" stopOpacity="0.1" />
+          </linearGradient>
+        </defs>
+        <rect x="0" y="0" width="640" height="360" rx="26" fill="#0d1b31" />
+        <circle cx="320" cy="180" r="150" fill="url(#systemGlow)" />
+        <rect x="210" y="130" width="220" height="100" rx="24" fill="#13233b" stroke="#22d3ee" strokeOpacity="0.45" />
+        <SvgTextBlock text={explainer.primary} x={320} y={170} maxChars={20} lineHeight={20} className="fill-white text-[18px] font-semibold" />
+        {explainer.items.map((item, index) => {
+          const positions = [
+            { x: 80, y: 70 },
+            { x: 470, y: 70 },
+            { x: 80, y: 250 },
+            { x: 470, y: 250 },
+          ];
+          const pos = positions[index] || positions[0];
+          return (
+            <g key={item}>
+              <line
+                x1={pos.x + 80}
+                y1={pos.y + 35}
+                x2={320}
+                y2={180}
+                stroke="#60a5fa"
+                strokeOpacity="0.45"
+                strokeWidth="2"
+              />
+              <rect x={pos.x} y={pos.y} width="160" height="70" rx="18" fill="#10233c" stroke="#7c3aed" strokeOpacity="0.35" />
+              <SvgTextBlock text={item} x={pos.x + 80} y={pos.y + 30} maxChars={16} lineHeight={16} className="fill-[#e2e8f0] text-[14px] font-medium" />
+            </g>
+          );
+        })}
+      </svg>
+    );
+  }
+
+  if (explainer.variant === 'flow') {
+    return (
+      <svg viewBox="0 0 640 360" className="h-full w-full">
+        <rect x="0" y="0" width="640" height="360" rx="26" fill="#0d1b31" />
+        <text x="48" y="52" className="fill-[#67e8f9] text-[18px] font-semibold">
+          {explainer.primary}
+        </text>
+        {explainer.items.map((item, index) => {
+          const x = 42 + index * 146;
+          return (
+            <g key={item}>
+              <rect x={x} y="118" width="116" height="86" rx="20" fill="#13233b" stroke="#22d3ee" strokeOpacity="0.3" />
+              <SvgTextBlock text={item} x={x + 58} y={146} maxChars={14} lineHeight={16} className="fill-white text-[14px] font-medium" />
+              {index < explainer.items.length - 1 ? (
+                <>
+                  <line x1={x + 116} y1="161" x2={x + 136} y2="161" stroke="#38bdf8" strokeWidth="3" strokeOpacity="0.8" />
+                  <polyline points={`${x + 130},154 ${x + 138},161 ${x + 130},168`} fill="none" stroke="#38bdf8" strokeWidth="3" strokeOpacity="0.8" />
+                </>
+              ) : null}
+            </g>
+          );
+        })}
+        <rect x="40" y="244" width="560" height="78" rx="20" fill="#10233c" stroke="#f59e0b" strokeOpacity="0.25" />
+        <SvgTextBlock
+          text={joinList(explainer.highlights, 3)}
+          x={320}
+          y={278}
+          maxChars={52}
+          lineHeight={18}
+          className="fill-[#f8fafc] text-[14px]"
+        />
+      </svg>
+    );
+  }
+
+  return (
+    <svg viewBox="0 0 640 360" className="h-full w-full">
+      <rect x="0" y="0" width="640" height="360" rx="26" fill="#0d1b31" />
+      <circle cx="138" cy="180" r="74" fill="#13233b" stroke="#22d3ee" strokeOpacity="0.4" />
+      <SvgTextBlock text={explainer.primary} x={138} y={168} maxChars={15} lineHeight={18} className="fill-white text-[16px] font-semibold" />
+      {explainer.items.map((item, index) => {
+        const positions = [
+          { x: 290, y: 68 },
+          { x: 290, y: 150 },
+          { x: 290, y: 232 },
+        ];
+        const pos = positions[index] || positions[0];
+        return (
+          <g key={item}>
+            <line x1="212" y1="180" x2={pos.x} y2={pos.y + 32} stroke="#818cf8" strokeWidth="2.5" strokeOpacity="0.55" />
+            <rect x={pos.x} y={pos.y} width="250" height="64" rx="18" fill="#13233b" stroke="#818cf8" strokeOpacity="0.35" />
+            <SvgTextBlock text={item} x={pos.x + 125} y={pos.y + 28} maxChars={22} lineHeight={16} className="fill-[#e2e8f0] text-[14px] font-medium" />
+          </g>
+        );
+      })}
+      <rect x="36" y="298" width="568" height="38" rx="14" fill="#10233c" stroke="#22c55e" strokeOpacity="0.25" />
+      <SvgTextBlock
+        text={joinList(explainer.highlights, 3)}
+        x={320}
+        y={322}
+        maxChars={58}
+        lineHeight={18}
+        className="fill-[#f8fafc] text-[13px]"
+      />
+    </svg>
+  );
+}
+
 function createLessonFromCurriculum(session: CurriculumSession): LessonData {
   const isITSupportLesson = session.label.includes('IT Support & Customer Care');
   const keyTermDetails = buildKeyTermDetails(session);
+  const visualExplainers = buildVisualExplainers(session);
   const conceptDetails = buildConceptDetails(session);
   const applicationDetails = buildApplicationDetails(session);
   const analysisPrompts = buildAnalysisPrompts(session);
+  const processFlow = buildProcessFlow(session);
+  const decisionFrames = buildDecisionFrames(session);
+  const scenarioSnapshots = buildScenarioSnapshots(session);
+  const commonPitfalls = buildCommonPitfalls(session);
+  const failureSignals = buildFailureSignals(session);
+  const deepDiveQuestions = buildDeepDiveQuestions(session);
   const notes = isITSupportLesson
     ? [
         `${session.title} focuses on ${session.focus}.`,
@@ -1572,6 +1917,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
     sections,
     keyTerms: [...session.tools, ...session.concepts].slice(0, 8),
     keyTermDetails,
+    visualExplainers,
     background: [
       `${session.title} gives you the mental model needed to understand how ${joinList([session.concepts[0], session.concepts[1], session.concepts[2]].filter(Boolean))} influence real technical work.`,
       `Before going deeper, recall what you already know about ${joinList([session.tools[0], session.tools[1], session.concepts[0]].filter(Boolean))}.`,
@@ -1579,6 +1925,12 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `A deeper reading of ${session.title} asks not only what each part does, but how the entire system behaves when those parts interact under load, failure, or changing requirements.`,
     ],
     analysisPrompts,
+    processFlow,
+    decisionFrames,
+    scenarioSnapshots,
+    commonPitfalls,
+    failureSignals,
+    deepDiveQuestions,
     workedExample: [
       `Scenario: a team needs to use ${session.title} while building, reviewing, or improving a solution used in ${session.applications[0]}.`,
       `Step 1: identify the real objective and isolate the concepts that matter most, especially ${joinList(session.concepts, 2)}.`,
@@ -1649,6 +2001,79 @@ function buildFallbackLesson(course: string, session: string): LessonData {
     `Identify which decision would change if one assumption, resource limit, or system requirement shifted.`,
     `Explain the topic using one concrete scenario instead of staying at definition level.`,
   ];
+  const visualExplainers = buildFallbackVisualExplainers(courseTitle, sessionTitle);
+  const processFlow: LessonInsightCard[] = [
+    {
+      title: '1. Clarify the Goal',
+      detail: `Start ${sessionTitle} by defining the problem, the system context, and the technical objective that the topic is supposed to support.`,
+    },
+    {
+      title: '2. Trace the Moving Parts',
+      detail: `Identify the parts, workflows, or decisions that interact, and explain how one element changes the behavior of the others.`,
+    },
+    {
+      title: '3. Test the Tradeoff',
+      detail: `Ask what is gained, what is constrained, and which option is stronger when time, complexity, risk, or scale changes.`,
+    },
+    {
+      title: '4. Apply in Practice',
+      detail: `Move the explanation into a real implementation, design review, or troubleshooting case and check whether the reasoning still holds.`,
+    },
+    {
+      title: '5. Review and Defend',
+      detail: `Close by defending the final choice with evidence, consequences, and a clear explanation of why the alternative is weaker.`,
+    },
+  ];
+  const decisionFrames: LessonInsightCard[] = [
+    {
+      title: 'Speed vs Clarity',
+      detail: `A faster approach may appear attractive, but if it becomes hard to explain, verify, or maintain, the overall result may become weaker.`,
+    },
+    {
+      title: 'Simple Model vs Real Complexity',
+      detail: `A clean explanation helps learning, but strong technical understanding comes from knowing where the simplified model stops matching reality.`,
+    },
+    {
+      title: 'Local Fix vs System View',
+      detail: `A choice that improves one part of the system can still hurt the wider workflow if dependencies or constraints are ignored.`,
+    },
+    {
+      title: 'Immediate Success vs Future Stability',
+      detail: `A decision should be judged not just by whether it works now, but by how well it survives growth, stress, and change later on.`,
+    },
+  ];
+  const scenarioSnapshots: LessonInsightCard[] = [
+    {
+      title: 'Scenario: Implementation',
+      detail: `${sessionTitle} matters during implementation because it influences how a team turns ideas into working steps without losing correctness or control.`,
+    },
+    {
+      title: 'Scenario: Troubleshooting',
+      detail: `In debugging or review work, ${sessionTitle} helps separate symptoms from causes so fixes are based on reasoning instead of guesswork.`,
+    },
+    {
+      title: 'Scenario: Design Review',
+      detail: `When comparing alternatives, ${sessionTitle} provides the language for discussing tradeoffs, constraints, and the likely technical impact of each option.`,
+    },
+  ];
+  const commonPitfalls = [
+    `Explaining the topic at definition level without showing how it behaves in a real system or workflow.`,
+    `Making a choice without discussing what tradeoff is being accepted.`,
+    `Treating the lesson as isolated theory instead of a tool for design, diagnosis, or implementation.`,
+    `Stopping at what works now without checking how the idea behaves under change, scale, or failure.`,
+  ];
+  const failureSignals = [
+    `The explanation sounds correct, but it cannot predict what would happen if one condition changed.`,
+    `The reasoning never mentions constraints, side effects, or technical consequences.`,
+    `The topic is applied as a memorized recipe rather than as a justified decision process.`,
+    `The final answer describes symptoms, but the root causes are still unclear.`,
+  ];
+  const deepDiveQuestions = [
+    `Which part of ${sessionTitle} becomes most important when the system is under pressure, and why?`,
+    `What evidence would tell you that your first explanation is incomplete or misleading?`,
+    `How would you compare two approaches to ${sessionTitle} without relying on opinion alone?`,
+    `If you had to teach this lesson through one real scenario, which scenario would you choose and why?`,
+  ];
 
   return {
     title: sessionTitle,
@@ -1706,12 +2131,19 @@ function buildFallbackLesson(course: string, session: string): LessonData {
     ],
     keyTerms: [courseTitle, sessionTitle, 'analysis', 'workflow', 'implementation', 'application'],
     keyTermDetails,
+    visualExplainers,
     background: [
       `${sessionTitle} is part of the wider ${courseTitle} learning path and should be read as a foundational chapter rather than a standalone note.`,
       `This background section helps connect the session to earlier knowledge, practical work, and later problem-solving tasks.`,
       `A deeper reading should always ask what tradeoffs, constraints, or system effects become visible once the concept is applied.`,
     ],
     analysisPrompts,
+    processFlow,
+    decisionFrames,
+    scenarioSnapshots,
+    commonPitfalls,
+    failureSignals,
+    deepDiveQuestions,
     workedExample: [
       `Scenario: a team applies ${sessionTitle} to a practical ${courseTitle} task or project problem.`,
       `Step 1: identify the important ideas in the topic and the decision that depends on them.`,
@@ -2320,7 +2752,7 @@ const Lesson: React.FC = () => {
                     <p className="text-xs uppercase tracking-[0.25em] text-cyan-300/80 mb-2">AI Narrator</p>
                     <h2 className="text-2xl font-bold text-white">Topic {chapterNumber} of {sessionLabels.length}</h2>
                     <div className="mt-2 space-y-2">
-                      {courseData.notes.slice(0, 3).map((note) => (
+                      {courseData.notes.slice(0, 4).map((note) => (
                         <p key={note} className="text-sm text-slate-300">
                           {note}
                         </p>
@@ -2335,6 +2767,18 @@ const Lesson: React.FC = () => {
                     <p className="text-sm text-white">{formatDuration(narratorSeconds)} / {formatDuration(narratorSimulatedTarget)}</p>
                     <p className="text-xs text-slate-400 mt-1">Planned topic duration: {formatDuration(narratorTotalSeconds)}</p>
                   </div>
+                </div>
+
+                <div className="mb-4 grid gap-4 xl:grid-cols-3">
+                  {courseData.visualExplainers.map((explainer) => (
+                    <div key={explainer.title} className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-2">{explainer.title}</p>
+                      <div className="overflow-hidden rounded-2xl border border-white/10 bg-[#091321]">
+                        <LessonVisualGraphic explainer={explainer} />
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-slate-300">{explainer.caption}</p>
+                    </div>
+                  ))}
                 </div>
 
                 <div className="grid gap-4 xl:grid-cols-[minmax(0,1.3fr)_320px] flex-1 min-h-0">
@@ -2457,6 +2901,81 @@ const Lesson: React.FC = () => {
                           </li>
                         ))}
                       </ul>
+                    </div>
+                  </div>
+                </div>
+
+                <div className="mt-4 grid gap-4">
+                  <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-cyan-300/80 mb-3">Concept Flow</p>
+                    <div className="grid gap-3 xl:grid-cols-5">
+                      {courseData.processFlow.map((step) => (
+                        <div key={step.title} className="rounded-xl border border-cyan-400/20 bg-white/5 p-4">
+                          <p className="text-sm font-semibold text-cyan-200 mb-2">{step.title}</p>
+                          <p className="text-sm leading-6 text-slate-200">{step.detail}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-emerald-300/80 mb-3">Decision Tradeoffs</p>
+                      <div className="grid gap-3 md:grid-cols-2">
+                        {courseData.decisionFrames.map((frame) => (
+                          <div key={frame.title} className="rounded-xl border border-emerald-400/20 bg-white/5 p-4">
+                            <p className="text-sm font-semibold text-emerald-200 mb-2">{frame.title}</p>
+                            <p className="text-sm leading-6 text-slate-200">{frame.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-indigo-300/80 mb-3">Scenario Snapshots</p>
+                      <div className="grid gap-3">
+                        {courseData.scenarioSnapshots.map((scenario) => (
+                          <div key={scenario.title} className="rounded-xl border border-indigo-400/20 bg-white/5 p-4">
+                            <p className="text-sm font-semibold text-indigo-200 mb-2">{scenario.title}</p>
+                            <p className="text-sm leading-6 text-slate-200">{scenario.detail}</p>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="grid gap-4 xl:grid-cols-2">
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-rose-300/80 mb-3">Common Pitfalls</p>
+                      <ul className="space-y-2">
+                        {courseData.commonPitfalls.map((pitfall) => (
+                          <li key={pitfall} className="text-sm leading-6 text-slate-200">
+                            {pitfall}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+
+                    <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                      <p className="text-xs uppercase tracking-[0.2em] text-amber-300/80 mb-3">Failure Signals</p>
+                      <ul className="space-y-2">
+                        {courseData.failureSignals.map((signal) => (
+                          <li key={signal} className="text-sm leading-6 text-slate-200">
+                            {signal}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+
+                  <div className="rounded-2xl border border-white/10 bg-[#13233b] p-4">
+                    <p className="text-xs uppercase tracking-[0.2em] text-sky-300/80 mb-3">Deep-Dive Questions</p>
+                    <div className="grid gap-3 md:grid-cols-2">
+                      {courseData.deepDiveQuestions.map((question) => (
+                        <div key={question} className="rounded-xl border border-sky-400/20 bg-white/5 p-4 text-sm leading-6 text-slate-200">
+                          {question}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>
