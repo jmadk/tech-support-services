@@ -38,6 +38,29 @@ function pickLatestAssessmentRecord(
   return new Date(primary.submitted_at).getTime() >= new Date(secondary.submitted_at).getTime() ? primary : secondary;
 }
 
+function slugifyStorageValue(value: string): string {
+  return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
+}
+
+function getLocalLessonProgress(consultationId: string, courseTitle: string) {
+  if (!consultationId || !courseTitle) {
+    return null;
+  }
+
+  const storageKey = `lesson_${consultationId}`;
+  const progressStorageKey = `${storageKey}_progress_${slugifyStorageValue(courseTitle)}`;
+  const storedProgress = sessionStorage.getItem(progressStorageKey);
+  if (!storedProgress) {
+    return null;
+  }
+
+  try {
+    return JSON.parse(storedProgress);
+  } catch {
+    return null;
+  }
+}
+
 function buildSessionAccessList(
   sessions: string[],
   records: LessonAssessmentRecord[],
@@ -56,13 +79,29 @@ function buildSessionAccessList(
       return acc;
     }, {});
 
+  const localProgress = getLocalLessonProgress(consultationId, courseTitle);
+  const readingProgress: Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }> =
+    localProgress?.readingProgress || {};
+
+  const inProgressIndex = sessions.findIndex(
+    (session) => Boolean(readingProgress[session]) && !latestTopicRecords[session],
+  );
+
   const firstIncompleteIndex = sessions.findIndex((session) => !latestTopicRecords[session]);
-  const highestUnlockedIndex = firstIncompleteIndex === -1 ? sessions.length - 1 : firstIncompleteIndex;
+  const highestUnlockedIndex =
+    inProgressIndex !== -1
+      ? inProgressIndex
+      : firstIncompleteIndex === -1
+      ? sessions.length - 1
+      : firstIncompleteIndex;
 
   return sessions.map((session, index) => ({
     session,
     isCompleted: Boolean(latestTopicRecords[session]),
-    isUnlocked: index <= highestUnlockedIndex || Boolean(latestTopicRecords[session]),
+    isUnlocked:
+      index <= highestUnlockedIndex ||
+      Boolean(latestTopicRecords[session]) ||
+      Boolean(readingProgress[session]),
     score: latestTopicRecords[session]?.score ?? null,
   }));
 }

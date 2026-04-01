@@ -2451,7 +2451,20 @@ function mergeCourseProgress(localProgress: CourseProgress, remoteProgress: Cour
   };
 }
 
-function getNextUnlockedSessionLabel(sessionLabels: string[], topicScores: Record<string, QuizResult>, fallbackLabel = ''): string {
+function getNextUnlockedSessionLabel(
+  sessionLabels: string[],
+  topicScores: Record<string, QuizResult>,
+  readingProgress: Record<string, TopicReadState>,
+  fallbackLabel = '',
+): string {
+  // Prefer continuing an in-progress session over jumping straight to the first quiz-incomplete session.
+  const inProgressSession = sessionLabels.find(
+    (label) => Boolean(readingProgress[label]) && !topicScores[label],
+  );
+  if (inProgressSession) {
+    return inProgressSession;
+  }
+
   const firstIncomplete = sessionLabels.find((label) => !topicScores[label]);
   return firstIncomplete || fallbackLabel || sessionLabels[0] || '';
 }
@@ -2602,11 +2615,17 @@ const Lesson: React.FC = () => {
   const allTopicQuizzesComplete =
     sessionLabels.length > 0 && sessionLabels.every((label) => Boolean(courseProgress.topicScores[label]));
   const firstIncompleteSession = sessionLabels.find((label) => !courseProgress.topicScores[label]) || '';
-  const highestUnlockedSessionLabel = getNextUnlockedSessionLabel(sessionLabels, courseProgress.topicScores, resolvedSession);
+  const highestUnlockedSessionLabel = getNextUnlockedSessionLabel(
+    sessionLabels,
+    courseProgress.topicScores,
+    courseProgress.readingProgress,
+    resolvedSession,
+  );
   const highestUnlockedSessionIndex = sessionLabels.indexOf(highestUnlockedSessionLabel);
   const currentTopicUnlocked =
     currentSessionIndex === -1 ||
     Boolean(courseProgress.topicScores[resolvedSession]) ||
+    Boolean(courseProgress.readingProgress[resolvedSession]) ||
     currentSessionIndex <= Math.max(highestUnlockedSessionIndex, 0);
   const currentTopicResult = latestTopicResult || courseProgress.topicScores[resolvedSession] || null;
   const finalExamQuestions = createFinalExamQuestions(course);
@@ -2803,11 +2822,23 @@ const Lesson: React.FC = () => {
   }, [progressStorageKey, courseProgress]);
 
   useEffect(() => {
-    if (!progressSyncReady || !consultationId || !course || !resolvedSession || !sessionLabels.length || currentTopicUnlocked) {
+    if (!progressSyncReady || !consultationId || !course || !resolvedSession || !sessionLabels.length) {
       return;
     }
 
-    const fallbackSession = highestUnlockedSessionLabel || sessionLabels[0];
+    let fallbackSession: string | null = null;
+
+    if (!currentTopicUnlocked) {
+      fallbackSession = highestUnlockedSessionLabel || sessionLabels[0];
+    } else if (
+      highestUnlockedSessionLabel &&
+      resolvedSession !== highestUnlockedSessionLabel &&
+      Boolean(courseProgress.readingProgress[highestUnlockedSessionLabel])
+    ) {
+      // If there's an in-progress session the user was last on, prioritize it.
+      fallbackSession = highestUnlockedSessionLabel;
+    }
+
     if (!fallbackSession || fallbackSession === resolvedSession) {
       return;
     }
@@ -2823,6 +2854,7 @@ const Lesson: React.FC = () => {
   }, [
     consultationId,
     course,
+    courseProgress.readingProgress,
     currentTopicUnlocked,
     highestUnlockedSessionLabel,
     navigate,
