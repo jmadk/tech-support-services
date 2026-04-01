@@ -19,7 +19,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
       setCurrentStat(prev => (prev + 1) % stats.length);
     }, 3000);
     return () => clearInterval(interval);
-  }, []);
+  }, [stats.length]);
 
   const scrollToServices = () => {
     const el = document.getElementById('services');

@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
+import { api, getErrorMessage, type LessonAssessmentRecord } from '@/lib/api';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_CURRICULUM } from '@/lib/it-support-course';
 
 type LessonPhase = 'loading' | 'narrator' | 'qa' | 'quiz' | 'complete' | 'course-summary' | 'final-exam' | 'final-result';
@@ -11,9 +12,15 @@ type QuizResult = {
   total: number;
   submittedAt: string;
 };
+type TopicReadState = {
+  startedAt: string;
+  requiredSeconds: number;
+  completedAt: string | null;
+};
 type CourseProgress = {
   topicScores: Record<string, QuizResult>;
   finalExamResult: QuizResult | null;
+  readingProgress: Record<string, TopicReadState>;
 };
 
 type LessonInsightCard = {
@@ -63,6 +70,8 @@ type CurriculumSession = {
   concepts: string[];
   lab: string;
   applications: string[];
+  sequence?: number;
+  trackLength?: number;
 };
 
 const curriculumTracks: Record<string, CurriculumSession[]> = {
@@ -1583,8 +1592,48 @@ function LessonVisualGraphic({ explainer }: { explainer: LessonVisualExplainer }
   );
 }
 
+function buildSessionProgressionContext(session: CurriculumSession) {
+  const sequence = session.sequence || 1;
+  const trackLength = session.trackLength || 10;
+  const stageLabel =
+    sequence === 1
+      ? 'orientation'
+      : sequence <= 3
+        ? 'foundation-building'
+        : sequence <= 6
+          ? 'system-building'
+          : sequence <= 8
+            ? 'analysis-and-control'
+            : 'integration-and-mastery';
+
+  const priorTopicBridge =
+    sequence > 1
+      ? `Because this is Topic ${sequence} of ${trackLength}, it should broaden the learner's view beyond the earlier session and connect prior ideas to ${joinList(session.concepts, 3)}.`
+      : `Because this is Topic ${sequence} of ${trackLength}, it establishes the vocabulary, baseline mental model, and expectations that later sessions will keep expanding.`;
+
+  const breadthExpectation =
+    sequence > 1
+      ? `You should study ${session.title} as a wider layer of the course hierarchy, where earlier knowledge is assumed and the discussion moves toward interaction, tradeoffs, constraints, and deeper real-world reasoning.`
+      : `You should study ${session.title} as the entry layer of the hierarchy, focusing on scope, vocabulary, and the first working mental model for the course.`;
+
+  const integrationPrompt =
+    sequence >= Math.ceil(trackLength / 2)
+      ? `At this stage of the track, strong answers should connect design choices, implementation behavior, troubleshooting evidence, and practical outcomes in one explanation.`
+      : `At this stage of the track, strong answers should connect foundational concepts to system behavior and explain why later decisions depend on them.`;
+
+  return {
+    sequence,
+    trackLength,
+    stageLabel,
+    priorTopicBridge,
+    breadthExpectation,
+    integrationPrompt,
+  };
+}
+
 function createLessonFromCurriculum(session: CurriculumSession): LessonData {
   const isITSupportLesson = session.label.includes('IT Support & Customer Care');
+  const progression = buildSessionProgressionContext(session);
   const keyTermDetails = buildKeyTermDetails(session);
   const visualExplainers = buildVisualExplainers(session);
   const conceptDetails = buildConceptDetails(session);
@@ -1609,10 +1658,12 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `${session.title} explains ${session.focus}.`,
         `A strong understanding of this topic depends on seeing how ${joinList(session.concepts, 3)} shape real technical behavior and practical decisions.`,
         `As you study, pay attention to ${joinList(session.tools, 3)} because they give you the vocabulary needed to explain what the system is doing and why it matters.`,
+        progression.priorTopicBridge,
         `By the end of this lesson, you should be able to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
         `Practice focus: ${session.lab}`,
         `You will see these ideas again in ${joinList(session.applications, 3)}, where clear reasoning and good design choices directly affect the outcome.`,
         `The deeper skill in ${session.title} is not memorizing definitions, but explaining what changes when one component, constraint, or design choice shifts.`,
+        progression.integrationPrompt,
       ];
 
   const learningObjectives = isITSupportLesson
@@ -1626,6 +1677,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `Describe the most important concepts, tradeoffs, and technical terms inside ${session.title}.`,
         `Apply ${session.title} to design choices, troubleshooting steps, or implementation work.`,
         `Discuss ${session.title} clearly using precise technical language and examples.`,
+        `Show how Topic ${progression.sequence} expands the course hierarchy beyond the earlier lessons instead of repeating the introductory layer.`,
       ];
 
   const sections = isITSupportLesson
@@ -1683,6 +1735,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
                 `${session.title} centers on ${session.focus}.`,
                 `The goal is to move beyond naming parts and toward understanding how those parts behave, interact, and create tradeoffs in real situations.`,
                 `As you read, keep asking how the topic changes system behavior, design choices, and the way engineers explain technical results.`,
+                progression.breadthExpectation,
               ],
             },
             {
@@ -1690,6 +1743,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
               content: [
                 `${session.title} matters because it influences how systems are designed, evaluated, optimized, and explained.`,
                 `When you understand the topic well, you can justify technical decisions instead of relying on guesswork or memorized definitions.`,
+                progression.integrationPrompt,
               ],
             },
             {
@@ -1697,6 +1751,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
               content: [
                 `A useful way to study ${session.title} is to trace cause and effect: what inputs matter, what process happens next, and what output or consequence follows.`,
                 `This lens helps you connect isolated concepts into one working model instead of treating each idea as a separate fact.`,
+                `In the course hierarchy, Topic ${progression.sequence} sits in the ${progression.stageLabel} stage, so explanations should show how this lesson broadens the earlier understanding rather than restating it.`,
               ],
             },
           ],
@@ -1730,6 +1785,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
                 session.lab,
                 `A strong answer should explain not just what to do, but why each step improves understanding of the topic.`,
                 `Go one level deeper by explaining what could go wrong, what tradeoff appears, and how you would defend your choices.`,
+                `If this is Topic ${progression.sequence}, the practice should feel broader than the previous topic by combining earlier ideas with the new concepts introduced here.`,
               ],
             },
             {
@@ -1756,6 +1812,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
         `You should now be ready to ${session.outcomes[0]}, ${session.outcomes[1]}, and ${session.outcomes[2]}.`,
         `Before progressing, make sure you can explain the topic in your own words and connect it to at least one real use case.`,
         `The strongest answers in this topic are the ones that connect a concept, a technical consequence, and a justified decision in one clear explanation.`,
+        `Topic ${progression.sequence} should now feel broader than the earlier lesson because it extends the hierarchy into ${progression.stageLabel} reasoning and application.`,
       ];
 
   const qaQuestions = isITSupportLesson
@@ -1923,6 +1980,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `Before going deeper, recall what you already know about ${joinList([session.tools[0], session.tools[1], session.concepts[0]].filter(Boolean))}.`,
       `As you study, look for cause-and-effect relationships: what changes, what stays stable, and what tradeoffs appear when the topic is applied.`,
       `A deeper reading of ${session.title} asks not only what each part does, but how the entire system behaves when those parts interact under load, failure, or changing requirements.`,
+      progression.priorTopicBridge,
     ],
     analysisPrompts,
     processFlow,
@@ -1937,6 +1995,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `Step 2: use ${joinList(session.tools, 2)} to explain what is happening, where the risk or opportunity appears, and what choice should be made.`,
       `Step 3: test the decision against tradeoffs such as speed, cost, reliability, maintainability, or security before accepting it.`,
       `Step 4: justify the result by linking it to performance, reliability, maintainability, security, or user impact in the final system.`,
+      `Step 5: explain how this Topic ${progression.sequence} decision goes beyond the earlier lesson and broadens the course hierarchy into a more complex system view.`,
     ],
     practiceTasks: [
       session.lab,
@@ -1950,6 +2009,7 @@ function createLessonFromCurriculum(session: CurriculumSession): LessonData {
       `Be ready to describe how ${joinList(session.concepts, 2)} influence behavior, design choices, or troubleshooting steps.`,
       `Use the practice task and worked example to prepare for application-based questions instead of memorizing isolated definitions.`,
       `Push your revision one step further by explaining not only what happens, but why that behavior matters in a real system.`,
+      `Check that your answer sounds broader than Topic ${Math.max(1, progression.sequence - 1)} by linking this lesson to the bigger system hierarchy and the next decisions it unlocks.`,
     ],
     qaQuestions,
     quizQuestions,
@@ -1984,7 +2044,12 @@ function buildGenericTrack(course: string): CurriculumSession[] {
 }
 
 function resolveTrackSessions(course: string): CurriculumSession[] {
-  return curriculumTracks[course] || buildGenericTrack(course);
+  const sessions = curriculumTracks[course] || buildGenericTrack(course);
+  return sessions.map((session, index) => ({
+    ...session,
+    sequence: index + 1,
+    trackLength: sessions.length,
+  }));
 }
 
 function buildFallbackLesson(course: string, session: string): LessonData {
@@ -2279,7 +2344,116 @@ function createEmptyCourseProgress(): CourseProgress {
   return {
     topicScores: {},
     finalExamResult: null,
+    readingProgress: {},
   };
+}
+
+function createTopicReadState(requiredSeconds: number, startedAt = new Date().toISOString(), completedAt: string | null = null): TopicReadState {
+  return {
+    startedAt,
+    requiredSeconds,
+    completedAt,
+  };
+}
+
+function pickLatestQuizResult(primary: QuizResult | null, secondary: QuizResult | null): QuizResult | null {
+  if (!primary) return secondary;
+  if (!secondary) return primary;
+
+  return new Date(primary.submittedAt).getTime() >= new Date(secondary.submittedAt).getTime() ? primary : secondary;
+}
+
+function normalizeTopicReadState(value: unknown, fallbackSeconds = 3600): TopicReadState | null {
+  if (!value || typeof value !== 'object') {
+    return null;
+  }
+
+  const candidate = value as Partial<TopicReadState>;
+  const startedAt = typeof candidate.startedAt === 'string' && candidate.startedAt ? candidate.startedAt : new Date().toISOString();
+  const requiredSeconds =
+    typeof candidate.requiredSeconds === 'number' && Number.isFinite(candidate.requiredSeconds) && candidate.requiredSeconds > 0
+      ? Math.round(candidate.requiredSeconds)
+      : fallbackSeconds;
+  const completedAt = typeof candidate.completedAt === 'string' && candidate.completedAt ? candidate.completedAt : null;
+
+  return {
+    startedAt,
+    requiredSeconds,
+    completedAt,
+  };
+}
+
+function buildCourseProgressFromAssessmentRecords(records: LessonAssessmentRecord[], course: string): CourseProgress {
+  const nextProgress = createEmptyCourseProgress();
+
+  records
+    .filter((record) => record.course === course)
+    .forEach((record) => {
+      const result: QuizResult = {
+        score: record.score,
+        correct: record.correct_answers,
+        total: record.total_questions,
+        submittedAt: record.submitted_at,
+      };
+
+      if (record.assessment_type === 'final_exam') {
+        nextProgress.finalExamResult = pickLatestQuizResult(nextProgress.finalExamResult, result);
+        return;
+      }
+
+      nextProgress.topicScores[record.session_label] = pickLatestQuizResult(nextProgress.topicScores[record.session_label] || null, result) || result;
+      nextProgress.readingProgress[record.session_label] = createTopicReadState(
+        record.read_time_required_seconds || parseSessionDurationSeconds(record.session_label),
+        record.read_time_completed_at || record.submitted_at,
+        record.read_time_completed_at || record.submitted_at,
+      );
+    });
+
+  return nextProgress;
+}
+
+function mergeCourseProgress(localProgress: CourseProgress, remoteProgress: CourseProgress): CourseProgress {
+  const mergedTopicScores: Record<string, QuizResult> = { ...remoteProgress.topicScores };
+
+  Object.entries(localProgress.topicScores).forEach(([label, result]) => {
+    mergedTopicScores[label] = pickLatestQuizResult(result, mergedTopicScores[label] || null) || result;
+  });
+
+  const mergedReadingProgress: Record<string, TopicReadState> = { ...remoteProgress.readingProgress };
+
+  Object.entries(localProgress.readingProgress).forEach(([label, readState]) => {
+    const normalizedLocal = normalizeTopicReadState(readState, parseSessionDurationSeconds(label));
+    const normalizedRemote = normalizeTopicReadState(mergedReadingProgress[label], parseSessionDurationSeconds(label));
+
+    if (!normalizedLocal) {
+      return;
+    }
+
+    if (!normalizedRemote) {
+      mergedReadingProgress[label] = normalizedLocal;
+      return;
+    }
+
+    mergedReadingProgress[label] = {
+      startedAt:
+        new Date(normalizedLocal.startedAt).getTime() <= new Date(normalizedRemote.startedAt).getTime()
+          ? normalizedLocal.startedAt
+          : normalizedRemote.startedAt,
+      requiredSeconds: Math.max(normalizedLocal.requiredSeconds, normalizedRemote.requiredSeconds),
+      completedAt: normalizedLocal.completedAt || normalizedRemote.completedAt,
+    };
+  });
+
+  return {
+    topicScores: mergedTopicScores,
+    finalExamResult: pickLatestQuizResult(localProgress.finalExamResult, remoteProgress.finalExamResult),
+    readingProgress: mergedReadingProgress,
+  };
+}
+
+function getNextUnlockedSessionLabel(sessionLabels: string[], topicScores: Record<string, QuizResult>, fallbackLabel = ''): string {
+  const firstIncomplete = sessionLabels.find((label) => !topicScores[label]);
+  return firstIncomplete || fallbackLabel || sessionLabels[0] || '';
 }
 
 function slugifyStorageValue(value: string): string {
@@ -2371,6 +2545,10 @@ const Lesson: React.FC = () => {
   const [courseProgress, setCourseProgress] = useState<CourseProgress>(createEmptyCourseProgress());
   const [latestTopicResult, setLatestTopicResult] = useState<QuizResult | null>(null);
   const [latestFinalExamResult, setLatestFinalExamResult] = useState<QuizResult | null>(null);
+  const [savingAssessment, setSavingAssessment] = useState(false);
+  const [assessmentSyncError, setAssessmentSyncError] = useState('');
+  const [localProgressLoaded, setLocalProgressLoaded] = useState(false);
+  const [remoteProgressAttempted, setRemoteProgressAttempted] = useState(false);
 
   // Parse from sessionStorage (passed from Dashboard or ServicesGrid)
   let storageKey = '';
@@ -2424,9 +2602,22 @@ const Lesson: React.FC = () => {
   const allTopicQuizzesComplete =
     sessionLabels.length > 0 && sessionLabels.every((label) => Boolean(courseProgress.topicScores[label]));
   const firstIncompleteSession = sessionLabels.find((label) => !courseProgress.topicScores[label]) || '';
+  const highestUnlockedSessionLabel = getNextUnlockedSessionLabel(sessionLabels, courseProgress.topicScores, resolvedSession);
+  const highestUnlockedSessionIndex = sessionLabels.indexOf(highestUnlockedSessionLabel);
+  const currentTopicUnlocked =
+    currentSessionIndex === -1 ||
+    Boolean(courseProgress.topicScores[resolvedSession]) ||
+    currentSessionIndex <= Math.max(highestUnlockedSessionIndex, 0);
   const currentTopicResult = latestTopicResult || courseProgress.topicScores[resolvedSession] || null;
   const finalExamQuestions = createFinalExamQuestions(course);
   const finalExamResult = latestFinalExamResult || courseProgress.finalExamResult;
+  const currentReadState = normalizeTopicReadState(
+    courseProgress.readingProgress[resolvedSession],
+    parseSessionDurationSeconds(resolvedSession),
+  );
+  const readTimeCompletedAt = currentReadState?.completedAt || null;
+  const isPersistableConsultation = Boolean(consultationId && !consultationId.startsWith('service-'));
+  const progressSyncReady = localProgressLoaded && (!isPersistableConsultation || remoteProgressAttempted);
   const useUnifiedTopicCards = ['loading', 'narrator'].includes(phase);
   const isFixedTopicPhase = useUnifiedTopicCards;
   const resolvedSessionDuration = resolvedSession.match(/\(([^)]+)\)/)?.[1] || '';
@@ -2447,6 +2638,7 @@ const Lesson: React.FC = () => {
     setFinalExamAnswers({});
     setLatestTopicResult(null);
     setNarrating(true);
+    setAssessmentSyncError('');
     setPhase('narrator');
 
     navigate(`/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(targetSession)}`);
@@ -2460,7 +2652,52 @@ const Lesson: React.FC = () => {
     setNarratorSeconds(0);
     setNarratorReady(false);
     setNarrating(true);
+    setAssessmentSyncError('');
+    setCourseProgress((prev) => ({
+      ...prev,
+      readingProgress: {
+        ...prev.readingProgress,
+        [resolvedSession]: createTopicReadState(narratorTotalSeconds),
+      },
+    }));
     setPhase('narrator');
+  };
+
+  const persistAssessmentRecord = async (record: {
+    sessionLabel: string;
+    topicNumber: number;
+    assessmentType: 'topic_quiz' | 'final_exam';
+    result: QuizResult;
+    readTimeRequiredSeconds: number;
+    readTimeCompletedAt: string | null;
+  }) => {
+    if (!isPersistableConsultation || !consultationId) {
+      return null;
+    }
+
+    setSavingAssessment(true);
+    try {
+      const response = await api.saveLessonAssessment(consultationId, {
+        course,
+        session_label: record.sessionLabel,
+        topic_number: record.topicNumber,
+        assessment_type: record.assessmentType,
+        score: record.result.score,
+        correct_answers: record.result.correct,
+        total_questions: record.result.total,
+        read_time_required_seconds: record.readTimeRequiredSeconds,
+        read_time_completed_at: record.readTimeCompletedAt,
+      });
+      setAssessmentSyncError('');
+      setCourseProgress((prev) => mergeCourseProgress(prev, buildCourseProgressFromAssessmentRecords([response.record], course)));
+      return response.record;
+    } catch (error: unknown) {
+      console.error('Could not save lesson assessment:', error);
+      setAssessmentSyncError(getErrorMessage(error, 'Could not save the quiz result to the dashboard records.'));
+      return null;
+    } finally {
+      setSavingAssessment(false);
+    }
   };
 
   useEffect(() => {
@@ -2481,9 +2718,11 @@ const Lesson: React.FC = () => {
   }, [consultationId, course, session, resolvedSession, navigate]);
 
   useEffect(() => {
+    setLocalProgressLoaded(false);
     if (!progressStorageKey) {
       setLatestFinalExamResult(null);
       setCourseProgress(createEmptyCourseProgress());
+      setLocalProgressLoaded(true);
       return;
     }
 
@@ -2491,22 +2730,69 @@ const Lesson: React.FC = () => {
     if (!storedProgress) {
       setLatestFinalExamResult(null);
       setCourseProgress(createEmptyCourseProgress());
+      setLocalProgressLoaded(true);
       return;
     }
 
     try {
       const parsed = JSON.parse(storedProgress);
+      const parsedReadingProgress = Object.fromEntries(
+        Object.entries(parsed?.readingProgress || {})
+          .map(([label, value]) => [label, normalizeTopicReadState(value, parseSessionDurationSeconds(label))])
+          .filter((entry): entry is [string, TopicReadState] => Boolean(entry[1])),
+      );
       setLatestFinalExamResult(null);
       setCourseProgress({
         topicScores: parsed?.topicScores || {},
         finalExamResult: parsed?.finalExamResult || null,
+        readingProgress: parsedReadingProgress,
       });
+      setLocalProgressLoaded(true);
     } catch (error) {
       console.error('Could not parse stored course progress:', error);
       setLatestFinalExamResult(null);
       setCourseProgress(createEmptyCourseProgress());
+      setLocalProgressLoaded(true);
     }
   }, [progressStorageKey]);
+
+  useEffect(() => {
+    let active = true;
+    setRemoteProgressAttempted(false);
+
+    if (!isPersistableConsultation || !consultationId || !course || !user) {
+      setRemoteProgressAttempted(true);
+      return () => {
+        active = false;
+      };
+    }
+
+    api
+      .getLessonAssessments()
+      .then(({ records }) => {
+        if (!active) {
+          return;
+        }
+
+        const remoteRecords = records.filter((record) => record.consultation_id === consultationId);
+        setCourseProgress((prev) => mergeCourseProgress(prev, buildCourseProgressFromAssessmentRecords(remoteRecords, course)));
+        setAssessmentSyncError('');
+        setRemoteProgressAttempted(true);
+      })
+      .catch((error: unknown) => {
+        if (!active) {
+          return;
+        }
+
+        console.error('Could not sync lesson assessments:', error);
+        setAssessmentSyncError(getErrorMessage(error, 'Could not sync saved lesson progress.'));
+        setRemoteProgressAttempted(true);
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [consultationId, course, isPersistableConsultation, user]);
 
   useEffect(() => {
     if (!progressStorageKey) {
@@ -2515,6 +2801,42 @@ const Lesson: React.FC = () => {
 
     sessionStorage.setItem(progressStorageKey, JSON.stringify(courseProgress));
   }, [progressStorageKey, courseProgress]);
+
+  useEffect(() => {
+    if (!progressSyncReady || !consultationId || !course || !resolvedSession || !sessionLabels.length || currentTopicUnlocked) {
+      return;
+    }
+
+    const fallbackSession = highestUnlockedSessionLabel || sessionLabels[0];
+    if (!fallbackSession || fallbackSession === resolvedSession) {
+      return;
+    }
+
+    if (storageKey) {
+      sessionStorage.setItem(storageKey, JSON.stringify({ course, session: fallbackSession }));
+    }
+
+    navigate(
+      `/lesson/${consultationId}?course=${encodeURIComponent(course)}&session=${encodeURIComponent(fallbackSession)}`,
+      { replace: true },
+    );
+  }, [
+    consultationId,
+    course,
+    currentTopicUnlocked,
+    highestUnlockedSessionLabel,
+    navigate,
+    progressSyncReady,
+    resolvedSession,
+    sessionLabels,
+    storageKey,
+  ]);
+
+  useEffect(() => {
+    if ((phase === 'qa' || phase === 'quiz') && !readTimeCompletedAt) {
+      setPhase('narrator');
+    }
+  }, [phase, readTimeCompletedAt]);
 
   useEffect(() => {
     if (loading) {
@@ -2536,29 +2858,76 @@ const Lesson: React.FC = () => {
     setFinalExamAnswers({});
     setLatestTopicResult(null);
     setNarratorTotalSeconds(totalSeconds);
-    setNarratorSeconds(0);
-    setNarratorReady(false);
+    setPhase((current) => (current === 'loading' ? current : 'narrator'));
     setNarrating(true);
+    setCourseProgress((prev) => {
+      const existingReadState = normalizeTopicReadState(prev.readingProgress[resolvedSession], totalSeconds);
+      return {
+        ...prev,
+        readingProgress: {
+          ...prev.readingProgress,
+          [resolvedSession]:
+            existingReadState && existingReadState.requiredSeconds === totalSeconds
+              ? existingReadState
+              : createTopicReadState(totalSeconds, existingReadState?.startedAt, existingReadState?.completedAt || null),
+        },
+      };
+    });
   }, [resolvedSession]);
 
-  const narratorSimulatedTarget = import.meta.env.DEV ? Math.min(narratorTotalSeconds, 120) : narratorTotalSeconds;
-  const narratorProgressPercent = narratorSimulatedTarget
-    ? Math.round((narratorSeconds / narratorSimulatedTarget) * 100)
+  const narratorProgressPercent = narratorTotalSeconds
+    ? Math.round((narratorSeconds / narratorTotalSeconds) * 100)
     : 0;
 
   useEffect(() => {
-    if (phase !== 'narrator' || !narrating) return;
-    if (narratorSeconds >= narratorSimulatedTarget) {
-      setNarratorReady(true);
+    if (!currentReadState) {
+      setNarratorSeconds(0);
+      setNarratorReady(false);
+      return;
+    }
+
+    const updateNarratorReadiness = () => {
+      const completedAt = currentReadState.completedAt ? new Date(currentReadState.completedAt).getTime() : null;
+      const startedAt = new Date(currentReadState.startedAt).getTime();
+      const elapsedSeconds = completedAt
+        ? currentReadState.requiredSeconds
+        : Math.min(
+            currentReadState.requiredSeconds,
+            Math.max(0, Math.floor((Date.now() - startedAt) / 1000)),
+          );
+
+      setNarratorSeconds(elapsedSeconds);
+
+      const ready = elapsedSeconds >= currentReadState.requiredSeconds;
+      setNarratorReady(ready);
+
+      if (ready && !currentReadState.completedAt) {
+        setCourseProgress((prev) => ({
+          ...prev,
+          readingProgress: {
+            ...prev.readingProgress,
+            [resolvedSession]: createTopicReadState(
+              currentReadState.requiredSeconds,
+              currentReadState.startedAt,
+              new Date().toISOString(),
+            ),
+          },
+        }));
+      }
+    };
+
+    updateNarratorReadiness();
+
+    if (currentReadState.completedAt || phase !== 'narrator' || !narrating) {
       return;
     }
 
     const interval = window.setInterval(() => {
-      setNarratorSeconds((prev) => Math.min(prev + 1, narratorSimulatedTarget));
+      updateNarratorReadiness();
     }, 1000);
 
     return () => window.clearInterval(interval);
-  }, [phase, narrating, narratorSeconds, narratorSimulatedTarget]);
+  }, [currentReadState, narrating, phase, resolvedSession]);
 
   const speakText = (text: string) => {
     if ('speechSynthesis' in window) {
@@ -2578,10 +2947,23 @@ const Lesson: React.FC = () => {
   };
 
   const handleQASubmit = () => {
+    if (!narratorReady) {
+      setPhase('narrator');
+      return;
+    }
     setPhase('quiz');
   };
 
-  const handleQuizSubmit = () => {
+  const handleQuizSubmit = async () => {
+    if (!narratorReady || !readTimeCompletedAt) {
+      setPhase('narrator');
+      return;
+    }
+
+    if (Object.keys(quizAnswers).length < courseData.quizQuestions.length) {
+      return;
+    }
+
     const result = calculateQuizResult(courseData.quizQuestions, quizAnswers);
     setLatestTopicResult(result);
     setCourseProgress((prev) => ({
@@ -2591,6 +2973,14 @@ const Lesson: React.FC = () => {
         [resolvedSession]: result,
       },
     }));
+    await persistAssessmentRecord({
+      sessionLabel: resolvedSession,
+      topicNumber: chapterNumber,
+      assessmentType: 'topic_quiz',
+      result,
+      readTimeRequiredSeconds: narratorTotalSeconds,
+      readTimeCompletedAt,
+    });
     setPhase(isLastSession ? 'course-summary' : 'complete');
   };
 
@@ -2600,13 +2990,25 @@ const Lesson: React.FC = () => {
     setPhase('final-exam');
   };
 
-  const handleFinalExamSubmit = () => {
+  const handleFinalExamSubmit = async () => {
+    if (Object.keys(finalExamAnswers).length < finalExamQuestions.length) {
+      return;
+    }
+
     const result = calculateQuizResult(finalExamQuestions, finalExamAnswers);
     setLatestFinalExamResult(result);
     setCourseProgress((prev) => ({
       ...prev,
       finalExamResult: result,
     }));
+    await persistAssessmentRecord({
+      sessionLabel: `${course} Final Exam`,
+      topicNumber: sessionLabels.length,
+      assessmentType: 'final_exam',
+      result,
+      readTimeRequiredSeconds: 0,
+      readTimeCompletedAt: new Date().toISOString(),
+    });
     setPhase('final-result');
   };
 
@@ -2637,6 +3039,7 @@ const Lesson: React.FC = () => {
         {sessionLabels.map((label, index) => {
           const isCurrentTopic = label === resolvedSession;
           const isCompletedTopic = Boolean(courseProgress.topicScores[label]);
+          const isUnlockedTopic = index <= Math.max(highestUnlockedSessionIndex, 0) || isCompletedTopic;
           return (
             <div
               key={label}
@@ -2645,7 +3048,9 @@ const Lesson: React.FC = () => {
                   ? 'border-cyan-400/40 bg-cyan-500/10'
                   : isCompletedTopic
                     ? 'border-emerald-400/25 bg-emerald-500/10'
-                    : 'border-white/10 bg-white/5'
+                    : isUnlockedTopic
+                      ? 'border-cyan-400/20 bg-cyan-500/5'
+                      : 'border-white/10 bg-white/5'
               }`}
             >
               <div className="flex items-start justify-between gap-2">
@@ -2656,10 +3061,12 @@ const Lesson: React.FC = () => {
                       ? 'bg-cyan-400/20 text-cyan-200'
                       : isCompletedTopic
                         ? 'bg-emerald-400/20 text-emerald-200'
-                        : 'bg-white/10 text-slate-300'
+                        : isUnlockedTopic
+                          ? 'bg-cyan-400/15 text-cyan-200'
+                          : 'bg-white/10 text-slate-300'
                   }`}
                 >
-                  {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Done' : index <= completedTopicCount ? 'Open' : 'Next'}
+                  {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Done' : isUnlockedTopic ? 'Open' : 'Locked'}
                 </span>
               </div>
             </div>
@@ -2740,6 +3147,12 @@ const Lesson: React.FC = () => {
           </div>
         </div>
 
+        {assessmentSyncError && (
+          <div className="mb-4 rounded-2xl border border-amber-500/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+            {assessmentSyncError}
+          </div>
+        )}
+
         {/* NARRATOR PHASE */}
         {(phase === 'loading' || phase === 'narrator') && (
           useUnifiedTopicCards ? (
@@ -2764,7 +3177,7 @@ const Lesson: React.FC = () => {
                     <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-2">
                       <div className="h-2 bg-cyan-500" style={{ width: `${narratorProgressPercent}%` }} />
                     </div>
-                    <p className="text-sm text-white">{formatDuration(narratorSeconds)} / {formatDuration(narratorSimulatedTarget)}</p>
+                    <p className="text-sm text-white">{formatDuration(narratorSeconds)} / {formatDuration(narratorTotalSeconds)}</p>
                     <p className="text-xs text-slate-400 mt-1">Planned topic duration: {formatDuration(narratorTotalSeconds)}</p>
                   </div>
                 </div>
@@ -2992,7 +3405,7 @@ const Lesson: React.FC = () => {
                     disabled={!narratorReady}
                     className="px-4 py-3 rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
                   >
-                    {narratorReady ? 'Proceed to Quiz' : 'Wait for reading time to finish'}
+                    {narratorReady ? 'Proceed to Q&A' : 'Wait for reading time to finish'}
                   </button>
                 </div>
               </div>
@@ -3016,9 +3429,6 @@ const Lesson: React.FC = () => {
               <p className="text-slate-300 text-sm mb-2">This page is dedicated to one whole topic (no cards, one page at a time).</p>
               <p className="text-slate-300 text-sm mb-2">
                 Planned study time: {formatDuration(narratorTotalSeconds)}
-                {import.meta.env.DEV && narratorSimulatedTarget !== narratorTotalSeconds
-                  ? ` | development fast-track timer: ${formatDuration(narratorSimulatedTarget)}`
-                  : ''}
               </p>
               <div className="h-2 bg-white/10 rounded-full overflow-hidden mb-1">
                 <div
@@ -3026,7 +3436,7 @@ const Lesson: React.FC = () => {
                   style={{ width: `${narratorProgressPercent}%` }}
                 />
               </div>
-              <p className="text-xs text-slate-300 mb-4">{formatDuration(narratorSeconds)} / {formatDuration(narratorSimulatedTarget)} read</p>
+              <p className="text-xs text-slate-300 mb-4">{formatDuration(narratorSeconds)} / {formatDuration(narratorTotalSeconds)} read</p>
               <div className="space-y-2">
                 {courseData.sections.map((section, sectionIdx) => (
                   <div key={sectionIdx} className="rounded-lg border border-white/10 bg-[#11243f] p-4">
@@ -3255,7 +3665,7 @@ const Lesson: React.FC = () => {
                 disabled={!narratorReady}
                 className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               >
-                {narratorReady ? 'Proceed to Quiz →' : 'Proceed after reading completes'}
+                {narratorReady ? 'Proceed to Q&A →' : 'Proceed after reading completes'}
               </button>
             </div>
           </div>
@@ -3290,7 +3700,7 @@ const Lesson: React.FC = () => {
             </div>
             <button
               onClick={handleQASubmit}
-              disabled={Object.keys(qaAnswers).length < courseData.qaQuestions.length}
+              disabled={!narratorReady || Object.keys(qaAnswers).length < courseData.qaQuestions.length}
               className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-violet-500 to-purple-600 text-white font-bold hover:opacity-90 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
             >
               {'Proceed to Topic Quiz ->'}
@@ -3327,10 +3737,10 @@ const Lesson: React.FC = () => {
             </div>
             <button
               onClick={handleQuizSubmit}
-              disabled={Object.keys(quizAnswers).length < courseData.quizQuestions.length}
+              disabled={savingAssessment || !readTimeCompletedAt || Object.keys(quizAnswers).length < courseData.quizQuestions.length}
               className="w-full px-6 py-3 rounded-lg bg-gradient-to-r from-green-500 to-emerald-600 text-white font-bold hover:opacity-90 disabled:opacity-50 transition-all disabled:cursor-not-allowed"
             >
-              Submit Topic Quiz
+              {savingAssessment ? 'Saving Topic Quiz...' : 'Submit Topic Quiz'}
             </button>
           </div>
         )}
@@ -3496,10 +3906,10 @@ const Lesson: React.FC = () => {
               </button>
               <button
                 onClick={handleFinalExamSubmit}
-                disabled={Object.keys(finalExamAnswers).length < finalExamQuestions.length}
+                disabled={savingAssessment || Object.keys(finalExamAnswers).length < finalExamQuestions.length}
                 className="px-6 py-3 rounded-lg bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold hover:opacity-90 disabled:opacity-50 transition-all disabled:cursor-not-allowed"
               >
-                Submit Final Exam
+                {savingAssessment ? 'Saving Final Exam...' : 'Submit Final Exam'}
               </button>
             </div>
           </div>

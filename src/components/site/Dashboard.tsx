@@ -6,6 +6,7 @@ import {
   getErrorMessage,
   type Consultation,
   type ConsultationStatus,
+  type LessonAssessmentRecord,
   type SavedService,
 } from '@/lib/api';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
@@ -20,6 +21,83 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
+type SessionAccessItem = {
+  session: string;
+  isCompleted: boolean;
+  isUnlocked: boolean;
+  score: number | null;
+};
+
+function pickLatestAssessmentRecord(
+  primary: LessonAssessmentRecord | null,
+  secondary: LessonAssessmentRecord | null,
+) {
+  if (!primary) return secondary;
+  if (!secondary) return primary;
+
+  return new Date(primary.submitted_at).getTime() >= new Date(secondary.submitted_at).getTime() ? primary : secondary;
+}
+
+function buildSessionAccessList(
+  sessions: string[],
+  records: LessonAssessmentRecord[],
+  consultationId: string,
+  courseTitle: string,
+): SessionAccessItem[] {
+  const latestTopicRecords = records
+    .filter(
+      (record) =>
+        record.consultation_id === consultationId &&
+        record.course === courseTitle &&
+        record.assessment_type === 'topic_quiz',
+    )
+    .reduce<Record<string, LessonAssessmentRecord>>((acc, record) => {
+      acc[record.session_label] = pickLatestAssessmentRecord(acc[record.session_label] || null, record) || record;
+      return acc;
+    }, {});
+
+  const firstIncompleteIndex = sessions.findIndex((session) => !latestTopicRecords[session]);
+  const highestUnlockedIndex = firstIncompleteIndex === -1 ? sessions.length - 1 : firstIncompleteIndex;
+
+  return sessions.map((session, index) => ({
+    session,
+    isCompleted: Boolean(latestTopicRecords[session]),
+    isUnlocked: index <= highestUnlockedIndex || Boolean(latestTopicRecords[session]),
+    score: latestTopicRecords[session]?.score ?? null,
+  }));
+}
+
+function getConsultationAssessmentSummary(
+  records: LessonAssessmentRecord[],
+  consultationId: string,
+) {
+  const scopedRecords = records.filter((record) => record.consultation_id === consultationId);
+  const latestTopicRecordsBySession = scopedRecords
+    .filter((record) => record.assessment_type === 'topic_quiz')
+    .reduce<Record<string, LessonAssessmentRecord>>((acc, record) => {
+      acc[record.session_label] = pickLatestAssessmentRecord(acc[record.session_label] || null, record) || record;
+      return acc;
+    }, {});
+  const topicRecords = Object.values(latestTopicRecordsBySession);
+  const latestTopicRecord = topicRecords.reduce<LessonAssessmentRecord | null>(
+    (latest, record) => pickLatestAssessmentRecord(latest, record),
+    null,
+  );
+  const finalExamRecord = scopedRecords
+    .filter((record) => record.assessment_type === 'final_exam')
+    .reduce<LessonAssessmentRecord | null>((latest, record) => pickLatestAssessmentRecord(latest, record), null);
+
+  return {
+    topicCount: topicRecords.length,
+    latestTopicRecord,
+    finalExamRecord,
+    recentRecords: scopedRecords
+      .slice()
+      .sort((a, b) => new Date(b.submitted_at).getTime() - new Date(a.submitted_at).getTime())
+      .slice(0, 3),
+  };
+}
+
 const Dashboard: React.FC = () => {
   const navigate = useNavigate();
   const { user, profile, updateProfile, changePassword, signOut } = useAuth();
@@ -28,6 +106,8 @@ const Dashboard: React.FC = () => {
   const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [ownerConsultations, setOwnerConsultations] = useState<Consultation[]>([]);
   const [savedServices, setSavedServices] = useState<SavedService[]>([]);
+  const [lessonAssessments, setLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
+  const [ownerLessonAssessments, setOwnerLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState('');
@@ -228,10 +308,12 @@ const Dashboard: React.FC = () => {
     setDashboardError('');
     setOwnerInboxError('');
 
-    const [consResult, savedResult, ownerResult] = await Promise.allSettled([
+    const [consResult, savedResult, ownerResult, lessonResult, ownerLessonResult] = await Promise.allSettled([
       api.getConsultations(),
       api.getSavedServices(),
       isOwner ? api.getAdminConsultations() : Promise.resolve(null),
+      isOwner ? Promise.resolve(null) : api.getLessonAssessments(),
+      isOwner ? api.getAdminLessonAssessments() : Promise.resolve(null),
     ]);
 
     if (consResult.status === 'fulfilled') {
@@ -256,6 +338,22 @@ const Dashboard: React.FC = () => {
       console.error('Error fetching owner consultations:', ownerResult.reason);
       setOwnerConsultations([]);
       setOwnerInboxError(ownerResult.reason instanceof Error ? ownerResult.reason.message : 'Could not load the client inbox.');
+    }
+
+    if (lessonResult.status === 'fulfilled') {
+      setLessonAssessments(lessonResult.value?.records || []);
+    } else if (!isOwner) {
+      console.error('Error fetching lesson assessments:', lessonResult.reason);
+      setLessonAssessments([]);
+      setDashboardError(prev => prev || (lessonResult.reason instanceof Error ? lessonResult.reason.message : 'Could not load lesson assessments.'));
+    }
+
+    if (ownerLessonResult.status === 'fulfilled') {
+      setOwnerLessonAssessments(ownerLessonResult.value?.records || []);
+    } else if (isOwner) {
+      console.error('Error fetching owner lesson assessments:', ownerLessonResult.reason);
+      setOwnerLessonAssessments([]);
+      setOwnerInboxError(prev => prev || (ownerLessonResult.reason instanceof Error ? ownerLessonResult.reason.message : 'Could not load lesson assessment records.'));
     }
 
     setLoadingData(false);
@@ -472,10 +570,20 @@ const Dashboard: React.FC = () => {
 
   const inboxConsultations = isOwner ? ownerConsultations : consultations;
   const overviewConsultations = isOwner ? ownerConsultations : consultations;
+  const currentLessonRecords = isOwner ? ownerLessonAssessments : lessonAssessments;
 
   const activeCertificationConsultation = !isOwner
     ? consultations.find(c => c.next_path === 'class' && c.next_path_status === 'certification_started')
     : undefined;
+
+  const getSessionAccessForConsultation = (consultationId: string, courseTitle: string) => {
+    const track = getCertificationTrack(courseTitle);
+    return buildSessionAccessList(track.sessions, currentLessonRecords, consultationId, courseTitle);
+  };
+
+  const getAssessmentSummaryForConsultation = (consultationId: string) => {
+    return getConsultationAssessmentSummary(isOwner ? ownerLessonAssessments : lessonAssessments, consultationId);
+  };
 
   const initials = profile?.full_name
     ? profile.full_name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2)
@@ -556,24 +664,39 @@ const Dashboard: React.FC = () => {
                 <div>
                   <p className="text-xs text-indigo-300 mb-3 font-medium">Select a session to start learning:</p>
                   <div className="grid grid-cols-1 gap-2">
-                    {getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).sessions.map((session, idx) => (
+                    {getSessionAccessForConsultation(
+                      activeCertificationConsultation.id,
+                      selectedCourse[activeCertificationConsultation.id],
+                    ).map((item) => {
+                      const session = `${item.isCompleted ? `Done ${item.score}%` : item.isUnlocked ? 'Open' : 'Locked'} - ${item.session}`;
+                      return (
                       <button
-                        key={idx}
+                        key={item.session}
                         onClick={() => {
+                          if (!item.isUnlocked) return;
                           sessionStorage.setItem(`lesson_${activeCertificationConsultation.id}`, JSON.stringify({
                             course: selectedCourse[activeCertificationConsultation.id],
-                            session: session
+                            session: item.session
                           }));
                           navigate(
-                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(session)}`
+                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(item.session)}`
                           );
                         }}
-                        className="text-left p-3 rounded-lg border border-green-400/40 bg-green-500/10 hover:bg-green-500/20 transition-all font-medium text-green-300 text-sm"
+                        disabled={!item.isUnlocked}
+                        className={`text-left p-3 rounded-lg border transition-all font-medium text-sm ${
+                          item.isCompleted
+                            ? 'border-emerald-400/40 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20'
+                            : item.isUnlocked
+                              ? 'border-green-400/40 bg-green-500/10 text-green-300 hover:bg-green-500/20'
+                              : 'border-white/10 bg-white/5 text-blue-200/40 cursor-not-allowed'
+                        }`}
                       >
                         ▶ {session}
                       </button>
-                    ))}
+                      );
+                    })}
                   </div>
+                  <p className="mt-3 text-xs text-blue-200/60">Complete the current topic quiz before the next session unlocks.</p>
                 </div>
               </div>
             )}
@@ -738,6 +861,44 @@ const Dashboard: React.FC = () => {
                                 </a>
                               )}
                             </div>
+
+                            {(() => {
+                              const summary = getAssessmentSummaryForConsultation(c.id);
+                              if (!summary.topicCount && !summary.finalExamRecord) {
+                                return null;
+                              }
+
+                              return (
+                                <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                                  <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80 mb-2">Learner Progress</p>
+                                  <div className="grid grid-cols-2 gap-3 mb-3">
+                                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                                      <p className="text-[11px] uppercase tracking-[0.2em] text-blue-200/60 mb-1">Topic Quizzes</p>
+                                      <p className="text-lg font-bold text-white">{summary.topicCount}</p>
+                                    </div>
+                                    <div className="rounded-xl border border-white/10 bg-white/5 p-3">
+                                      <p className="text-[11px] uppercase tracking-[0.2em] text-blue-200/60 mb-1">Final Exam</p>
+                                      <p className="text-lg font-bold text-white">{summary.finalExamRecord ? `${summary.finalExamRecord.score}%` : 'Pending'}</p>
+                                    </div>
+                                  </div>
+                                  {summary.latestTopicRecord && (
+                                    <p className="text-xs text-blue-100/80 mb-3">
+                                      Latest topic: <span className="font-semibold text-white">{summary.latestTopicRecord.session_label}</span> with {summary.latestTopicRecord.score}%.
+                                    </p>
+                                  )}
+                                  <div className="space-y-2">
+                                    {summary.recentRecords.map((record) => (
+                                      <div key={record.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
+                                        <p className="text-xs font-semibold text-white">{record.session_label}</p>
+                                        <p className="text-[11px] text-blue-200/60">
+                                          {record.assessment_type === 'final_exam' ? 'Final exam' : 'Topic quiz'} · {record.score}% · {record.correct_answers}/{record.total_questions} correct
+                                        </p>
+                                      </div>
+                                    ))}
+                                  </div>
+                                </div>
+                              );
+                            })()}
                           </div>
 
                           <div className="flex flex-col gap-3 lg:w-[320px]">
@@ -914,6 +1075,19 @@ const Dashboard: React.FC = () => {
                               <>
                                 <p className="text-xs text-cyan-100 mb-3">Certification started — choose a course and session.</p>
 
+                                {(() => {
+                                  const summary = getAssessmentSummaryForConsultation(c.id);
+                                  return summary.topicCount ? (
+                                    <div className="mb-3 rounded-xl border border-white/10 bg-[#0b1a33] px-3 py-3 text-xs text-blue-100">
+                                      <p className="font-semibold text-cyan-200">Recorded quiz progress</p>
+                                      <p className="mt-1 text-blue-200/70">
+                                        {summary.topicCount} topic quiz{summary.topicCount === 1 ? '' : 'zes'} recorded
+                                        {summary.latestTopicRecord ? `, latest: ${summary.latestTopicRecord.session_label} (${summary.latestTopicRecord.score}%)` : ''}.
+                                      </p>
+                                    </div>
+                                  ) : null;
+                                })()}
+
                                 <label className="text-xs text-blue-200/60">Course</label>
                                 <select
                                   value={selectedCourse[c.id] || ''}
@@ -935,10 +1109,13 @@ const Dashboard: React.FC = () => {
                                       className="mt-1 w-full rounded-xl border border-white/15 bg-[#0b1a33] px-3 py-2 text-sm text-white"
                                     >
                                       <option value="">Choose a session</option>
-                                      {getCertificationTrack(selectedCourse[c.id]).sessions.map(session => (
-                                        <option key={session} value={session}>{session}</option>
+                                      {getSessionAccessForConsultation(c.id, selectedCourse[c.id]).map((item) => (
+                                        <option key={item.session} value={item.session} disabled={!item.isUnlocked}>
+                                          {item.session} {item.isCompleted ? `(Done ${item.score}%)` : item.isUnlocked ? '(Open)' : '(Locked)'}
+                                        </option>
                                       ))}
                                     </select>
+                                    <p className="mt-2 text-[11px] text-blue-200/60">Only completed topics and the next unlocked topic can be entered.</p>
                                   </>
                                 )}
 

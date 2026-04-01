@@ -49,6 +49,28 @@ export type Consultation = {
   created_at: string;
 };
 
+export type LessonAssessmentType = "topic_quiz" | "final_exam";
+
+export type LessonAssessmentRecord = {
+  id: string;
+  consultation_id: string;
+  user_id: string | null;
+  course: string;
+  session_label: string;
+  topic_number: number;
+  assessment_type: LessonAssessmentType;
+  score: number;
+  correct_answers: number;
+  total_questions: number;
+  read_time_required_seconds: number;
+  read_time_completed_at: string | null;
+  submitted_at: string;
+  updated_at: string;
+  consultation_service?: string;
+  learner_name?: string;
+  learner_email?: string;
+};
+
 export type SavedService = {
   id: string;
   service_title: string;
@@ -91,6 +113,18 @@ export type SaveServicePayload = {
   service_title: string;
   service_category: string;
   service_description: string;
+};
+
+export type SaveLessonAssessmentPayload = {
+  course: string;
+  session_label: string;
+  topic_number: number;
+  assessment_type: LessonAssessmentType;
+  score: number;
+  correct_answers: number;
+  total_questions: number;
+  read_time_required_seconds: number;
+  read_time_completed_at: string | null;
 };
 
 type AuthResponse = {
@@ -218,6 +252,18 @@ export const api = {
   },
   getAdminConsultations() {
     return request<{ consultations: Consultation[]; ownerEmail: string }>("/admin/consultations");
+  },
+  getLessonAssessments() {
+    return request<{ records: LessonAssessmentRecord[] }>("/lesson-assessments");
+  },
+  getAdminLessonAssessments() {
+    return request<{ records: LessonAssessmentRecord[] }>("/admin/lesson-assessments");
+  },
+  saveLessonAssessment(consultationId: string, payload: SaveLessonAssessmentPayload) {
+    return request<{ record: LessonAssessmentRecord }>(`/consultations/${consultationId}/lesson-assessments`, {
+      method: "POST",
+      body: payload,
+    });
   },
   createManualPasswordReset(email: string) {
     return request<ManualPasswordResetResponse>("/admin/password-reset-otp", {

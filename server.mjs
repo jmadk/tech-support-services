@@ -127,6 +127,26 @@ db.exec(`
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
 
+  CREATE TABLE IF NOT EXISTS lesson_assessments (
+    id TEXT PRIMARY KEY,
+    consultation_id TEXT NOT NULL,
+    user_id TEXT NOT NULL,
+    course TEXT NOT NULL,
+    session_label TEXT NOT NULL,
+    topic_number INTEGER NOT NULL DEFAULT 0,
+    assessment_type TEXT NOT NULL,
+    score INTEGER NOT NULL,
+    correct_answers INTEGER NOT NULL,
+    total_questions INTEGER NOT NULL,
+    read_time_required_seconds INTEGER NOT NULL DEFAULT 0,
+    read_time_completed_at TEXT,
+    submitted_at TEXT NOT NULL,
+    updated_at TEXT NOT NULL,
+    FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+    UNIQUE (consultation_id, course, session_label, assessment_type)
+  );
+
   CREATE TABLE IF NOT EXISTS saved_services (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -158,6 +178,26 @@ function getTableColumns(tableName) {
 
 function ensureSchema() {
   db.exec(`
+    CREATE TABLE IF NOT EXISTS lesson_assessments (
+      id TEXT PRIMARY KEY,
+      consultation_id TEXT NOT NULL,
+      user_id TEXT NOT NULL,
+      course TEXT NOT NULL,
+      session_label TEXT NOT NULL,
+      topic_number INTEGER NOT NULL DEFAULT 0,
+      assessment_type TEXT NOT NULL,
+      score INTEGER NOT NULL,
+      correct_answers INTEGER NOT NULL,
+      total_questions INTEGER NOT NULL,
+      read_time_required_seconds INTEGER NOT NULL DEFAULT 0,
+      read_time_completed_at TEXT,
+      submitted_at TEXT NOT NULL,
+      updated_at TEXT NOT NULL,
+      FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
+      UNIQUE (consultation_id, course, session_label, assessment_type)
+    );
+
     CREATE TABLE IF NOT EXISTS password_reset_otps (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -177,6 +217,9 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
     CREATE INDEX IF NOT EXISTS idx_consultations_user_id ON consultations(user_id);
     CREATE INDEX IF NOT EXISTS idx_consultations_created_at ON consultations(created_at);
+    CREATE INDEX IF NOT EXISTS idx_lesson_assessments_consultation_id ON lesson_assessments(consultation_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_assessments_user_id ON lesson_assessments(user_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_assessments_submitted_at ON lesson_assessments(submitted_at);
     CREATE INDEX IF NOT EXISTS idx_saved_services_user_id ON saved_services(user_id);
     CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at);
     CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
@@ -271,6 +314,102 @@ const statements = {
     SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
     FROM consultations
     WHERE id = ?
+  `),
+  listLessonAssessmentsByUser: db.prepare(`
+    SELECT
+      la.id,
+      la.consultation_id,
+      la.user_id,
+      la.course,
+      la.session_label,
+      la.topic_number,
+      la.assessment_type,
+      la.score,
+      la.correct_answers,
+      la.total_questions,
+      la.read_time_required_seconds,
+      la.read_time_completed_at,
+      la.submitted_at,
+      la.updated_at,
+      c.service AS consultation_service
+    FROM lesson_assessments la
+    JOIN consultations c ON c.id = la.consultation_id
+    WHERE la.user_id = ?
+    ORDER BY datetime(la.submitted_at) DESC
+  `),
+  listAllLessonAssessments: db.prepare(`
+    SELECT
+      la.id,
+      la.consultation_id,
+      la.user_id,
+      la.course,
+      la.session_label,
+      la.topic_number,
+      la.assessment_type,
+      la.score,
+      la.correct_answers,
+      la.total_questions,
+      la.read_time_required_seconds,
+      la.read_time_completed_at,
+      la.submitted_at,
+      la.updated_at,
+      c.service AS consultation_service,
+      c.full_name AS learner_name,
+      c.email AS learner_email
+    FROM lesson_assessments la
+    JOIN consultations c ON c.id = la.consultation_id
+    ORDER BY datetime(la.submitted_at) DESC
+  `),
+  upsertLessonAssessment: db.prepare(`
+    INSERT INTO lesson_assessments (
+      id,
+      consultation_id,
+      user_id,
+      course,
+      session_label,
+      topic_number,
+      assessment_type,
+      score,
+      correct_answers,
+      total_questions,
+      read_time_required_seconds,
+      read_time_completed_at,
+      submitted_at,
+      updated_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(consultation_id, course, session_label, assessment_type) DO UPDATE SET
+      user_id = excluded.user_id,
+      topic_number = excluded.topic_number,
+      score = excluded.score,
+      correct_answers = excluded.correct_answers,
+      total_questions = excluded.total_questions,
+      read_time_required_seconds = excluded.read_time_required_seconds,
+      read_time_completed_at = excluded.read_time_completed_at,
+      submitted_at = excluded.submitted_at,
+      updated_at = excluded.updated_at
+  `),
+  getLessonAssessmentByIdentity: db.prepare(`
+    SELECT
+      la.id,
+      la.consultation_id,
+      la.user_id,
+      la.course,
+      la.session_label,
+      la.topic_number,
+      la.assessment_type,
+      la.score,
+      la.correct_answers,
+      la.total_questions,
+      la.read_time_required_seconds,
+      la.read_time_completed_at,
+      la.submitted_at,
+      la.updated_at,
+      c.service AS consultation_service,
+      c.full_name AS learner_name,
+      c.email AS learner_email
+    FROM lesson_assessments la
+    JOIN consultations c ON c.id = la.consultation_id
+    WHERE la.consultation_id = ? AND la.course = ? AND la.session_label = ? AND la.assessment_type = ?
   `),
   updateConsultationStatus: db.prepare(`
     UPDATE consultations
@@ -1147,6 +1286,85 @@ function handleAdminConsultationList(req, res) {
   return json(res, 200, { consultations, ownerEmail });
 }
 
+function handleLessonAssessmentList(req, res) {
+  const session = requireAuth(req, res);
+  if (!session) return;
+  const records = statements.listLessonAssessmentsByUser.all(session.user.id);
+  return json(res, 200, { records });
+}
+
+function handleAdminLessonAssessmentList(req, res) {
+  const session = requireOwner(req, res);
+  if (!session) return;
+  const records = statements.listAllLessonAssessments.all();
+  return json(res, 200, { records });
+}
+
+async function handleLessonAssessmentUpsert(req, res, consultationId) {
+  const session = requireAuth(req, res);
+  if (!session) return;
+
+  const consultation = statements.getConsultationById.get(consultationId);
+  if (!consultation || consultation.user_id !== session.user.id) {
+    return json(res, 404, { error: "Consultation not found." });
+  }
+
+  const body = await readBody(req);
+  const course = String(body.course || "").trim();
+  const sessionLabel = String(body.session_label || "").trim();
+  const assessmentType = String(body.assessment_type || "").trim();
+  const topicNumber = Number(body.topic_number || 0);
+  const score = Number(body.score);
+  const correctAnswers = Number(body.correct_answers);
+  const totalQuestions = Number(body.total_questions);
+  const readTimeRequiredSeconds = Math.max(0, Number(body.read_time_required_seconds || 0));
+  const readTimeCompletedAt = body.read_time_completed_at ? String(body.read_time_completed_at) : null;
+  const allowedAssessmentTypes = new Set(["topic_quiz", "final_exam"]);
+
+  if (!course || !sessionLabel || !allowedAssessmentTypes.has(assessmentType)) {
+    return json(res, 400, { error: "Course, session label, and assessment type are required." });
+  }
+
+  if (
+    !Number.isFinite(topicNumber) ||
+    !Number.isFinite(score) ||
+    !Number.isFinite(correctAnswers) ||
+    !Number.isFinite(totalQuestions) ||
+    totalQuestions <= 0
+  ) {
+    return json(res, 400, { error: "Assessment scores are invalid." });
+  }
+
+  const now = nowIso();
+  const recordId = createId();
+
+  statements.upsertLessonAssessment.run(
+    recordId,
+    consultationId,
+    session.user.id,
+    course,
+    sessionLabel,
+    Math.max(0, Math.round(topicNumber)),
+    assessmentType,
+    Math.max(0, Math.round(score)),
+    Math.max(0, Math.round(correctAnswers)),
+    Math.max(1, Math.round(totalQuestions)),
+    Math.round(readTimeRequiredSeconds),
+    readTimeCompletedAt,
+    now,
+    now,
+  );
+
+  const record = statements.getLessonAssessmentByIdentity.get(
+    consultationId,
+    course,
+    sessionLabel,
+    assessmentType,
+  );
+
+  return json(res, 200, { record });
+}
+
 async function handleConsultationStatusUpdate(req, res, id) {
   const session = requireOwner(req, res);
   if (!session) return;
@@ -1285,9 +1503,21 @@ const server = createServer(async (req, res) => {
     if (req.method === "PATCH" && pathname === "/api/profile") return await handleProfileUpdate(req, res);
     if (req.method === "GET" && pathname === "/api/consultations") return await handleConsultationList(req, res);
     if (req.method === "POST" && pathname === "/api/consultations") return await handleConsultationCreate(req, res);
+    if (req.method === "GET" && pathname === "/api/lesson-assessments") return await handleLessonAssessmentList(req, res);
     if (req.method === "GET" && pathname === "/api/admin/consultations") return await handleAdminConsultationList(req, res);
+    if (req.method === "GET" && pathname === "/api/admin/lesson-assessments") {
+      return await handleAdminLessonAssessmentList(req, res);
+    }
     if (req.method === "POST" && pathname === "/api/admin/password-reset-otp") {
       return await handleOwnerPasswordResetOtpCreate(req, res);
+    }
+    if (
+      req.method === "POST" &&
+      pathname.startsWith("/api/consultations/") &&
+      pathname.endsWith("/lesson-assessments")
+    ) {
+      const id = pathname.replace("/api/consultations/", "").replace("/lesson-assessments", "").replace(/\//g, "");
+      return await handleLessonAssessmentUpsert(req, res, id);
     }
     if (
       req.method === "PATCH" &&
