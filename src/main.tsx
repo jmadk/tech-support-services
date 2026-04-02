@@ -4,11 +4,27 @@ import App from './App.tsx'
 import './index.css'
 
 // polyfill for mgt.clearMarks runtime error if loaded by a third-party script
-if (typeof window !== 'undefined') {
+const patchMgtClearMarks = () => {
+  if (typeof window === 'undefined') return;
   const mgt = (window as any).mgt;
-  if (mgt && typeof mgt.clearMarks !== 'function') {
+  if (!mgt) return;
+  if (typeof mgt.clearMarks !== 'function') {
     mgt.clearMarks = () => undefined;
   }
+};
+
+if (typeof window !== 'undefined') {
+  patchMgtClearMarks();
+
+  const interval = window.setInterval(patchMgtClearMarks, 200);
+  window.addEventListener('load', () => {
+    patchMgtClearMarks();
+    window.clearInterval(interval);
+  });
+
+  window.setTimeout(() => {
+    window.clearInterval(interval);
+  }, 6000);
 }
 
 // Remove dark mode class addition
