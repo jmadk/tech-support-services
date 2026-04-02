@@ -144,6 +144,17 @@ const ServicesGrid: React.FC = () => {
     navigate(`/lesson/service-${courseId}`);
   };
 
+  const toggleServiceCard = (serviceId: number, serviceTitle: string) => {
+    setExpandedService((prev) => (prev === serviceId ? null : serviceId));
+
+    if (serviceTitle === 'Training & Education') {
+      window.setTimeout(() => {
+        const el = document.getElementById('training-education-card');
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      }, 80);
+    }
+  };
+
   return (
     <section id="services" className="relative overflow-hidden bg-gradient-to-b from-[#0a1628] via-[#0f1d35] to-[#0a1628] py-24">
       <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
@@ -158,7 +169,7 @@ const ServicesGrid: React.FC = () => {
             Choose Between <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">Expert Service</span> and <span className="bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">Learning Path</span>
           </h2>
           <p className="mx-auto max-w-3xl text-lg text-blue-200/60">
-            Direct service requests now stand on their own, while class and certification remain in a separate area below.
+            Expert services stay available here, and the training journey now opens directly from the Training & Education service card.
           </p>
         </div>
 
@@ -199,7 +210,8 @@ const ServicesGrid: React.FC = () => {
             {filteredServices.map((service) => (
               <div
                 key={service.id}
-                onClick={() => setExpandedService(expandedService === service.id ? null : service.id)}
+                id={service.title === 'Training & Education' ? 'training-education-card' : undefined}
+                onClick={() => toggleServiceCard(service.id, service.title)}
                 className={`group overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all duration-500 hover:-translate-y-1 hover:border-cyan-500/30 hover:bg-white/10 hover:shadow-xl hover:shadow-cyan-500/10 ${expandedService === service.id ? 'ring-2 ring-cyan-500/50 bg-white/10' : ''}`}
               >
                 <div className="relative h-40 overflow-hidden">
@@ -226,95 +238,93 @@ const ServicesGrid: React.FC = () => {
                     ))}
                   </div>
                   {expandedService === service.id && (
-                    <div className="mt-5 flex gap-2">
-                      <button
-                        onClick={(event) => {
-                          event.stopPropagation();
-                          const el = document.getElementById('contact');
-                          if (el) el.scrollIntoView({ behavior: 'smooth' });
-                        }}
-                        className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:from-cyan-400 hover:to-blue-500"
-                      >
-                        Request Service
-                      </button>
-                      {user && (
+                    service.title === 'Training & Education' ? (
+                      <div className="mt-5 space-y-5" onClick={(event) => event.stopPropagation()}>
+                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
+                          Open this training area to request approval, start the class test, and continue into certification after admin approval.
+                        </div>
+
+                        <div className="grid gap-4">
+                          {certificationCourses.map((course) => {
+                            const classConsultation = getLatestClassConsultation(course.title);
+                            const approvedForClass = Boolean(classConsultation && classConsultation.owner_agreed === 'yes');
+
+                            return (
+                              <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:border-emerald-400/30 hover:bg-[#102042]">
+                                <div className="relative h-40 overflow-hidden">
+                                  <img src={course.image} alt={course.title} className="h-full w-full object-cover" />
+                                  <div className="absolute inset-0 bg-gradient-to-t from-[#0b1a33] via-[#0b1a33]/40 to-transparent" />
+                                  <div className="absolute bottom-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">Class</div>
+                                </div>
+                                <div className="p-5">
+                                  <h4 className="text-lg font-bold text-white">{course.title}</h4>
+                                  <p className="mt-2 text-sm leading-relaxed text-blue-200/60">{course.description}</p>
+                                  <p className="mt-4 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
+                                  <div className="mt-5 space-y-2">
+                                    {!approvedForClass ? (
+                                      <>
+                                        <button
+                                          disabled
+                                          className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/55"
+                                        >
+                                          Await admin approval
+                                        </button>
+                                        <p className="text-xs text-amber-200/85">
+                                          No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
+                                        </p>
+                                      </>
+                                    ) : courseTestStatus[course.id] !== 'completed' ? (
+                                      <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
+                                        {courseTestStatus[course.id] === 'in_progress' ? 'Test in progress...' : 'Start class test'}
+                                      </button>
+                                    ) : (
+                                      <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
+                                        Proceed to Certification Course Introduction
+                                      </button>
+                                    )}
+                                    <button
+                                      onClick={() => {
+                                        const el = document.getElementById('contact');
+                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
+                                      }}
+                                      className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-blue-100/80 hover:border-white/25 hover:text-white"
+                                    >
+                                      Ask About This Class
+                                    </button>
+                                    {courseCertificationStarted[course.id] && <p className="text-xs text-green-200">Certification course introduction activated.</p>}
+                                  </div>
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="mt-5 flex gap-2">
                         <button
-                          onClick={(event) => toggleSave(event, service)}
-                          className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${savedTitles.has(service.title) ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400' : 'border-white/10 text-blue-200/70 hover:border-white/30 hover:text-white'}`}
+                          onClick={(event) => {
+                            event.stopPropagation();
+                            const el = document.getElementById('contact');
+                            if (el) el.scrollIntoView({ behavior: 'smooth' });
+                          }}
+                          className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:from-cyan-400 hover:to-blue-500"
                         >
-                          {savedTitles.has(service.title) ? 'Saved' : 'Save'}
+                          Request Service
                         </button>
-                      )}
-                    </div>
+                        {user && (
+                          <button
+                            onClick={(event) => toggleSave(event, service)}
+                            className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${savedTitles.has(service.title) ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400' : 'border-white/10 text-blue-200/70 hover:border-white/30 hover:text-white'}`}
+                          >
+                            {savedTitles.has(service.title) ? 'Saved' : 'Save'}
+                          </button>
+                        )}
+                      </div>
+                    )
                   )}
                 </div>
               </div>
             ))}
-          </div>
-        </div>
-
-        <div className="rounded-[2rem] border border-white/10 bg-white/5 p-6 backdrop-blur-sm sm:p-8">
-          <div className="mb-10 flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-            <div className="max-w-2xl">
-              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-emerald-300">Classes & Certification</p>
-              <h3 className="mt-3 text-3xl font-black text-white sm:text-4xl">Learning stays separate here.</h3>
-              <p className="mt-3 text-base leading-7 text-blue-200/60">The training path is still available, but it now lives in its own dedicated area instead of being mixed into service cards.</p>
-            </div>
-            <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-100">Start the class test, then continue to certification.</div>
-          </div>
-
-          <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {certificationCourses.map((course) => {
-              const classConsultation = getLatestClassConsultation(course.title);
-              const approvedForClass = Boolean(classConsultation && classConsultation.owner_agreed === 'yes');
-
-              return (
-              <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:border-emerald-400/30 hover:bg-[#102042]">
-                <div className="relative h-40 overflow-hidden">
-                  <img src={course.image} alt={course.title} className="h-full w-full object-cover" />
-                  <div className="absolute inset-0 bg-gradient-to-t from-[#0b1a33] via-[#0b1a33]/40 to-transparent" />
-                  <div className="absolute bottom-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">Class</div>
-                </div>
-                <div className="p-5">
-                  <h4 className="text-lg font-bold text-white">{course.title}</h4>
-                  <p className="mt-2 text-sm leading-relaxed text-blue-200/60">{course.description}</p>
-                  <p className="mt-4 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
-                  <div className="mt-5 space-y-2">
-                    {!approvedForClass ? (
-                      <>
-                        <button
-                          disabled
-                          className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/55"
-                        >
-                          Await admin approval
-                        </button>
-                        <p className="text-xs text-amber-200/85">
-                          No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
-                        </p>
-                      </>
-                    ) : courseTestStatus[course.id] !== 'completed' ? (
-                      <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-                        {courseTestStatus[course.id] === 'in_progress' ? 'Test in progress...' : 'Start class test'}
-                      </button>
-                    ) : (
-                      <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-                        Proceed to Certification Course Introduction
-                      </button>
-                    )}
-                    <button
-                      onClick={() => {
-                        const el = document.getElementById('contact');
-                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                      }}
-                      className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-blue-100/80 hover:border-white/25 hover:text-white"
-                    >
-                      Ask About This Class
-                    </button>
-                    {courseCertificationStarted[course.id] && <p className="text-xs text-green-200">Certification course introduction activated.</p>}
-                  </div>
-                </div>
-              </div>
-            )})}
           </div>
         </div>
       </div>
