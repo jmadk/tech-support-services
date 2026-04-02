@@ -3,13 +3,18 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api, getErrorMessage, type CreateConsultationPayload } from '@/lib/api';
 
 const serviceOptions = [
-  'Computer Systems', 'Computer Architecture', 'IT Support & Customer Care',
-  'Operating Systems', 'System Analysis & Design', 'Digital Electronics',
-  'Programming Fundamentals', 'Web-Based Programming', 'OO Analysis & Design',
-  'OO Programming', 'Data Structures & Algorithms', 'Software System Project',
-  'Database Systems', 'Data Communications & Networks', 'Distributed Systems',
-  'E-Systems & E-Commerce', 'Techno-Entrepreneurship', 'Business Management',
-  'Research Methods in CS', 'Seminar & Report Writing',
+  'Custom Software Development',
+  'Website & E-Commerce Solutions',
+  'Backend & API Engineering',
+  'IT Support & Troubleshooting',
+  'Systems Setup & Administration',
+  'Network Design & Support',
+  'Database Design & Optimization',
+  'Data Analysis & Dashboards',
+  'AI Workflow Integration',
+  'System Analysis & Technical Consulting',
+  'Code Review & Project Rescue',
+  'Research, Documentation & Technical Writing',
 ];
 
 const ConsultationForm: React.FC = () => {
