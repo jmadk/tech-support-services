@@ -61,6 +61,8 @@ type PriceBand = {
   enterprise: number;
 };
 
+const MINIMUM_SERVICE_PRICE = 50000;
+
 const DEFAULT_PRICES: PriceBand = {
   starter: 14000,
   professional: 52000,
@@ -136,7 +138,7 @@ export function formatKes(amount: number) {
 
 export function getServicePrice(service: string, complexity: ServiceComplexity) {
   const priceBand = SERVICE_PRICING[service] || DEFAULT_PRICES;
-  return priceBand[complexity];
+  return Math.max(MINIMUM_SERVICE_PRICE, priceBand[complexity]);
 }
 
 export function getComplexityLabel(complexity: ServiceComplexity) {
