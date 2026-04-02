@@ -8,6 +8,21 @@ const RESEND_API_URL = "https://api.resend.com/emails";
 const RESEND_USER_AGENT = "kctech-password-reset/1.0";
 const RESEND_TEST_DOMAIN = "resend.dev";
 const encoder = new TextEncoder();
+const servicePricing = {
+  "Software Development": { starter: 16000, professional: 58000, enterprise: 168000 },
+  "Web & App Development": { starter: 15000, professional: 54000, enterprise: 162000 },
+  "Artificial Intelligence & Machine Learning": { starter: 22000, professional: 76000, enterprise: 195000 },
+  "Data Science & Analytics": { starter: 18000, professional: 62000, enterprise: 176000 },
+  Cybersecurity: { starter: 20000, professional: 68000, enterprise: 185000 },
+  "Cloud Computing & DevOps": { starter: 19000, professional: 66000, enterprise: 182000 },
+  "IT Consulting & Systems Design": { starter: 15000, professional: 56000, enterprise: 164000 },
+  "Technical Support & Maintenance": { starter: 12000, professional: 45000, enterprise: 138000 },
+  "Game Development": { starter: 20000, professional: 70000, enterprise: 190000 },
+  "Training & Education": { starter: 12000, professional: 40000, enterprise: 120000 },
+  "Specialized Areas": { starter: 24000, professional: 82000, enterprise: 210000 },
+  "Freelance & Business Services": { starter: 13000, professional: 48000, enterprise: 145000 },
+};
+const defaultServicePricing = { starter: 14000, professional: 52000, enterprise: 155000 };
 
 function corsHeaders() {
   return {
@@ -307,6 +322,129 @@ function createOtp() {
   return String(value).padStart(6, "0");
 }
 
+function getServicePrice(service, complexity) {
+  const priceBand = servicePricing[service] || defaultServicePricing;
+  return priceBand[complexity] || priceBand.starter;
+}
+
+function normalizeKenyanPhone(phone) {
+  const digits = String(phone || "").replace(/\D/g, "");
+  if (!digits) {
+    return "";
+  }
+  if (digits.startsWith("254") && digits.length === 12) {
+    return digits;
+  }
+  if (digits.startsWith("0") && digits.length === 10) {
+    return `254${digits.slice(1)}`;
+  }
+  if ((digits.startsWith("7") || digits.startsWith("1")) && digits.length === 9) {
+    return `254${digits}`;
+  }
+  return "";
+}
+
+function formatDarajaTimestamp(date = new Date()) {
+  const year = String(date.getFullYear());
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  const seconds = String(date.getSeconds()).padStart(2, "0");
+  return `${year}${month}${day}${hours}${minutes}${seconds}`;
+}
+
+function darajaEnvironmentFor(env) {
+  return String(env.DARAJA_ENV || "sandbox").trim().toLowerCase() === "production" ? "production" : "sandbox";
+}
+
+function getDarajaBaseUrl(env) {
+  return darajaEnvironmentFor(env) === "production"
+    ? "https://api.safaricom.co.ke"
+    : "https://sandbox.safaricom.co.ke";
+}
+
+function validateDarajaConfig(env) {
+  const issues = [];
+  if (!String(env.DARAJA_CONSUMER_KEY || "").trim()) issues.push("DARAJA_CONSUMER_KEY is missing.");
+  if (!String(env.DARAJA_CONSUMER_SECRET || "").trim()) issues.push("DARAJA_CONSUMER_SECRET is missing.");
+  if (!String(env.DARAJA_SHORTCODE || "").trim()) issues.push("DARAJA_SHORTCODE is missing.");
+  if (!String(env.DARAJA_PASSKEY || "").trim()) issues.push("DARAJA_PASSKEY is missing.");
+  if (!String(env.DARAJA_CALLBACK_URL || "").trim()) issues.push("DARAJA_CALLBACK_URL is missing.");
+  return {
+    configured: issues.length === 0,
+    issues,
+  };
+}
+
+async function getDarajaAccessToken(env) {
+  const consumerKey = String(env.DARAJA_CONSUMER_KEY || "").trim();
+  const consumerSecret = String(env.DARAJA_CONSUMER_SECRET || "").trim();
+  const basicToken = btoa(`${consumerKey}:${consumerSecret}`);
+  const response = await fetch(`${getDarajaBaseUrl(env)}/oauth/v1/generate?grant_type=client_credentials`, {
+    method: "GET",
+    headers: {
+      Authorization: `Basic ${basicToken}`,
+    },
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok || !data.access_token) {
+    throw new Error(
+      typeof data.errorMessage === "string" && data.errorMessage
+        ? data.errorMessage
+        : "Could not generate Daraja access token.",
+    );
+  }
+
+  return data.access_token;
+}
+
+async function initiateDarajaStkPush(env, { amount, phone, reference, description }) {
+  const accessToken = await getDarajaAccessToken(env);
+  const shortcode = String(env.DARAJA_SHORTCODE || "").trim();
+  const passkey = String(env.DARAJA_PASSKEY || "").trim();
+  const transactionType = String(env.DARAJA_TRANSACTION_TYPE || "CustomerPayBillOnline").trim();
+  const callbackUrl = String(env.DARAJA_CALLBACK_URL || "").trim();
+  const accountReference = String(env.DARAJA_ACCOUNT_REFERENCE || "Tech Support Services").trim();
+  const serviceDescription = String(env.DARAJA_TRANSACTION_DESCRIPTION || "Service payment").trim();
+  const timestamp = formatDarajaTimestamp();
+  const password = btoa(`${shortcode}${passkey}${timestamp}`);
+  const payload = {
+    BusinessShortCode: shortcode,
+    Password: password,
+    Timestamp: timestamp,
+    TransactionType: transactionType,
+    Amount: Math.max(1, Math.round(amount)),
+    PartyA: phone,
+    PartyB: shortcode,
+    PhoneNumber: phone,
+    CallBackURL: callbackUrl,
+    AccountReference: reference || accountReference,
+    TransactionDesc: description || serviceDescription,
+  };
+
+  const response = await fetch(`${getDarajaBaseUrl(env)}/mpesa/stkpush/v1/processrequest`, {
+    method: "POST",
+    headers: {
+      Authorization: `Bearer ${accessToken}`,
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(payload),
+  });
+
+  const data = await response.json().catch(() => ({}));
+  if (!response.ok) {
+    throw new Error(
+      typeof data.errorMessage === "string" && data.errorMessage
+        ? data.errorMessage
+        : "Daraja STK push request failed.",
+    );
+  }
+
+  return data;
+}
+
 async function hashOtp(email, otp, saltBytes = crypto.getRandomValues(new Uint8Array(16))) {
   const hash = await sha256(combineBytes(saltBytes, encoder.encode(`${email}:${otp}`)));
   return {
@@ -471,6 +609,37 @@ async function ensureSchema(env) {
     `,
   );
 
+  await runQuery(
+    env,
+    `
+      CREATE TABLE IF NOT EXISTS service_payments (
+        id TEXT PRIMARY KEY,
+        consultation_id TEXT NOT NULL,
+        user_id TEXT,
+        request_type TEXT NOT NULL DEFAULT 'service',
+        service TEXT NOT NULL,
+        complexity TEXT NOT NULL DEFAULT 'starter',
+        payment_method TEXT NOT NULL,
+        amount INTEGER NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'KES',
+        status TEXT NOT NULL,
+        phone TEXT NOT NULL DEFAULT '',
+        provider TEXT NOT NULL DEFAULT '',
+        external_reference TEXT NOT NULL,
+        merchant_request_id TEXT NOT NULL DEFAULT '',
+        checkout_request_id TEXT NOT NULL DEFAULT '',
+        receipt_number TEXT NOT NULL DEFAULT '',
+        provider_response TEXT NOT NULL DEFAULT '',
+        last_error TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        paid_at TEXT,
+        FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+      )
+    `,
+  );
+
   const userColumns = new Set((await allRows(env, "PRAGMA table_info(users)")).map((col) => col.name));
   if (!userColumns.has("recovery_email")) {
     await runQuery(env, "ALTER TABLE users ADD COLUMN recovery_email TEXT NOT NULL DEFAULT ''");
@@ -500,6 +669,9 @@ async function ensureSchema(env) {
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_service_payments_consultation_id ON service_payments(consultation_id)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_service_payments_user_id ON service_payments(user_id)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_service_payments_checkout_request_id ON service_payments(checkout_request_id)");
 }
 
 async function ensureOwnerAccount(env) {
@@ -1156,6 +1328,345 @@ async function handleConsultationCreate(env, request) {
   return json({ consultation, notification: { enabled: false, sent: false } }, 201);
 }
 
+async function createServicePaymentRecord(env, {
+  consultation,
+  session,
+  requestType,
+  service,
+  complexity,
+  paymentMethod,
+  amount,
+  phone,
+  status,
+  provider,
+  externalReference,
+  merchantRequestId = "",
+  checkoutRequestId = "",
+  providerResponse = "",
+  lastError = "",
+  receiptNumber = "",
+  paidAt = null,
+}) {
+  const payment = {
+    id: createId(),
+    consultation_id: consultation.id,
+    user_id: session.user.id,
+    request_type: requestType,
+    service,
+    complexity,
+    payment_method: paymentMethod,
+    amount,
+    currency: "KES",
+    status,
+    phone: phone || "",
+    provider,
+    external_reference: externalReference,
+    merchant_request_id: merchantRequestId,
+    checkout_request_id: checkoutRequestId,
+    receipt_number: receiptNumber,
+    provider_response: providerResponse,
+    last_error: lastError,
+    created_at: nowIso(),
+    updated_at: nowIso(),
+    paid_at: paidAt,
+  };
+
+  await runQuery(
+    env,
+    `
+      INSERT INTO service_payments (
+        id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
+        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+        created_at, updated_at, paid_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    `,
+    [
+      payment.id,
+      payment.consultation_id,
+      payment.user_id,
+      payment.request_type,
+      payment.service,
+      payment.complexity,
+      payment.payment_method,
+      payment.amount,
+      payment.currency,
+      payment.status,
+      payment.phone,
+      payment.provider,
+      payment.external_reference,
+      payment.merchant_request_id,
+      payment.checkout_request_id,
+      payment.receipt_number,
+      payment.provider_response,
+      payment.last_error,
+      payment.created_at,
+      payment.updated_at,
+      payment.paid_at,
+    ],
+  );
+
+  return firstRow(
+    env,
+    `
+      SELECT
+        id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
+        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+        created_at, updated_at, paid_at
+      FROM service_payments
+      WHERE id = ?
+    `,
+    [payment.id],
+  );
+}
+
+async function handlePaymentInitialize(env, request) {
+  const auth = await requireAuth(env, request);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const body = await readBody(request);
+  const consultationId = String(body.consultation_id || "").trim();
+  const requestType = String(body.request_type || "service").trim();
+  const service = String(body.service || "").trim();
+  const complexity = String(body.complexity || "starter").trim();
+  const paymentMethod = String(body.payment_method || "mpesa").trim();
+  const providedAmount = Number(body.amount || 0);
+  const phone = normalizeKenyanPhone(body.phone || "");
+  const validRequestTypes = new Set(["service", "class"]);
+  const validComplexities = new Set(["starter", "professional", "enterprise"]);
+  const validMethods = new Set(["mpesa", "card", "bank"]);
+
+  if (!consultationId || !service) {
+    return json({ error: "Consultation and service are required." }, 400);
+  }
+  if (!validRequestTypes.has(requestType)) {
+    return json({ error: "Invalid request type." }, 400);
+  }
+  if (!validComplexities.has(complexity)) {
+    return json({ error: "Invalid service complexity." }, 400);
+  }
+  if (!validMethods.has(paymentMethod)) {
+    return json({ error: "Invalid payment method." }, 400);
+  }
+
+  const consultation = await firstRow(
+    env,
+    `
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+      FROM consultations
+      WHERE id = ?
+    `,
+    [consultationId],
+  );
+
+  if (!consultation || consultation.user_id !== auth.session.user.id) {
+    return json({ error: "Consultation not found." }, 404);
+  }
+
+  const amount = Math.max(1, Math.round(providedAmount || getServicePrice(service, complexity)));
+  const externalReference = `${service.slice(0, 18).replace(/\s+/g, "-")}-${consultationId.slice(0, 8)}`;
+
+  if (paymentMethod === "bank") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: consultation.phone,
+      status: "bank_option_pending",
+      provider: "manual",
+      externalReference,
+      lastError: "Bank transfer selected, but bank account details have not been added yet.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Bank transfer option recorded.",
+      customerMessage: "Bank transfer is listed on the site, but bank settlement is not active yet because no bank account has been added.",
+    });
+  }
+
+  if (paymentMethod === "card") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: consultation.phone,
+      status: "card_option_recorded",
+      provider: "manual",
+      externalReference,
+      lastError: "Card checkout preference captured. Gateway credentials are still required before live card charging.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Card checkout preference recorded.",
+      customerMessage: "Debit or credit card payment has been captured as your preferred route, but live card charging still needs a connected card processor.",
+    });
+  }
+
+  if (!phone) {
+    return json({ error: "A valid Safaricom phone number is required for M-Pesa STK Push." }, 400);
+  }
+
+  const darajaConfig = validateDarajaConfig(env);
+  if (!darajaConfig.configured) {
+    return json({ error: `Daraja STK Push is not configured yet. ${darajaConfig.issues.join(" ")}` }, 503);
+  }
+
+  const payment = await createServicePaymentRecord(env, {
+    consultation,
+    session: auth.session,
+    requestType,
+    service,
+    complexity,
+    paymentMethod,
+    amount,
+    phone,
+    status: "stk_initiated",
+    provider: "mpesa_daraja",
+    externalReference,
+  });
+
+  try {
+    const stkResponse = await initiateDarajaStkPush(env, {
+      amount,
+      phone,
+      reference: externalReference,
+      description: `${service} ${complexity}`,
+    });
+
+    await runQuery(
+      env,
+      `
+        UPDATE service_payments
+        SET status = ?, provider = ?, merchant_request_id = ?, checkout_request_id = ?, provider_response = ?, last_error = ?, updated_at = ?
+        WHERE id = ?
+      `,
+      [
+        "stk_requested",
+        "mpesa_daraja",
+        String(stkResponse.MerchantRequestID || ""),
+        String(stkResponse.CheckoutRequestID || ""),
+        JSON.stringify(stkResponse),
+        "",
+        nowIso(),
+        payment.id,
+      ],
+    );
+
+    const updatedPayment = await firstRow(
+      env,
+      `
+        SELECT
+          id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
+          provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+          created_at, updated_at, paid_at
+        FROM service_payments
+        WHERE id = ?
+      `,
+      [payment.id],
+    );
+
+    return json({
+      success: true,
+      payment: updatedPayment,
+      message: "STK Push sent to your phone.",
+      checkoutRequestId: updatedPayment.checkout_request_id || null,
+      customerMessage:
+        String(stkResponse.CustomerMessage || "").trim() ||
+        `Complete the M-Pesa prompt sent to ${phone}.`,
+    });
+  } catch (error) {
+    await runQuery(
+      env,
+      `
+        UPDATE service_payments
+        SET status = ?, provider_response = ?, last_error = ?, receipt_number = ?, updated_at = ?, paid_at = ?
+        WHERE id = ?
+      `,
+      [
+        "stk_failed",
+        "",
+        error instanceof Error ? error.message : "STK push could not be started.",
+        "",
+        nowIso(),
+        null,
+        payment.id,
+      ],
+    );
+
+    return json(
+      { error: error instanceof Error ? error.message : "M-Pesa STK push could not be started." },
+      502,
+    );
+  }
+}
+
+async function handleMpesaCallback(env, request) {
+  const body = await readBody(request);
+  const callback = body?.Body?.stkCallback || body?.body?.stkCallback || body?.stkCallback || null;
+
+  if (!callback) {
+    return json({ error: "Invalid M-Pesa callback payload." }, 400);
+  }
+
+  const checkoutRequestId = String(callback.CheckoutRequestID || "").trim();
+  if (!checkoutRequestId) {
+    return json({ error: "Missing CheckoutRequestID." }, 400);
+  }
+
+  const payment = await firstRow(
+    env,
+    `
+      SELECT id, amount
+      FROM service_payments
+      WHERE checkout_request_id = ?
+    `,
+    [checkoutRequestId],
+  );
+
+  if (!payment) {
+    return json({ success: true });
+  }
+
+  const items = Array.isArray(callback.CallbackMetadata?.Item) ? callback.CallbackMetadata.Item : [];
+  const receiptNumber = String(items.find((item) => item.Name === "MpesaReceiptNumber")?.Value || "").trim();
+  const paidAmount = Number(items.find((item) => item.Name === "Amount")?.Value || payment.amount || 0);
+  const resultCode = Number(callback.ResultCode || 1);
+  const resultDesc = String(callback.ResultDesc || "").trim();
+
+  await runQuery(
+    env,
+    `
+      UPDATE service_payments
+      SET status = ?, provider_response = ?, last_error = ?, receipt_number = ?, updated_at = ?, paid_at = ?
+      WHERE id = ?
+    `,
+    [
+      resultCode === 0 ? "paid" : "failed",
+      JSON.stringify({ ...callback, Amount: paidAmount || payment.amount }),
+      resultCode === 0 ? "" : resultDesc,
+      receiptNumber,
+      nowIso(),
+      resultCode === 0 ? nowIso() : null,
+      payment.id,
+    ],
+  );
+
+  return json({ success: true });
+}
+
 async function getConsultationColumns(env) {
   const cols = await allRows(env, "PRAGMA table_info(consultations)");
   return cols.map((c) => c.name);
@@ -1622,6 +2133,8 @@ export async function onRequest(context) {
     if (request.method === "PATCH" && pathname === "/api/profile") return await handleProfileUpdate(env, request);
     if (request.method === "GET" && pathname === "/api/consultations") return await handleConsultationList(env, request);
     if (request.method === "POST" && pathname === "/api/consultations") return await handleConsultationCreate(env, request);
+    if (request.method === "POST" && pathname === "/api/payments/initialize") return await handlePaymentInitialize(env, request);
+    if (request.method === "POST" && pathname === "/api/payments/mpesa/callback") return await handleMpesaCallback(env, request);
     if (request.method === "GET" && pathname === "/api/lesson-assessments") return await handleLessonAssessmentList(env, request);
     if (request.method === "GET" && pathname === "/api/admin/consultations") return await handleAdminConsultationList(env, request);
     if (request.method === "GET" && pathname === "/api/admin/lesson-assessments") {

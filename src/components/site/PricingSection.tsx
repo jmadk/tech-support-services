@@ -1,145 +1,147 @@
 import React, { useState } from 'react';
+import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary } from '@/lib/service-pricing';
 
-const plans = [
+const spotlightServices = [
   {
-    name: 'Starter',
-    price: 'KES 12,000',
-    period: '/session',
-    description: 'Perfect for individuals seeking one-on-one consultation or training.',
-    features: [
-      'Single service consultation',
-      '2-hour session',
-      'Email support for 7 days',
-      'Session recording',
-      'Basic documentation',
-    ],
-    highlighted: false,
-    cta: 'Get Started',
+    title: 'Software Development',
+    description: 'Custom engineering for web, desktop, backend systems, APIs, testing, debugging, and long-term upgrades.',
   },
   {
-    name: 'Professional',
-    price: 'KES 60,000',
-    period: '/month',
-    description: 'Ideal for businesses needing ongoing IT support and development.',
-    features: [
-      'Up to 5 service areas',
-      'Unlimited consultations',
-      '24/7 priority support',
-      'Custom project development',
-      'Weekly progress reports',
-      'Dedicated account manager',
-      'Code review & audit',
-    ],
-    highlighted: true,
-    cta: 'Most Popular',
+    title: 'Web & App Development',
+    description: 'Client websites, e-commerce builds, mobile apps, platform redesigns, and product-ready user flows.',
   },
   {
-    name: 'Enterprise',
-    price: 'From KES 180,000',
-    period: '/month',
-    description: 'Comprehensive solutions for large organizations and institutions.',
-    features: [
-      'All 20+ service areas',
-      'On-site team deployment',
-      'Custom training programs',
-      'Infrastructure setup',
-      'SLA guarantee',
-      'Quarterly strategy reviews',
-      'White-label solutions',
-      'Priority feature requests',
-    ],
-    highlighted: false,
-    cta: 'Contact Us',
+    title: 'Artificial Intelligence & Machine Learning',
+    description: 'Predictive models, chatbots, NLP systems, computer vision, recommendation engines, and AI strategy.',
+  },
+];
+
+const paymentOptions = [
+  {
+    title: 'M-Pesa First',
+    description: 'Primary checkout path uses Safaricom Daraja STK Push so clients can authorize payment from their phone.',
+  },
+  {
+    title: 'Card Option',
+    description: 'Debit and credit card checkout stays visible as an alternative for clients who cannot pay by M-Pesa.',
+  },
+  {
+    title: 'Bank Option',
+    description: 'Bank transfer appears in the payment choices, but it stays inactive until account details are added.',
   },
 ];
 
 const PricingSection: React.FC = () => {
-  const [selectedPlan, setSelectedPlan] = useState<string | null>(null);
+  const [selectedService, setSelectedService] = useState(spotlightServices[0].title);
+  const pricing = getServicePricingSummary(selectedService);
 
-  const handleSelect = (planName: string) => {
-    setSelectedPlan(planName);
+  const handleOpenContact = () => {
     const el = document.getElementById('contact');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
   return (
-    <section className="py-24 bg-white relative overflow-hidden">
-      <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600 opacity-20" />
+    <section className="relative overflow-hidden bg-white py-24">
+      <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-emerald-500 opacity-20" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-50 border border-cyan-100 rounded-full mb-4">
-            <span className="text-cyan-600 text-sm font-medium">Pricing Plans</span>
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+        <div className="mb-14 text-center">
+          <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-4 py-2">
+            <span className="text-sm font-medium text-cyan-600">Service Payments</span>
           </div>
-          <h2 className="text-4xl sm:text-5xl font-extrabold text-gray-900 mb-4">
-            Simple, <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Transparent</span> Pricing
+          <h2 className="mb-4 text-4xl font-extrabold text-gray-900 sm:text-5xl">
+            Complexity-Based <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Payment Plan</span>
           </h2>
-          <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-            Choose the plan that fits your needs. All plans include access to our expert team and industry-leading solutions.
+          <p className="mx-auto max-w-3xl text-lg text-gray-500">
+            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push leads the checkout flow, while card and bank options remain visible for broader client coverage.
           </p>
         </div>
 
-        {/* Plans Grid */}
-        <div className="grid md:grid-cols-3 gap-8 max-w-5xl mx-auto">
-          {plans.map((plan) => (
-            <div
-              key={plan.name}
-              className={`relative rounded-3xl p-8 transition-all duration-500 ${
-                plan.highlighted
-                  ? 'bg-gradient-to-b from-[#0a1628] to-[#1a237e] text-white shadow-2xl shadow-blue-900/30 scale-105 border-2 border-cyan-500/30'
-                  : 'bg-white border-2 border-gray-100 hover:border-gray-200 hover:shadow-xl'
-              }`}
-            >
-              {plan.highlighted && (
-                <div className="absolute -top-4 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gradient-to-r from-cyan-400 to-blue-500 text-white text-xs font-bold rounded-full shadow-lg">
-                  MOST POPULAR
-                </div>
-              )}
+        <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+          <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-xl shadow-cyan-100/30">
+            <div className="mb-8 flex flex-wrap gap-3">
+              {spotlightServices.map((service) => (
+                <button
+                  key={service.title}
+                  onClick={() => setSelectedService(service.title)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition-all ${
+                    selectedService === service.title
+                      ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white shadow-lg shadow-blue-200'
+                      : 'border border-gray-200 bg-white text-gray-600 hover:border-cyan-300 hover:text-cyan-700'
+                  }`}
+                >
+                  {service.title}
+                </button>
+              ))}
+            </div>
 
-              <h3 className={`text-xl font-bold mb-2 ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>
-                {plan.name}
-              </h3>
-              <p className={`text-sm mb-6 ${plan.highlighted ? 'text-blue-200/60' : 'text-gray-500'}`}>
-                {plan.description}
+            <div className="mb-10 rounded-3xl bg-gradient-to-br from-[#081426] via-[#102446] to-[#143766] p-8 text-white">
+              <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">Pricing Focus</p>
+              <h3 className="mt-3 text-3xl font-black">{selectedService}</h3>
+              <p className="mt-4 max-w-2xl text-base leading-7 text-blue-100/70">
+                {spotlightServices.find((service) => service.title === selectedService)?.description}
               </p>
 
-              <div className="mb-8">
-                <span className={`text-4xl font-extrabold ${plan.highlighted ? 'text-white' : 'text-gray-900'}`}>
-                  {plan.price}
-                </span>
-                <span className={`text-sm ml-1 ${plan.highlighted ? 'text-blue-200/60' : 'text-gray-400'}`}>
-                  {plan.period}
-                </span>
-              </div>
-
-              <ul className="space-y-3 mb-8">
-                {plan.features.map((feature, i) => (
-                  <li key={i} className="flex items-center gap-3">
-                    <div className={`w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0 ${
-                      plan.highlighted ? 'bg-cyan-500/20' : 'bg-cyan-50'
-                    }`}>
-                      <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke={plan.highlighted ? '#22d3ee' : '#06b6d4'} strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+              <div className="mt-8 grid gap-5 md:grid-cols-3">
+                {COMPLEXITY_OPTIONS.map((option) => {
+                  const amount = pricing[option.id];
+                  return (
+                    <div key={option.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                      <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">{option.label}</p>
+                      <div className="mt-4">
+                        <span className="text-3xl font-extrabold">{formatKes(amount)}</span>
+                        <span className="ml-1 text-sm text-blue-200/60">{option.period}</span>
+                      </div>
+                      <p className="mt-3 text-sm leading-6 text-blue-100/65">{option.description}</p>
                     </div>
-                    <span className={`text-sm ${plan.highlighted ? 'text-blue-100/80' : 'text-gray-600'}`}>
-                      {feature}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-
-              <button
-                onClick={() => handleSelect(plan.name)}
-                className={`w-full py-3.5 rounded-xl font-bold text-sm transition-all duration-300 ${
-                  plan.highlighted
-                    ? 'bg-gradient-to-r from-cyan-400 to-blue-500 text-white hover:from-cyan-300 hover:to-blue-400 shadow-lg shadow-cyan-500/30'
-                    : 'bg-gray-900 text-white hover:bg-gray-800'
-                }`}
-              >
-                {plan.cta}
-              </button>
+                  );
+                })}
+              </div>
             </div>
-          ))}
+
+            <div className="grid gap-5 md:grid-cols-3">
+              {paymentOptions.map((option) => (
+                <div key={option.title} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">{option.title}</p>
+                  <p className="mt-3 text-sm leading-6 text-gray-600">{option.description}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-3xl border border-[#12315e] bg-gradient-to-b from-[#0a1628] to-[#14284b] p-8 text-white shadow-2xl shadow-blue-900/20">
+            <p className="text-sm font-semibold uppercase tracking-[0.26em] text-cyan-300">Checkout Notes</p>
+            <h3 className="mt-4 text-3xl font-black">How payments now flow</h3>
+            <div className="mt-8 space-y-4">
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <p className="text-sm font-semibold text-cyan-200">1. Select a service request</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">Choose the exact service, then set the scope to starter, professional, or enterprise based on the work involved.</p>
+              </div>
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <p className="text-sm font-semibold text-cyan-200">2. Choose a payment rail</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">M-Pesa STK Push is the main route. Card payments stay listed as an alternate checkout preference, while bank transfer remains listed but inactive for now.</p>
+              </div>
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <p className="text-sm font-semibold text-cyan-200">3. Start delivery after confirmation</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">Once payment is initiated and your request is reviewed, the project proceeds according to the selected complexity tier.</p>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-300">M-Pesa Contact</p>
+              <p className="mt-3 text-2xl font-black">0757 152 440</p>
+              <p className="mt-2 text-sm leading-6 text-blue-100/65">
+                The public payment contact is shown here for trust and fallback support, while live STK Push uses the Daraja business credentials configured on the server.
+              </p>
+            </div>
+
+            <button
+              onClick={handleOpenContact}
+              className="mt-8 w-full rounded-2xl bg-gradient-to-r from-cyan-400 to-blue-500 px-5 py-4 text-sm font-bold text-white shadow-lg shadow-cyan-500/30 transition-all hover:from-cyan-300 hover:to-blue-400"
+            >
+              Open Service Payment Form
+            </button>
+          </div>
         </div>
       </div>
     </section>

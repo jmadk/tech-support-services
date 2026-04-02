@@ -129,6 +129,48 @@ export type SaveLessonAssessmentPayload = {
   read_time_completed_at: string | null;
 };
 
+export type PaymentMethod = "mpesa" | "card" | "bank";
+export type ServiceComplexity = "starter" | "professional" | "enterprise";
+
+export type InitializePaymentPayload = {
+  consultation_id: string;
+  service: string;
+  request_type: "service" | "class";
+  payment_method: PaymentMethod;
+  complexity?: ServiceComplexity;
+  amount?: number;
+  phone?: string;
+};
+
+export type PaymentInitializationResponse = {
+  success: boolean;
+  payment: {
+    id: string;
+    consultation_id: string;
+    request_type: string;
+    service: string;
+    complexity: string;
+    payment_method: PaymentMethod;
+    amount: number;
+    currency: string;
+    status: string;
+    phone: string;
+    provider: string;
+    external_reference: string;
+    merchant_request_id?: string | null;
+    checkout_request_id?: string | null;
+    receipt_number?: string | null;
+    provider_response?: string | null;
+    last_error?: string | null;
+    created_at: string;
+    updated_at: string;
+    paid_at?: string | null;
+  };
+  message: string;
+  checkoutRequestId?: string | null;
+  customerMessage?: string | null;
+};
+
 type AuthResponse = {
   token: string;
   user: AuthUser;
@@ -275,6 +317,12 @@ export const api = {
   },
   createConsultation(payload: CreateConsultationPayload) {
     return request<{ consultation: Consultation }>("/consultations", {
+      method: "POST",
+      body: payload,
+    });
+  },
+  initializePayment(payload: InitializePaymentPayload) {
+    return request<PaymentInitializationResponse>("/payments/initialize", {
       method: "POST",
       body: payload,
     });
