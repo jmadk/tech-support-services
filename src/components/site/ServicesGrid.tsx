@@ -1,9 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { api, type Consultation } from '@/lib/api';
-import { resolveCertificationCourseTitle } from '@/lib/certification-paths';
-import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
+import { api } from '@/lib/api';
 
 const serviceCategories = [
   { id: 'all', label: 'All Services' },
@@ -30,37 +28,6 @@ const expertServices = [
   { id: 12, category: 'business', badge: 'Startup', title: 'Freelance & Business Services', description: 'Technical documentation, project management, code auditing, agile delivery support, and MVP development for startups.', deliverables: ['technical docs', 'Agile Scrum', 'MVP development'], image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1080&q=80' },
 ];
 
-const certificationCourses = [
-  { id: 101, title: IT_SUPPORT_CUSTOMER_CARE_COURSE, description: 'Structured IT support training covering service workflow, troubleshooting, security, and customer care.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231252768_6d40d977.jpg' },
-  { id: 102, title: 'Database Systems', description: 'Database fundamentals, modeling, SQL, optimization, administration, and security.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231253716_7858251c.png' },
-  { id: 103, title: 'Data Communications & Networks', description: 'Networking concepts, routing, switching, protocols, services, and troubleshooting.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231248426_dda129b9.jpg' },
-  { id: 104, title: 'Distributed Systems', description: 'Cloud patterns, scaling, fault tolerance, microservices, and observability.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231252768_6d40d977.jpg' },
-  { id: 105, title: 'Data Structures & Algorithms', description: 'Core problem-solving, algorithm analysis, trees, graphs, and performance reasoning.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231255562_ae94d189.png' },
-  { id: 106, title: 'Operating Systems', description: 'Processes, memory, scheduling, storage, synchronization, and OS protection.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231252863_addfd50a.jpg' },
-  { id: 107, title: 'Software Engineering', description: 'Requirements, design, testing, collaboration, quality, and maintenance for real software teams.', image: 'https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231258764_88dba6ea.png' },
-  { id: 108, title: 'Web Development', description: 'Frontend, backend, authentication, persistence, deployment, and capstone project flow.', image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1080&q=80' },
-  { id: 109, title: 'Computer Security', description: 'Security foundations, web security, monitoring, forensics, and governance.', image: 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=1080&q=80' },
-];
-
-const certificationCatalog: Record<string, { sessions: string[] }> = {
-  [IT_SUPPORT_CUSTOMER_CARE_COURSE]: { sessions: IT_SUPPORT_CUSTOMER_CARE_TRACK.sessions },
-};
-
-function buildGenericTrackSessions(courseTitle: string) {
-  return [
-    `Introduction to ${courseTitle} (1h)`,
-    `${courseTitle} Foundations (1h 30m)`,
-    `${courseTitle} Core Components (1h 30m)`,
-    `${courseTitle} Design & Architecture (1h 30m)`,
-    `${courseTitle} Methods & Techniques (1h)`,
-    `${courseTitle} Implementation Practice (1h 30m)`,
-    `${courseTitle} Analysis & Troubleshooting (1h)`,
-    `${courseTitle} Security & Best Practices (1h)`,
-    `${courseTitle} Applications & Case Studies (1h 30m)`,
-    `${courseTitle} Capstone Review (1h)`,
-  ];
-}
-
 const ServicesGrid: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
@@ -69,23 +36,15 @@ const ServicesGrid: React.FC = () => {
   const [expandedService, setExpandedService] = useState<number | null>(null);
   const [savedTitles, setSavedTitles] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
-  const [consultations, setConsultations] = useState<Consultation[]>([]);
-  const [courseTestStatus, setCourseTestStatus] = useState<Record<number, 'not_started' | 'in_progress' | 'completed'>>({});
-  const [courseCertificationStarted, setCourseCertificationStarted] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (!user) {
       setSavedTitles(new Set());
-      setConsultations([]);
       return;
     }
     const loadData = async () => {
-      const [{ savedServices }, { consultations }] = await Promise.all([
-        api.getSavedServices(),
-        api.getConsultations(),
-      ]);
+      const { savedServices } = await api.getSavedServices();
       setSavedTitles(new Set(savedServices.map((item) => item.service_title)));
-      setConsultations(consultations);
     };
     loadData();
   }, [user]);
@@ -121,61 +80,13 @@ const ServicesGrid: React.FC = () => {
     setSavingId(null);
   };
 
-  const getTrackSessions = (courseTitle: string) => certificationCatalog[courseTitle]?.sessions || buildGenericTrackSessions(courseTitle);
-
-  const getLatestLearningConsultation = (courseTitle: string) => {
-    const classConsultations = consultations
-      .filter((consultation) => consultation.next_path === 'class')
-      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
-
-    const courseSpecific = classConsultations.find((consultation) => {
-      const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
-      return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
-    });
-    return courseSpecific || null;
-  };
-
-  const getCourseWorkflowState = (courseTitle: string) => {
-    const learningConsultation = getLatestLearningConsultation(courseTitle);
-    const approvedForClass = Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes');
-    const workflowStatus = learningConsultation?.next_path_status || 'pending';
-
-    return {
-      learningConsultation,
-      approvedForClass,
-      testStatus:
-        workflowStatus === 'test_in_progress'
-          ? 'in_progress'
-          : workflowStatus === 'test_completed' || workflowStatus === 'certification_started'
-            ? 'completed'
-            : 'not_started',
-      certificationStarted: workflowStatus === 'certification_started',
-    };
-  };
-
-  const handleStartClassTest = (courseId: number) => {
-    setCourseTestStatus((prev) => ({ ...prev, [courseId]: 'in_progress' }));
-    setTimeout(() => {
-      setCourseTestStatus((prev) => ({ ...prev, [courseId]: 'completed' }));
-    }, 800);
-  };
-
-  const handleProceedCertification = (courseId: number, courseTitle: string) => {
-    setCourseCertificationStarted((prev) => ({ ...prev, [courseId]: true }));
-    const selectedSession = getTrackSessions(courseTitle)[0] || `Introduction to ${courseTitle} (1h)`;
-    sessionStorage.setItem(`lesson_service_${courseId}`, JSON.stringify({ course: courseTitle, session: selectedSession }));
-    navigate(`/lesson/service-${courseId}`);
-  };
-
   const toggleServiceCard = (serviceId: number, serviceTitle: string) => {
-    setExpandedService((prev) => (prev === serviceId ? null : serviceId));
-
     if (serviceTitle === 'Training & Education') {
-      window.setTimeout(() => {
-        const el = document.getElementById('training-education-card');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 80);
+      navigate('/training-education');
+      return;
     }
+
+    setExpandedService((prev) => (prev === serviceId ? null : serviceId));
   };
 
   return (
@@ -233,7 +144,6 @@ const ServicesGrid: React.FC = () => {
             {filteredServices.map((service) => (
               <div
                 key={service.id}
-                id={service.title === 'Training & Education' ? 'training-education-card' : undefined}
                 onClick={() => toggleServiceCard(service.id, service.title)}
                 className={`group overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all duration-500 hover:-translate-y-1 hover:border-cyan-500/30 hover:bg-white/10 hover:shadow-xl hover:shadow-cyan-500/10 ${expandedService === service.id ? 'ring-2 ring-cyan-500/50 bg-white/10' : ''}`}
               >
@@ -261,77 +171,7 @@ const ServicesGrid: React.FC = () => {
                     ))}
                   </div>
                   {expandedService === service.id && (
-                    service.title === 'Training & Education' ? (
-                      <div className="mt-5 space-y-5" onClick={(event) => event.stopPropagation()}>
-                        <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-4 text-sm text-emerald-100">
-                          Open this training area to request approval, start the class test, and continue into certification after admin approval.
-                        </div>
-
-                        <div className="grid gap-4">
-                          {certificationCourses.map((course) => {
-                            const {
-                              learningConsultation,
-                              approvedForClass,
-                              testStatus,
-                              certificationStarted,
-                            } = getCourseWorkflowState(course.title);
-
-                            return (
-                              <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:border-emerald-400/30 hover:bg-[#102042]">
-                                <div className="relative h-40 overflow-hidden">
-                                  <img src={course.image} alt={course.title} className="h-full w-full object-cover" />
-                                  <div className="absolute inset-0 bg-gradient-to-t from-[#0b1a33] via-[#0b1a33]/40 to-transparent" />
-                                  <div className="absolute bottom-3 left-3 rounded-full bg-emerald-500/90 px-3 py-1 text-xs font-bold uppercase tracking-[0.2em] text-white">Class</div>
-                                </div>
-                                <div className="p-5">
-                                  <h4 className="text-lg font-bold text-white">{course.title}</h4>
-                                  <p className="mt-2 text-sm leading-relaxed text-blue-200/60">{course.description}</p>
-                                  <p className="mt-4 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
-                                  {approvedForClass && learningConsultation && learningConsultation.service !== course.title && (
-                                    <p className="mt-3 text-xs text-cyan-100/80">
-                                      Access enabled from approved certification request: <span className="font-semibold text-white">{learningConsultation.service}</span>
-                                    </p>
-                                  )}
-                                  <div className="mt-5 space-y-2">
-                                    {!approvedForClass ? (
-                                      <>
-                                        <button
-                                          disabled
-                                          className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/55"
-                                        >
-                                          Await admin approval
-                                        </button>
-                                        <p className="text-xs text-amber-200/85">
-                                          No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
-                                        </p>
-                                      </>
-                                    ) : (courseTestStatus[course.id] || testStatus) !== 'completed' ? (
-                                      <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-                                        {(courseTestStatus[course.id] || testStatus) === 'in_progress' ? 'Test in progress...' : 'Start class test'}
-                                      </button>
-                                    ) : (
-                                      <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-                                        Proceed to Certification Course Introduction
-                                      </button>
-                                    )}
-                                    <button
-                                      onClick={() => {
-                                        const el = document.getElementById('contact');
-                                        if (el) el.scrollIntoView({ behavior: 'smooth' });
-                                      }}
-                                      className="w-full rounded-xl border border-white/10 px-4 py-2.5 text-sm font-semibold text-blue-100/80 hover:border-white/25 hover:text-white"
-                                    >
-                                      Ask About This Class
-                                    </button>
-                                    {(courseCertificationStarted[course.id] || certificationStarted) && <p className="text-xs text-green-200">Certification course introduction activated.</p>}
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}
-                        </div>
-                      </div>
-                    ) : (
+                    (
                       <div className="mt-5 flex gap-2">
                         <button
                           onClick={(event) => {

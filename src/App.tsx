@@ -9,6 +9,7 @@ import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
 import Index from "./pages/Index";
 import Lesson from "./pages/Lesson";
+import TrainingEducation from "./pages/TrainingEducation";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -24,6 +25,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<Index />} />
+                <Route path="/training-education" element={<TrainingEducation />} />
                 <Route path="/lesson/:consultationId" element={<Lesson />} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
