@@ -34,6 +34,7 @@ export type ConsultationStatus = "pending" | "in_progress" | "completed" | "canc
 export type ConsultationNextPath = "service" | "class";
 export type ConsultationNextPathStatus = "pending" | "test_in_progress" | "test_completed" | "certification_started";
 export type ConsultationOwnerAgreement = "yes" | "no";
+export type ConsultationPaymentStatus = "not_requested" | "awaiting_payment" | "paid";
 
 export type Consultation = {
   id: string;
@@ -47,6 +48,7 @@ export type Consultation = {
   next_path: ConsultationNextPath;
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
+  payment_status: ConsultationPaymentStatus;
   created_at: string;
 };
 
@@ -109,6 +111,10 @@ export type UpdateConsultationWorkflowPayload = {
   next_path: ConsultationNextPath;
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
+};
+
+export type UpdateConsultationPaymentPayload = {
+  payment_status: ConsultationPaymentStatus;
 };
 
 export type SaveServicePayload = {
@@ -337,6 +343,12 @@ export const api = {
   },
   updateConsultationWorkflow(id: string, payload: UpdateConsultationWorkflowPayload) {
     return request<{ consultation: Consultation }>(`/admin/consultations/${id}/workflow`, {
+      method: "PATCH",
+      body: payload,
+    });
+  },
+  updateConsultationPayment(id: string, payload: UpdateConsultationPaymentPayload) {
+    return request<{ consultation: Consultation }>(`/admin/consultations/${id}/payment`, {
       method: "PATCH",
       body: payload,
     });

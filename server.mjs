@@ -134,6 +134,7 @@ db.exec(`
     service TEXT NOT NULL,
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
+    payment_status TEXT NOT NULL DEFAULT 'not_requested',
     created_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
@@ -309,6 +310,9 @@ function ensureSchema() {
   if (!consultationColumns.has("owner_agreed")) {
     db.exec("ALTER TABLE consultations ADD COLUMN owner_agreed TEXT NOT NULL DEFAULT 'no';");
   }
+  if (!consultationColumns.has("payment_status")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'not_requested';");
+  }
 
   const servicePaymentColumns = new Set(getTableColumns("service_payments"));
   if (servicePaymentColumns.size > 0 && !servicePaymentColumns.has("customer_transaction_code")) {
@@ -375,22 +379,22 @@ const statements = {
   cleanupExpiredSessions: db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`),
   insertConsultation: db.prepare(`
     INSERT INTO consultations (
-      id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   listConsultationsByUser: db.prepare(`
-    SELECT id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
     FROM consultations
     WHERE user_id = ?
     ORDER BY datetime(created_at) DESC
   `),
   listAllConsultations: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
     FROM consultations
     ORDER BY datetime(created_at) DESC
   `),
   getConsultationById: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at
+    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
     FROM consultations
     WHERE id = ?
   `),
@@ -531,6 +535,11 @@ const statements = {
   updateConsultationWorkflow: db.prepare(`
     UPDATE consultations
     SET next_path = ?, next_path_status = ?, owner_agreed = ?
+    WHERE id = ?
+  `),
+  updateConsultationPaymentStatus: db.prepare(`
+    UPDATE consultations
+    SET payment_status = ?
     WHERE id = ?
   `),
   listSavedServicesByUser: db.prepare(`
@@ -1494,6 +1503,7 @@ async function handleConsultationCreate(req, res) {
     next_path: "service",
     next_path_status: "pending",
     owner_agreed: "no",
+    payment_status: "not_requested",
     created_at: createdAt,
   };
 
@@ -1509,6 +1519,7 @@ async function handleConsultationCreate(req, res) {
     consultation.next_path,
     consultation.next_path_status,
     consultation.owner_agreed,
+    consultation.payment_status,
     consultation.created_at,
   );
 
@@ -1942,10 +1953,20 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
   const session = requireOwner(req, res);
   if (!session) return;
 
+  const existingConsultation = statements.getConsultationById.get(id);
+  if (!existingConsultation) {
+    return json(res, 404, { error: "Consultation not found." });
+  }
+
   const body = await readBody(req);
-  const nextPath = String(body.next_path || "service").trim();
-  const nextPathStatus = String(body.next_path_status || "pending").trim();
-  const ownerAgreed = body.owner_agreed === true || body.owner_agreed === "yes" ? "yes" : "no";
+  const nextPath = String(body.next_path || existingConsultation.next_path || "service").trim();
+  const nextPathStatus = String(body.next_path_status || existingConsultation.next_path_status || "pending").trim();
+  const ownerAgreed =
+    body.owner_agreed === undefined
+      ? existingConsultation.owner_agreed
+      : body.owner_agreed === true || body.owner_agreed === "yes"
+      ? "yes"
+      : "no";
   const allowedNextPath = new Set(["service", "class"]);
   const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started"]);
 
@@ -1957,15 +1978,11 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
     return json(res, 400, { error: "Invalid next path status." });
   }
 
-  statements.updateConsultationWorkflow.run(nextPath, nextPathStatus, ownerAgreed, id);
+  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid") {
+    return json(res, 400, { error: "Payment must be received before approving this request." });
+  }
 
-  const statusMap = {
-    pending: "pending",
-    test_in_progress: "in_progress",
-    test_completed: "completed",
-    certification_started: "completed",
-  };
-  statements.updateConsultationStatus.run(statusMap[nextPathStatus] || "pending", id);
+  statements.updateConsultationWorkflow.run(nextPath, nextPathStatus, ownerAgreed, id);
 
   const consultation = statements.getConsultationById.get(id);
   if (!consultation) {
@@ -1973,6 +1990,38 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
   }
 
   return json(res, 200, { consultation });
+}
+
+async function handleConsultationPaymentStatusUpdate(req, res, id) {
+  const session = requireOwner(req, res);
+  if (!session) return;
+
+  const consultation = statements.getConsultationById.get(id);
+  if (!consultation) {
+    return json(res, 404, { error: "Consultation not found." });
+  }
+
+  const body = await readBody(req);
+  const paymentStatus = String(body.payment_status || "").trim();
+  const allowedPaymentStatuses = new Set(["not_requested", "awaiting_payment", "paid"]);
+
+  if (!allowedPaymentStatuses.has(paymentStatus)) {
+    return json(res, 400, { error: "Invalid payment status." });
+  }
+
+  statements.updateConsultationPaymentStatus.run(paymentStatus, id);
+
+  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes") {
+    statements.updateConsultationWorkflow.run(
+      consultation.next_path,
+      consultation.next_path_status,
+      "no",
+      id,
+    );
+  }
+
+  const updatedConsultation = statements.getConsultationById.get(id);
+  return json(res, 200, { consultation: updatedConsultation });
 }
 
 function handleSavedServicesList(req, res) {
@@ -2087,6 +2136,14 @@ const server = createServer(async (req, res) => {
     ) {
       const id = pathname.replace("/api/admin/consultations/", "").replace("/workflow", "").replace(/\//g, "");
       return await handleConsultationWorkflowUpdate(req, res, id);
+    }
+    if (
+      req.method === "PATCH" &&
+      pathname.startsWith("/api/admin/consultations/") &&
+      pathname.endsWith("/payment")
+    ) {
+      const id = pathname.replace("/api/admin/consultations/", "").replace("/payment", "").replace(/\//g, "");
+      return await handleConsultationPaymentStatusUpdate(req, res, id);
     }
     if (req.method === "GET" && pathname === "/api/saved-services") return await handleSavedServicesList(req, res);
     if (req.method === "POST" && pathname === "/api/saved-services") return await handleSavedServiceCreate(req, res);

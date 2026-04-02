@@ -6,6 +6,7 @@ import {
   api,
   getErrorMessage,
   type Consultation,
+  type ConsultationPaymentStatus,
   type ConsultationStatus,
   type LessonAssessmentRecord,
   type SavedService,
@@ -23,6 +24,24 @@ const statusColors: Record<string, string> = {
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
 
+const paymentStatusColors: Record<ConsultationPaymentStatus, string> = {
+  not_requested: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
+  awaiting_payment: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+  paid: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+};
+
+function getPaymentStatusLabel(status: ConsultationPaymentStatus) {
+  switch (status) {
+    case 'not_requested':
+      return 'Awaiting admin review';
+    case 'awaiting_payment':
+      return 'Payment requested';
+    case 'paid':
+      return 'Payment received';
+    default:
+      return 'Awaiting admin review';
+  }
+}
 const curriculumCards = [
   {
     title: 'Introduction to IT Support & Customer Care',
@@ -527,17 +546,45 @@ const Dashboard: React.FC = () => {
     setConsultations(prev => prev.map(item => (item.id === consultation.id ? consultation : item)));
   };
 
-  const handleConsultationWorkflowChange = async (id: string, nextPath: 'service' | 'class') => {
-    setStatusUpdatingId(id);
+  const handleConsultationWorkflowChange = async (consultation: Consultation, nextPath: 'service' | 'class') => {
+    setStatusUpdatingId(consultation.id);
     try {
-      const update = await api.updateConsultationWorkflow(id, {
+      const update = await api.updateConsultationWorkflow(consultation.id, {
         next_path: nextPath,
-        next_path_status: nextPath === 'class' ? 'certification_started' : 'pending',
-        owner_agreed: 'yes',
+        next_path_status: 'pending',
+        owner_agreed: consultation.owner_agreed,
       });
       syncConsultation(update.consultation);
     } catch (err) {
       console.error('Error updating consultation workflow:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleConsultationPaymentStatusChange = async (id: string, paymentStatus: ConsultationPaymentStatus) => {
+    setStatusUpdatingId(id);
+    try {
+      const { consultation } = await api.updateConsultationPayment(id, { payment_status: paymentStatus });
+      syncConsultation(consultation);
+    } catch (err) {
+      console.error('Error updating consultation payment status:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleApproveConsultation = async (consultation: Consultation) => {
+    if (consultation.payment_status !== 'paid') return;
+
+    setStatusUpdatingId(consultation.id);
+    try {
+      const { consultation: updatedConsultation } = await api.updateConsultationWorkflow(consultation.id, {
+        next_path: consultation.next_path || 'service',
+        next_path_status: consultation.next_path_status || 'pending',
+        owner_agreed: 'yes',
+      });
+      syncConsultation(updatedConsultation);
+    } catch (err) {
+      console.error('Error approving consultation:', err);
     }
     setStatusUpdatingId(null);
   };
@@ -611,7 +658,7 @@ const Dashboard: React.FC = () => {
       const response = await api.updateConsultationWorkflow(consultation.id, {
         next_path: consultation.next_path === 'class' ? 'class' : 'service',
         next_path_status: consultation.next_path_status || 'pending',
-        owner_agreed: 'yes',
+        owner_agreed: consultation.owner_agreed || 'no',
       });
       syncConsultation(response.consultation);
     } catch (err) {
@@ -640,7 +687,7 @@ const Dashboard: React.FC = () => {
       const response = await api.updateConsultationWorkflow(consultation.id, {
         next_path: consultation.next_path === 'class' ? 'class' : 'service',
         next_path_status: consultation.next_path_status || 'pending',
-        owner_agreed: 'yes',
+        owner_agreed: consultation.owner_agreed || 'no',
       });
       syncConsultation(response.consultation);
     } catch (err) {
@@ -886,9 +933,12 @@ const Dashboard: React.FC = () => {
                               </span>
                             </div>
                           </div>
-                          { !isOwner && c.owner_agreed === 'yes' && (
+                          {!isOwner && (
                             <div className="rounded-xl border border-cyan-500/20 bg-cyan-500/10 px-3 py-2 text-xs text-cyan-100">
-                              Provider agreed to your {c.next_path === 'class' ? 'training path' : 'service path'}, status: {c.next_path_status.replace('_', ' ')}
+                              {c.payment_status === 'not_requested' && 'Your request has been submitted and is waiting for admin review.'}
+                              {c.payment_status === 'awaiting_payment' && 'Admin reviewed your request. Complete payment to continue to approval.'}
+                              {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && 'Payment has been received. Your request is awaiting final admin approval.'}
+                              {c.payment_status === 'paid' && c.owner_agreed === 'yes' && `Your request is approved for the ${c.next_path === 'class' ? 'training path' : 'service path'}.`}
                             </div>
                           )}
                         </div>
@@ -1074,6 +1124,13 @@ const Dashboard: React.FC = () => {
 
                             <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4">
                               <div className="flex flex-wrap items-center gap-3 mb-4">
+                                <span className="text-xs text-blue-200/60">Payment status:</span>
+                                <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${paymentStatusColors[c.payment_status || 'not_requested']}`}>
+                                  {getPaymentStatusLabel(c.payment_status || 'not_requested')}
+                                </span>
+                              </div>
+
+                              <div className="flex flex-wrap items-center gap-3 mb-4">
                                 <span className="text-xs text-blue-200/60">Approval status:</span>
                                 <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${
                                   c.owner_agreed === 'yes'
@@ -1084,11 +1141,39 @@ const Dashboard: React.FC = () => {
                                 </span>
                               </div>
 
+                              <div className="grid grid-cols-1 gap-2 mb-4">
+                                <button
+                                  onClick={() => handleConsultationPaymentStatusChange(c.id, 'awaiting_payment')}
+                                  disabled={statusUpdatingId === c.id || c.payment_status === 'awaiting_payment' || c.payment_status === 'paid'}
+                                  className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-200 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {statusUpdatingId === c.id ? 'Updating...' : 'Mark as reviewed and request payment'}
+                                </button>
+                                <button
+                                  onClick={() => handleConsultationPaymentStatusChange(c.id, 'paid')}
+                                  disabled={statusUpdatingId === c.id || c.payment_status === 'paid'}
+                                  className="rounded-lg border border-emerald-400/30 bg-emerald-500/10 px-3 py-2 text-xs font-medium text-emerald-200 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {statusUpdatingId === c.id ? 'Updating...' : 'Mark payment received'}
+                                </button>
+                                <button
+                                  onClick={() => handleApproveConsultation(c)}
+                                  disabled={statusUpdatingId === c.id || c.owner_agreed === 'yes' || c.payment_status !== 'paid'}
+                                  className="rounded-lg border border-cyan-400/30 bg-cyan-500/10 px-3 py-2 text-xs font-medium text-cyan-200 transition-all hover:bg-cyan-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {c.payment_status !== 'paid'
+                                    ? 'Approve request after payment'
+                                    : statusUpdatingId === c.id
+                                    ? 'Updating...'
+                                    : 'Approve request'}
+                                </button>
+                              </div>
+
                               <label className="block text-xs text-blue-200/60 mb-2">Select path for client</label>
                               <div className="grid grid-cols-2 gap-2 mb-4">
                                 <button
                                   onClick={() => {
-                                    handleConsultationWorkflowChange(c.id, 'service');
+                                    handleConsultationWorkflowChange(c, 'service');
                                   }}
                                   className={`p-3 rounded-lg border text-xs font-medium transition-all ${
                                     c.next_path === 'service'
@@ -1100,7 +1185,7 @@ const Dashboard: React.FC = () => {
                                 </button>
                                 <button
                                   onClick={() => {
-                                    handleConsultationWorkflowChange(c.id, 'class');
+                                    handleConsultationWorkflowChange(c, 'class');
                                   }}
                                   className={`p-3 rounded-lg border text-xs font-medium transition-all ${
                                     c.next_path === 'class'
@@ -1166,9 +1251,14 @@ const Dashboard: React.FC = () => {
                             <h4 className="text-white font-bold text-lg">{c.service}</h4>
                             <p className="text-blue-200/40 text-sm">{new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                           </div>
-                          <span className={`px-3 py-1.5 rounded-full text-xs font-medium border ${statusColors[c.status] || statusColors.pending}`}>
-                            {c.status.replace('_', ' ')}
-                          </span>
+                          <div className="flex flex-col items-end gap-2">
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-medium border ${statusColors[c.status] || statusColors.pending}`}>
+                              {c.status.replace('_', ' ')}
+                            </span>
+                            <span className={`px-3 py-1.5 rounded-full text-xs font-medium border ${paymentStatusColors[c.payment_status || 'not_requested']}`}>
+                              {getPaymentStatusLabel(c.payment_status || 'not_requested')}
+                            </span>
+                          </div>
                         </div>
                         <p className="text-blue-200/60 text-sm leading-relaxed">{c.message}</p>
                         <div className="flex items-center gap-4 mt-3 pt-3 border-t border-white/5 text-xs text-blue-200/30">
@@ -1177,7 +1267,16 @@ const Dashboard: React.FC = () => {
                           {c.phone && <span>Phone: {c.phone}</span>}
                         </div>
 
-                        {!isOwner && c.next_path === 'class' && (
+                        {!isOwner && (
+                          <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-blue-100">
+                            {c.payment_status === 'not_requested' && <p>Step 1 complete: request submitted. Wait for admin review before making any payment.</p>}
+                            {c.payment_status === 'awaiting_payment' && <p>Admin has reviewed this request. Payment can now be made so the request can move to approval.</p>}
+                            {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && <p>Payment has been marked as received. Final admin approval is pending.</p>}
+                            {c.payment_status === 'paid' && c.owner_agreed === 'yes' && <p>Your request has been approved. You can continue with the selected path below.</p>}
+                          </div>
+                        )}
+
+                        {!isOwner && c.next_path === 'class' && c.payment_status === 'paid' && c.owner_agreed === 'yes' && (
                           <div className="mt-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
                             <p className="mb-2 font-semibold">Class learning path for this consultation.</p>
 

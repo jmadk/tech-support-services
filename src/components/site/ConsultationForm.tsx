@@ -4,7 +4,6 @@ import {
   api,
   getErrorMessage,
   type CreateConsultationPayload,
-  type PaymentInitializationResponse,
 } from '@/lib/api';
 import {
   CLASS_OPTIONS,
@@ -38,8 +37,6 @@ const ConsultationForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
-  const [paymentFeedback, setPaymentFeedback] = useState<PaymentInitializationResponse | null>(null);
-
   React.useEffect(() => {
     if (user && profile) {
       setForm((prev) => ({
@@ -69,13 +66,6 @@ const ConsultationForm: React.FC = () => {
 
     if (form.requestType === 'service') {
       if (!form.complexity) newErrors.complexity = 'Please select service complexity';
-      if (!form.paymentMethod) newErrors.paymentMethod = 'Please select a payment method';
-      if (form.paymentMethod === 'mpesa' && !form.mpesaPhone.trim()) {
-        newErrors.mpesaPhone = 'M-Pesa phone number is required for STK push';
-      }
-      if (form.paymentMethod === 'manual_mpesa' && !form.transactionCode.trim()) {
-        newErrors.transactionCode = 'Transaction code is required for manual M-Pesa verification';
-      }
     }
 
     setErrors(newErrors);
@@ -86,7 +76,6 @@ const ConsultationForm: React.FC = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
     if (submitError) setSubmitError('');
-    if (paymentFeedback) setPaymentFeedback(null);
   };
 
   const resetForm = () => {
@@ -110,8 +99,6 @@ const ConsultationForm: React.FC = () => {
 
     setIsSubmitting(true);
     setSubmitError('');
-    setPaymentFeedback(null);
-
     try {
       const consultationData: CreateConsultationPayload = {
         full_name: form.name,
@@ -123,20 +110,6 @@ const ConsultationForm: React.FC = () => {
       };
 
       const { consultation } = await api.createConsultation(consultationData);
-
-      if (form.requestType === 'service') {
-        const payment = await api.initializePayment({
-          consultation_id: consultation.id,
-          service: form.service,
-          request_type: 'service',
-          payment_method: form.paymentMethod,
-          complexity: form.complexity,
-          amount: currentPrice,
-          phone: form.paymentMethod === 'mpesa' ? form.mpesaPhone : form.phone,
-          transaction_code: form.paymentMethod === 'manual_mpesa' ? form.transactionCode : '',
-        });
-        setPaymentFeedback(payment);
-      }
 
       setSubmitted(true);
     } catch (err: unknown) {
@@ -156,13 +129,13 @@ const ConsultationForm: React.FC = () => {
         <div className="grid items-start gap-16 lg:grid-cols-2">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2">
-              <span className="text-sm font-medium text-cyan-300">Service Payments & Consultations</span>
+              <span className="text-sm font-medium text-cyan-300">Service Requests & Consultations</span>
             </div>
             <h2 className="mb-4 text-4xl font-extrabold leading-tight text-white sm:text-5xl">
-              Start a <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">paid service request</span> or class inquiry
+              Start a <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">service request</span> or class inquiry
             </h2>
             <p className="mb-10 text-lg leading-relaxed text-blue-200/60">
-              Service requests now include complexity-based pricing and payment preferences. M-Pesa STK Push is the main checkout path, with a separate manual M-Pesa option to 0757152440 when clients need a direct pay route.
+              Submit your request first. Admin reviews it before any payment is made, then payment instructions and approval follow in the correct order.
             </p>
 
             {user && (
@@ -172,7 +145,7 @@ const ConsultationForm: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-cyan-300">Signed in as {profile?.full_name || user.email}</p>
-                  <p className="text-xs text-blue-200/40">Your request and payment trail will stay attached to your dashboard account.</p>
+                  <p className="text-xs text-blue-200/40">Your request history will stay attached to your dashboard account.</p>
                 </div>
               </div>
             )}
@@ -189,7 +162,7 @@ const ConsultationForm: React.FC = () => {
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-emerald-300">Public Contact</p>
                 <p className="mt-3 text-2xl font-black text-white">0757 152 440</p>
                 <p className="mt-2 text-sm leading-6 text-blue-200/60">
-                  This is the payment support number shown to clients. Live STK requests still depend on the Safaricom shortcode configured in the backend.
+                  This number can be used later if admin asks you to complete payment after review.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -208,38 +181,17 @@ const ConsultationForm: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-white">
-                  {form.requestType === 'service' ? 'Request Saved' : 'Class Inquiry Sent'}
+                  {form.requestType === 'service' ? 'Request Submitted!' : 'Class Inquiry Sent'}
                 </h3>
                 <p className="mb-6 text-blue-200/60">
                   {form.requestType === 'service'
-                    ? 'Your service request has been recorded and the payment step has been prepared.'
+                    ? 'Your request has been sent to admin for review. Payment should only be made after admin responds with payment instructions.'
                     : "Your class inquiry has been recorded. We'll follow up after admin review."}
                 </p>
-
-                {paymentFeedback && (
-                  <div className="mb-6 rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-5 text-left">
-                    <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Payment Update</p>
-                    <p className="mt-3 text-lg font-bold text-white">{paymentFeedback.message}</p>
-                    {paymentFeedback.customerMessage && (
-                      <p className="mt-2 text-sm leading-6 text-blue-100/70">{paymentFeedback.customerMessage}</p>
-                    )}
-                    <div className="mt-4 grid gap-3 sm:grid-cols-2">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Payment Method</p>
-                        <p className="mt-1 text-sm font-semibold text-white">{paymentFeedback.payment.payment_method}</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-3">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Amount</p>
-                        <p className="mt-1 text-sm font-semibold text-white">{formatKes(paymentFeedback.payment.amount)}</p>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
+                {user && <p className="mb-4 text-sm text-cyan-400/60">View your consultation history in your dashboard.</p>}
                 <button
                   onClick={() => {
                     setSubmitted(false);
-                    setPaymentFeedback(null);
                     resetForm();
                   }}
                   className="rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 font-bold text-white transition-all hover:from-cyan-400 hover:to-blue-500"
@@ -250,7 +202,7 @@ const ConsultationForm: React.FC = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <h3 className="mb-2 text-xl font-bold text-white">Submit Your Request</h3>
-                <p className="mb-6 text-sm text-blue-200/50">Choose whether this is a service job or a class inquiry, then continue with the right next step.</p>
+                <p className="mb-6 text-sm text-blue-200/50">Choose whether this is a service job or a class inquiry. Admin will review it first before any payment or approval step.</p>
 
                 {submitError && (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
@@ -491,7 +443,7 @@ const ConsultationForm: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      {form.requestType === 'service' ? 'Submit Request & Continue to Payment' : 'Send Class Inquiry'}
+                      {form.requestType === 'service' ? 'Submit Request' : 'Send Class Inquiry'}
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                     </>
                   )}

@@ -544,6 +544,7 @@ async function ensureSchema(env) {
         next_path TEXT NOT NULL DEFAULT 'service',
         next_path_status TEXT NOT NULL DEFAULT 'pending',
         owner_agreed TEXT NOT NULL DEFAULT 'no',
+        payment_status TEXT NOT NULL DEFAULT 'not_requested',
         created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
       )
@@ -655,6 +656,9 @@ async function ensureSchema(env) {
   }
   if (!consultationColumns.has("owner_agreed")) {
     await runQuery(env, "ALTER TABLE consultations ADD COLUMN owner_agreed TEXT NOT NULL DEFAULT 'no'");
+  }
+  if (!consultationColumns.has("payment_status")) {
+    await runQuery(env, "ALTER TABLE consultations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'not_requested'");
   }
 
   const servicePaymentColumns = new Set((await allRows(env, "PRAGMA table_info(service_payments)")).map((col) => col.name));
@@ -1306,14 +1310,15 @@ async function handleConsultationCreate(env, request) {
     next_path: "service",
     next_path_status: "pending",
     owner_agreed: "no",
+    payment_status: "not_requested",
     created_at: nowIso(),
   };
 
   await runQuery(
     env,
     `
-      INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       consultation.id,
@@ -1327,6 +1332,7 @@ async function handleConsultationCreate(env, request) {
       consultation.next_path,
       consultation.next_path_status,
       consultation.owner_agreed,
+      consultation.payment_status,
       consultation.created_at,
     ],
   );
@@ -1717,9 +1723,13 @@ async function handleConsultationList(env, request) {
   }
 
   const columns = await getConsultationColumns(env);
-  const includeWorkflow = columns.includes("next_path") && columns.includes("next_path_status") && columns.includes("owner_agreed");
+  const includeWorkflow =
+    columns.includes("next_path") &&
+    columns.includes("next_path_status") &&
+    columns.includes("owner_agreed") &&
+    columns.includes("payment_status");
   const columnsQuery = includeWorkflow
-    ? "id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at"
+    ? "id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at"
     : "id, full_name, email, phone, service, message, status, created_at";
 
   const consultations = await allRows(
@@ -1743,9 +1753,13 @@ async function handleAdminConsultationList(env, request) {
   }
 
   const columns = await getConsultationColumns(env);
-  const includeWorkflow = columns.includes("next_path") && columns.includes("next_path_status") && columns.includes("owner_agreed");
+  const includeWorkflow =
+    columns.includes("next_path") &&
+    columns.includes("next_path_status") &&
+    columns.includes("owner_agreed") &&
+    columns.includes("payment_status");
   const columnsQuery = includeWorkflow
-    ? "id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at"
+    ? "id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at"
     : "id, user_id, full_name, email, phone, service, message, status, created_at";
 
   const consultations = await allRows(
@@ -1976,7 +1990,7 @@ async function handleConsultationStatusUpdate(env, request, id) {
   const consultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -1996,10 +2010,29 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
     return auth.error;
   }
 
+  const existingConsultation = await firstRow(
+    env,
+    `
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      FROM consultations
+      WHERE id = ?
+    `,
+    [id],
+  );
+
+  if (!existingConsultation) {
+    return json({ error: "Consultation not found." }, 404);
+  }
+
   const body = await readBody(request);
-  const nextPath = String(body.next_path || "service").trim();
-  const nextPathStatus = String(body.next_path_status || "pending").trim();
-  const ownerAgreed = body.owner_agreed === true || body.owner_agreed === "yes" ? "yes" : "no";
+  const nextPath = String(body.next_path || existingConsultation.next_path || "service").trim();
+  const nextPathStatus = String(body.next_path_status || existingConsultation.next_path_status || "pending").trim();
+  const ownerAgreed =
+    body.owner_agreed === undefined
+      ? existingConsultation.owner_agreed
+      : body.owner_agreed === true || body.owner_agreed === "yes"
+      ? "yes"
+      : "no";
 
   const allowedNextPath = new Set(["service", "class"]);
   const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started"]);
@@ -2012,34 +2045,20 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
     return json({ error: "Invalid next path status." }, 400);
   }
 
-  const columns = await getConsultationColumns(env);
-  const includeWorkflow = columns.includes("next_path") && columns.includes("next_path_status") && columns.includes("owner_agreed");
-
-  if (includeWorkflow) {
-    await runQuery(
-      env,
-      "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ? WHERE id = ?",
-      [nextPath, nextPathStatus, ownerAgreed, id],
-    );
-  } else {
-    // fallback to status-only in legacy schema
-    const statusMap = {
-      pending: "pending",
-      test_in_progress: "in_progress",
-      test_completed: "completed",
-      certification_started: "completed",
-    };
-    await runQuery(env, "UPDATE consultations SET status = ? WHERE id = ?", [statusMap[nextPathStatus] || "pending", id]);
+  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid") {
+    return json({ error: "Payment must be received before approving this request." }, 400);
   }
 
-  const columnsQuery = includeWorkflow
-    ? "id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, created_at"
-    : "id, user_id, full_name, email, phone, service, message, status, created_at";
+  await runQuery(
+    env,
+    "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ? WHERE id = ?",
+    [nextPath, nextPathStatus, ownerAgreed, id],
+  );
 
   const consultation = await firstRow(
     env,
     `
-      SELECT ${columnsQuery}
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -2051,6 +2070,57 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
   }
 
   return json({ consultation });
+}
+
+async function handleConsultationPaymentStatusUpdate(env, request, id) {
+  const auth = await requireOwner(env, request);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const consultation = await firstRow(
+    env,
+    `
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      FROM consultations
+      WHERE id = ?
+    `,
+    [id],
+  );
+
+  if (!consultation) {
+    return json({ error: "Consultation not found." }, 404);
+  }
+
+  const body = await readBody(request);
+  const paymentStatus = String(body.payment_status || "").trim();
+  const allowedPaymentStatuses = new Set(["not_requested", "awaiting_payment", "paid"]);
+
+  if (!allowedPaymentStatuses.has(paymentStatus)) {
+    return json({ error: "Invalid payment status." }, 400);
+  }
+
+  await runQuery(env, "UPDATE consultations SET payment_status = ? WHERE id = ?", [paymentStatus, id]);
+
+  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes") {
+    await runQuery(
+      env,
+      "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ? WHERE id = ?",
+      [consultation.next_path, consultation.next_path_status, "no", id],
+    );
+  }
+
+  const updatedConsultation = await firstRow(
+    env,
+    `
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      FROM consultations
+      WHERE id = ?
+    `,
+    [id],
+  );
+
+  return json({ consultation: updatedConsultation });
 }
 
 async function handleSavedServicesList(env, request) {
@@ -2206,6 +2276,15 @@ export async function onRequest(context) {
     ) {
       const id = pathname.replace("/api/admin/consultations/", "").replace("/workflow", "").replace(/\//g, "");
       return await handleConsultationWorkflowUpdate(env, request, id);
+    }
+
+    if (
+      request.method === "PATCH" &&
+      pathname.startsWith("/api/admin/consultations/") &&
+      pathname.endsWith("/payment")
+    ) {
+      const id = pathname.replace("/api/admin/consultations/", "").replace("/payment", "").replace(/\//g, "");
+      return await handleConsultationPaymentStatusUpdate(env, request, id);
     }
 
     if (request.method === "GET" && pathname === "/api/saved-services") return await handleSavedServicesList(env, request);
