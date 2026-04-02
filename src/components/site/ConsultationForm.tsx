@@ -17,10 +17,22 @@ const serviceOptions = [
   'Freelance & Business Services',
 ];
 
+const classOptions = [
+  'IT Support & Customer Care',
+  'Database Systems',
+  'Data Communications & Networks',
+  'Distributed Systems',
+  'Data Structures & Algorithms',
+  'Operating Systems',
+  'Software Engineering',
+  'Web Development',
+  'Computer Security',
+];
+
 const ConsultationForm: React.FC = () => {
   const { user, profile } = useAuth();
   const [form, setForm] = useState({
-    name: '', email: '', phone: '', service: '', message: '',
+    name: '', email: '', phone: '', requestType: 'service', service: '', message: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,7 +56,7 @@ const ConsultationForm: React.FC = () => {
     if (!form.name.trim()) newErrors.name = 'Name is required';
     if (!form.email.trim()) newErrors.email = 'Email is required';
     else if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) newErrors.email = 'Invalid email';
-    if (!form.service) newErrors.service = 'Please select a service';
+    if (!form.service) newErrors.service = `Please select a ${form.requestType}`;
     if (!form.message.trim()) newErrors.message = 'Message is required';
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
@@ -154,7 +166,7 @@ const ConsultationForm: React.FC = () => {
                 <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
                 <p className="text-blue-200/60 mb-6">Thank you for reaching out. We'll get back to you within 24 hours.</p>
                 {user && <p className="text-cyan-400/60 text-sm mb-4">View your consultation history in your dashboard.</p>}
-                <button onClick={() => { setSubmitted(false); setForm({ name: profile?.full_name || '', email: user?.email || '', phone: profile?.phone || '', service: '', message: '' }); }}
+                <button onClick={() => { setSubmitted(false); setForm({ name: profile?.full_name || '', email: user?.email || '', phone: profile?.phone || '', requestType: 'service', service: '', message: '' }); }}
                   className="px-6 py-3 bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold rounded-xl hover:from-cyan-400 hover:to-blue-500 transition-all">
                   Send Another Message
                 </button>
@@ -195,17 +207,33 @@ const ConsultationForm: React.FC = () => {
                       placeholder="+254 700 000 000" />
                   </div>
                   <div>
-                    <label className="block text-sm font-medium text-blue-200/70 mb-1.5">Service *</label>
-                    <select value={form.service} onChange={e => handleChange('service', e.target.value)}
+                    <label className="block text-sm font-medium text-blue-200/70 mb-1.5">Request Type *</label>
+                    <select value={form.requestType} onChange={e => {
+                      handleChange('requestType', e.target.value);
+                      handleChange('service', '');
+                    }}
+                      className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white focus:border-cyan-500/50 outline-none transition-all appearance-none cursor-pointer">
+                      <option value="service" className="bg-[#0a1628]">Service</option>
+                      <option value="class" className="bg-[#0a1628]">Class</option>
+                    </select>
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-blue-200/70 mb-1.5">
+                    {form.requestType === 'class' ? 'Class *' : 'Service *'}
+                  </label>
+                  <select value={form.service} onChange={e => handleChange('service', e.target.value)}
                       className={`w-full px-4 py-3 bg-white/5 border ${errors.service ? 'border-red-400' : 'border-white/10'} rounded-xl text-white focus:border-cyan-500/50 outline-none transition-all appearance-none cursor-pointer`}>
-                      <option value="" className="bg-[#0a1628]">Select a service</option>
-                      {serviceOptions.map(s => (
+                      <option value="" className="bg-[#0a1628]">
+                        {form.requestType === 'class' ? 'Select a class' : 'Select a service'}
+                      </option>
+                      {(form.requestType === 'class' ? classOptions : serviceOptions).map(s => (
                         <option key={s} value={s} className="bg-[#0a1628]">{s}</option>
                       ))}
                     </select>
                     {errors.service && <p className="text-red-400 text-xs mt-1">{errors.service}</p>}
                   </div>
-                </div>
 
                 <div>
                   <label className="block text-sm font-medium text-blue-200/70 mb-1.5">Message *</label>
