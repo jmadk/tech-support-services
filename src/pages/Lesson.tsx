@@ -3091,6 +3091,15 @@ const Lesson: React.FC = () => {
               key={label}
               type="button"
               disabled={!isUnlockedTopic}
+              aria-label={
+                isCurrentTopic
+                  ? `${label}, current topic`
+                  : isCompletedTopic
+                    ? `Open ${label} for revision`
+                    : isUnlockedTopic
+                      ? `Open ${label}`
+                      : `${label} is locked`
+              }
               onClick={() => {
                 if (!isUnlockedTopic || isCurrentTopic) return;
                 goToSession(label);
@@ -3103,22 +3112,29 @@ const Lesson: React.FC = () => {
                     : isUnlockedTopic
                       ? 'border-cyan-400/20 bg-cyan-500/5'
                       : 'border-white/10 bg-white/5'
-              } ${isUnlockedTopic ? 'w-full text-left hover:border-cyan-300/40 hover:bg-cyan-500/10' : 'w-full text-left cursor-not-allowed opacity-80'}`}
+              } ${isUnlockedTopic ? 'w-full cursor-pointer text-left hover:border-cyan-300/40 hover:bg-cyan-500/10' : 'w-full text-left cursor-not-allowed opacity-80'}`}
             >
               <div className="flex items-start justify-between gap-2">
-                <p className="text-[11px] font-semibold leading-4 text-white">{label}</p>
+                <div>
+                  <p className="text-[11px] font-semibold leading-4 text-white">{label}</p>
+                  {isCompletedTopic && !isCurrentTopic && (
+                    <p className="mt-1 text-[10px] uppercase tracking-[0.16em] text-emerald-200/80">
+                      Click to revise
+                    </p>
+                  )}
+                </div>
                 <span
                   className={`mt-0.5 rounded-full px-2 py-0.5 text-[10px] font-bold ${
                     isCurrentTopic
                       ? 'bg-cyan-400/20 text-cyan-200'
-                      : isCompletedTopic
+                    : isCompletedTopic
                         ? 'bg-emerald-400/20 text-emerald-200'
                         : isUnlockedTopic
                           ? 'bg-cyan-400/15 text-cyan-200'
                           : 'bg-white/10 text-slate-300'
                   }`}
                 >
-                  {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Done' : isUnlockedTopic ? 'Open' : 'Locked'}
+                  {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Revise' : isUnlockedTopic ? 'Open' : 'Locked'}
                 </span>
               </div>
             </button>
