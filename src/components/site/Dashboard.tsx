@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+﻿import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -42,6 +42,23 @@ function slugifyStorageValue(value: string): string {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, '_').replace(/^_|_$/g, '');
 }
 
+function normalizeSessionTitle(label: string): string {
+  return label
+    .replace(/^\d+\.\s*/, '')
+    .replace(/\s*\([^)]*\)\s*$/, '')
+    .trim()
+    .toLowerCase();
+}
+
+function buildSessionLabelResolver(sessions: string[]) {
+  const lookup = sessions.reduce<Record<string, string>>((acc, session) => {
+    acc[normalizeSessionTitle(session)] = session;
+    return acc;
+  }, {});
+
+  return (label: string) => lookup[normalizeSessionTitle(label)] || label;
+}
+
 function getLocalLessonProgress(consultationId: string, courseTitle: string) {
   if (!consultationId || !courseTitle) {
     return null;
@@ -67,6 +84,7 @@ function buildSessionAccessList(
   consultationId: string,
   courseTitle: string,
 ): SessionAccessItem[] {
+  const resolveSessionLabel = buildSessionLabelResolver(sessions);
   const latestTopicRecords = records
     .filter(
       (record) =>
@@ -75,13 +93,18 @@ function buildSessionAccessList(
         record.assessment_type === 'topic_quiz',
     )
     .reduce<Record<string, LessonAssessmentRecord>>((acc, record) => {
-      acc[record.session_label] = pickLatestAssessmentRecord(acc[record.session_label] || null, record) || record;
+      const resolvedLabel = resolveSessionLabel(record.session_label);
+      acc[resolvedLabel] = pickLatestAssessmentRecord(acc[resolvedLabel] || null, record) || record;
       return acc;
     }, {});
 
   const localProgress = getLocalLessonProgress(consultationId, courseTitle);
-  const readingProgress: Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }> =
-    localProgress?.readingProgress || {};
+  const readingProgress = Object.entries(
+    (localProgress?.readingProgress || {}) as Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }>,
+  ).reduce<Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }>>((acc, [label, value]) => {
+    acc[resolveSessionLabel(label)] = value;
+    return acc;
+  }, {});
 
   const inProgressIndex = sessions.findIndex(
     (session) => Boolean(readingProgress[session]) && !latestTopicRecords[session],
@@ -114,7 +137,8 @@ function getConsultationAssessmentSummary(
   const latestTopicRecordsBySession = scopedRecords
     .filter((record) => record.assessment_type === 'topic_quiz')
     .reduce<Record<string, LessonAssessmentRecord>>((acc, record) => {
-      acc[record.session_label] = pickLatestAssessmentRecord(acc[record.session_label] || null, record) || record;
+      const normalizedLabel = normalizeSessionTitle(record.session_label);
+      acc[normalizedLabel] = pickLatestAssessmentRecord(acc[normalizedLabel] || null, record) || record;
       return acc;
     }, {});
   const topicRecords = Object.values(latestTopicRecordsBySession);
