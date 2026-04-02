@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, getErrorMessage } from '@/lib/api';
+import keithImage from '@/keith.jpg';
 
 interface AuthModalProps {
   isOpen?: boolean;
@@ -193,8 +194,8 @@ const AuthModal: React.FC<AuthModalProps> = ({
             sub: `Enter the 6-digit code sent to ${email}`,
           }
       : view === 'login'
-        ? { heading: 'Sign in', sub: 'Continue to your private KCJ Tech workspace.' }
-        : { heading: 'Create account', sub: 'Set up access to your courses, dashboard, and services.' };
+        ? { heading: 'Sign in', sub: 'Continue to Tech Support Services.' }
+        : { heading: 'Create account', sub: 'Set up access to Tech Support Services.' };
 
   const submitLabel =
     view === 'login'
@@ -450,16 +451,28 @@ const AuthModal: React.FC<AuthModalProps> = ({
       <div className="relative mx-auto flex min-h-screen max-w-7xl items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="hidden rounded-[2.5rem] bg-[linear-gradient(160deg,#0f172a_0%,#0f2f63_42%,#38bdf8_100%)] p-10 text-white shadow-[0_40px_90px_rgba(15,23,42,0.28)] lg:block">
-            <div className="max-w-lg">
+            <div className="max-w-xl">
               <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/90">
                 Private Access
               </div>
               <h1 className="mt-8 text-5xl font-black leading-[0.95] tracking-tight">
-                Sign in to enter KCJ Tech.
+                Sign in to Tech Support Services.
               </h1>
               <p className="mt-6 max-w-md text-base leading-7 text-cyan-50/85">
-                Your dashboard, certification tracks, lesson progress, consultations, and saved services stay behind one login-first entry point.
+                KCJ Tech powers the platform, while Tech Support Services is the workspace your users sign in to access.
               </p>
+              <div className="mt-8 flex items-center gap-4 rounded-[1.75rem] border border-white/15 bg-white/10 p-4 backdrop-blur">
+                <img
+                  src={keithImage}
+                  alt="Keith Chege Junior, founder and CEO"
+                  className="h-24 w-24 rounded-2xl object-cover border border-white/20 shadow-lg"
+                />
+                <div>
+                  <p className="text-sm uppercase tracking-[0.24em] text-cyan-100/70">Founder</p>
+                  <p className="mt-1 text-2xl font-bold text-white">Keith Chege Junior</p>
+                  <p className="mt-1 text-sm text-cyan-50/80">CEO, KCJ Tech</p>
+                </div>
+              </div>
               <div className="mt-10 grid gap-4 sm:grid-cols-3">
                 {[
                   { label: 'Courses', value: '10+' },
@@ -477,11 +490,13 @@ const AuthModal: React.FC<AuthModalProps> = ({
 
           <div className="mx-auto w-full max-w-md">
             <div className="mb-6 text-center lg:hidden">
-              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_100%)] shadow-lg">
-                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 11h8"/><path d="M12 7v8"/></svg>
-              </div>
-              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900">KCJ Tech</h1>
-              <p className="mt-2 text-sm text-slate-600">Sign in or create an account to view the site.</p>
+              <img
+                src={keithImage}
+                alt="Keith Chege Junior, founder and CEO"
+                className="mx-auto h-20 w-20 rounded-3xl object-cover border border-slate-200 shadow-lg"
+              />
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900">Tech Support Services</h1>
+              <p className="mt-2 text-sm text-slate-600">Powered by KCJ Tech. Sign in or create an account to continue.</p>
             </div>
             {formCard}
           </div>
