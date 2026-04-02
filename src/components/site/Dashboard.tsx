@@ -1,4 +1,5 @@
-﻿import React, { useState, useEffect, useCallback } from 'react';
+// Deploy trigger: updated curriculum cards and resume progress
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -9,6 +10,7 @@ import {
   type LessonAssessmentRecord,
   type SavedService,
 } from '@/lib/api';
+import { resolveCertificationCourseTitle } from '@/lib/certification-paths';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 import { OWNER_EMAIL } from '@/lib/site-config';
 
@@ -20,6 +22,45 @@ const statusColors: Record<string, string> = {
   completed: 'bg-green-500/10 text-green-400 border-green-500/20',
   cancelled: 'bg-red-500/10 text-red-400 border-red-500/20',
 };
+
+const curriculumCards = [
+  {
+    title: 'Introduction to IT Support & Customer Care',
+    description: 'Begin your technical support journey with service mindset, communication, and problem-solving foundations.',
+    image: 'https://images.unsplash.com/photo-1521790362022-53dde6ca36f0?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Core track',
+  },
+  {
+    title: 'Computer Systems Foundations',
+    description: 'Learn about hardware components, operating systems, and system architecture for reliable support.',
+    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Systems',
+  },
+  {
+    title: 'Network & Connectivity',
+    description: 'Understand networks, routers, switching, and troubleshooting common connectivity issues.',
+    image: 'https://images.unsplash.com/photo-1517142089942-ba376ce32a2a?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Networking',
+  },
+  {
+    title: 'Security & Incident Response',
+    description: 'Gain practical security practices, risk mitigation, and response methods for small scale infrastructure.',
+    image: 'https://images.unsplash.com/photo-1518773553398-650c184e8bef?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Security',
+  },
+  {
+    title: 'Database Basics & Data Management',
+    description: 'Master data modeling, SQL basics, and performance practices for service support workflows.',
+    image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Database',
+  },
+  {
+    title: 'Software Engineering & DevOps Fundamentals',
+    description: 'Bridge requirements, development, testing, and deployment for production-grade support solutions.',
+    image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1080&q=80',
+    tag: 'Engineering',
+  },
+];
 
 type SessionAccessItem = {
   session: string;
@@ -638,6 +679,9 @@ const Dashboard: React.FC = () => {
   const activeCertificationConsultation = !isOwner
     ? consultations.find(c => c.next_path === 'class' && c.next_path_status === 'certification_started')
     : undefined;
+  const activatedCourseTitle = activeCertificationConsultation
+    ? resolveCertificationCourseTitle(activeCertificationConsultation.service)
+    : null;
 
   const getSessionAccessForConsultation = (consultationId: string, courseTitle: string) => {
     const track = getCertificationTrack(courseTitle);
@@ -689,9 +733,16 @@ const Dashboard: React.FC = () => {
         {!isOwner && activeCertificationConsultation && (
           <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-6 text-white">
             <h3 className="text-lg font-bold mb-1">🎓 Certification Curriculum</h3>
-            <p className="text-sm text-indigo-200 mb-4">Your provider activated the <span className="font-semibold">{activeCertificationConsultation.service}</span> certification path. Select a course to begin your interactive learning journey with AI narrator, Q&A, and certification quiz.</p>
+            <p className="text-sm text-indigo-200 mb-4">
+              Your provider activated the <span className="font-semibold">{activeCertificationConsultation.service}</span> certification path.
+              {activatedCourseTitle ? (
+                <> You can now begin <span className="font-semibold">{getCertificationTrack(activatedCourseTitle).title}</span>.</>
+              ) : (
+                <> Select a course to begin your interactive learning journey with AI narrator, Q&A, and certification quiz.</>
+              )}
+            </p>
 
-            {!selectedCourse[activeCertificationConsultation.id] ? (
+            {!activatedCourseTitle && !selectedCourse[activeCertificationConsultation.id] ? (
               <div>
                 <p className="text-xs text-indigo-300 mb-3 font-medium">Available courses:</p>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
@@ -711,17 +762,23 @@ const Dashboard: React.FC = () => {
             ) : (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  <button
-                    onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: '' }))}
-                    className="px-3 py-1 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
-                  >
-                    ← Back
-                  </button>
-                  <span className="text-sm font-semibold text-cyan-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).title}</span>
+                  {!activatedCourseTitle && (
+                    <button
+                      onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: '' }))}
+                      className="px-3 py-1 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
+                    >
+                      ← Back
+                    </button>
+                  )}
+                  <span className="text-sm font-semibold text-cyan-300">
+                    {getCertificationTrack(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id]).title}
+                  </span>
                 </div>
 
                 <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
-                  <p className="text-xs text-gray-300">{getCertificationTrack(selectedCourse[activeCertificationConsultation.id]).description}</p>
+                  <p className="text-xs text-gray-300">
+                    {getCertificationTrack(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id]).description}
+                  </p>
                 </div>
 
                 <div>
@@ -729,7 +786,7 @@ const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-1 gap-2">
                     {getSessionAccessForConsultation(
                       activeCertificationConsultation.id,
-                      selectedCourse[activeCertificationConsultation.id],
+                      activatedCourseTitle || selectedCourse[activeCertificationConsultation.id],
                     ).map((item) => {
                       const session = `${item.isCompleted ? `Done ${item.score}%` : item.isUnlocked ? 'Open' : 'Locked'} - ${item.session}`;
                       return (
@@ -738,11 +795,11 @@ const Dashboard: React.FC = () => {
                         onClick={() => {
                           if (!item.isUnlocked) return;
                           sessionStorage.setItem(`lesson_${activeCertificationConsultation.id}`, JSON.stringify({
-                            course: selectedCourse[activeCertificationConsultation.id],
+                            course: activatedCourseTitle || selectedCourse[activeCertificationConsultation.id],
                             session: item.session
                           }));
                           navigate(
-                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(item.session)}`
+                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(item.session)}`
                           );
                         }}
                         disabled={!item.isUnlocked}
@@ -852,6 +909,34 @@ const Dashboard: React.FC = () => {
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="mt-8">
+                  <h3 className="text-lg font-bold text-white mb-4">📘 Curriculum Explorations</h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    {curriculumCards.map(card => (
+                      <div key={card.title} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all">
+                        <div
+                          className="h-40 bg-cover bg-center"
+                          style={{ backgroundImage: `url(${card.image})` }}
+                          aria-label={card.title}
+                        />
+                        <div className="p-4">
+                          <span className="text-xs font-semibold uppercase tracking-wider text-cyan-300">{card.tag}</span>
+                          <h4 className="text-white font-bold text-lg mt-2">{card.title}</h4>
+                          <p className="text-blue-200/80 text-sm mt-2">{card.description}</p>
+                          <button
+                            onClick={() => {
+                              alert('Continue learning: ' + card.title);
+                            }}
+                            className="mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all"
+                          >
+                            Continue
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 </div>
               </div>
             )}

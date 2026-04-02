@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, type Consultation } from '@/lib/api';
+import { resolveCertificationCourseTitle } from '@/lib/certification-paths';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 
 const serviceCategories = [
@@ -122,12 +123,34 @@ const ServicesGrid: React.FC = () => {
 
   const getTrackSessions = (courseTitle: string) => certificationCatalog[courseTitle]?.sessions || buildGenericTrackSessions(courseTitle);
 
-  const getLatestClassConsultation = (courseTitle: string) => {
-    const matches = consultations
-      .filter((consultation) => consultation.service === courseTitle && consultation.next_path === 'class')
+  const getLatestLearningConsultation = (courseTitle: string) => {
+    const classConsultations = consultations
+      .filter((consultation) => consultation.next_path === 'class')
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return matches[0] || null;
+    const courseSpecific = classConsultations.find((consultation) => {
+      const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
+      return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
+    });
+    return courseSpecific || null;
+  };
+
+  const getCourseWorkflowState = (courseTitle: string) => {
+    const learningConsultation = getLatestLearningConsultation(courseTitle);
+    const approvedForClass = Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes');
+    const workflowStatus = learningConsultation?.next_path_status || 'pending';
+
+    return {
+      learningConsultation,
+      approvedForClass,
+      testStatus:
+        workflowStatus === 'test_in_progress'
+          ? 'in_progress'
+          : workflowStatus === 'test_completed' || workflowStatus === 'certification_started'
+            ? 'completed'
+            : 'not_started',
+      certificationStarted: workflowStatus === 'certification_started',
+    };
   };
 
   const handleStartClassTest = (courseId: number) => {
@@ -246,8 +269,12 @@ const ServicesGrid: React.FC = () => {
 
                         <div className="grid gap-4">
                           {certificationCourses.map((course) => {
-                            const classConsultation = getLatestClassConsultation(course.title);
-                            const approvedForClass = Boolean(classConsultation && classConsultation.owner_agreed === 'yes');
+                            const {
+                              learningConsultation,
+                              approvedForClass,
+                              testStatus,
+                              certificationStarted,
+                            } = getCourseWorkflowState(course.title);
 
                             return (
                               <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:border-emerald-400/30 hover:bg-[#102042]">
@@ -260,6 +287,11 @@ const ServicesGrid: React.FC = () => {
                                   <h4 className="text-lg font-bold text-white">{course.title}</h4>
                                   <p className="mt-2 text-sm leading-relaxed text-blue-200/60">{course.description}</p>
                                   <p className="mt-4 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
+                                  {approvedForClass && learningConsultation && learningConsultation.service !== course.title && (
+                                    <p className="mt-3 text-xs text-cyan-100/80">
+                                      Access enabled from approved certification request: <span className="font-semibold text-white">{learningConsultation.service}</span>
+                                    </p>
+                                  )}
                                   <div className="mt-5 space-y-2">
                                     {!approvedForClass ? (
                                       <>
@@ -273,9 +305,9 @@ const ServicesGrid: React.FC = () => {
                                           No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
                                         </p>
                                       </>
-                                    ) : courseTestStatus[course.id] !== 'completed' ? (
+                                    ) : (courseTestStatus[course.id] || testStatus) !== 'completed' ? (
                                       <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
-                                        {courseTestStatus[course.id] === 'in_progress' ? 'Test in progress...' : 'Start class test'}
+                                        {(courseTestStatus[course.id] || testStatus) === 'in_progress' ? 'Test in progress...' : 'Start class test'}
                                       </button>
                                     ) : (
                                       <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
@@ -291,7 +323,7 @@ const ServicesGrid: React.FC = () => {
                                     >
                                       Ask About This Class
                                     </button>
-                                    {courseCertificationStarted[course.id] && <p className="text-xs text-green-200">Certification course introduction activated.</p>}
+                                    {(courseCertificationStarted[course.id] || certificationStarted) && <p className="text-xs text-green-200">Certification course introduction activated.</p>}
                                   </div>
                                 </div>
                               </div>
