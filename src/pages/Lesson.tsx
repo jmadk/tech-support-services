@@ -2401,15 +2401,50 @@ function buildCourseProgressFromAssessmentRecords(records: LessonAssessmentRecor
         return;
       }
 
-      nextProgress.topicScores[record.session_label] = pickLatestQuizResult(nextProgress.topicScores[record.session_label] || null, result) || result;
-      nextProgress.readingProgress[record.session_label] = createTopicReadState(
-        record.read_time_required_seconds || parseSessionDurationSeconds(record.session_label),
+      const resolvedLabel = resolveSessionLabel(course, record.session_label);
+      nextProgress.topicScores[resolvedLabel] = pickLatestQuizResult(nextProgress.topicScores[resolvedLabel] || null, result) || result;
+      nextProgress.readingProgress[resolvedLabel] = createTopicReadState(
+        record.read_time_required_seconds || parseSessionDurationSeconds(resolvedLabel),
         record.read_time_completed_at || record.submitted_at,
         record.read_time_completed_at || record.submitted_at,
       );
     });
 
   return nextProgress;
+}
+
+function normalizeStoredTopicScores(course: string, topicScores: Record<string, QuizResult>) {
+  return Object.entries(topicScores).reduce<Record<string, QuizResult>>((acc, [label, result]) => {
+    const resolvedLabel = resolveSessionLabel(course, label);
+    acc[resolvedLabel] = pickLatestQuizResult(acc[resolvedLabel] || null, result) || result;
+    return acc;
+  }, {});
+}
+
+function normalizeStoredReadingProgress(course: string, readingProgress: Record<string, unknown>) {
+  return Object.entries(readingProgress)
+    .map(([label, value]) => {
+      const resolvedLabel = resolveSessionLabel(course, label);
+      return [resolvedLabel, normalizeTopicReadState(value, parseSessionDurationSeconds(resolvedLabel))] as const;
+    })
+    .filter((entry): entry is readonly [string, TopicReadState] => Boolean(entry[1]))
+    .reduce<Record<string, TopicReadState>>((acc, [label, value]) => {
+      const existing = acc[label];
+      if (!existing) {
+        acc[label] = value;
+        return acc;
+      }
+
+      acc[label] = {
+        startedAt:
+          new Date(value.startedAt).getTime() <= new Date(existing.startedAt).getTime()
+            ? value.startedAt
+            : existing.startedAt,
+        requiredSeconds: Math.max(value.requiredSeconds, existing.requiredSeconds),
+        completedAt: value.completedAt || existing.completedAt,
+      };
+      return acc;
+    }, {});
 }
 
 function mergeCourseProgress(localProgress: CourseProgress, remoteProgress: CourseProgress): CourseProgress {
@@ -2755,14 +2790,11 @@ const Lesson: React.FC = () => {
 
     try {
       const parsed = JSON.parse(storedProgress);
-      const parsedReadingProgress = Object.fromEntries(
-        Object.entries(parsed?.readingProgress || {})
-          .map(([label, value]) => [label, normalizeTopicReadState(value, parseSessionDurationSeconds(label))])
-          .filter((entry): entry is [string, TopicReadState] => Boolean(entry[1])),
-      );
+      const parsedTopicScores = normalizeStoredTopicScores(course, parsed?.topicScores || {});
+      const parsedReadingProgress = normalizeStoredReadingProgress(course, parsed?.readingProgress || {});
       setLatestFinalExamResult(null);
       setCourseProgress({
-        topicScores: parsed?.topicScores || {},
+        topicScores: parsedTopicScores,
         finalExamResult: parsed?.finalExamResult || null,
         readingProgress: parsedReadingProgress,
       });
