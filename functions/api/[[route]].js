@@ -139,6 +139,7 @@ function sanitizeUser(row) {
     username: row.username,
     full_name: row.full_name,
     phone: row.phone,
+    recovery_email: row.recovery_email,
     avatar_url: row.avatar_url,
     bio: row.bio,
     company: row.company,
@@ -367,6 +368,7 @@ async function ensureSchema(env) {
         username TEXT NOT NULL UNIQUE,
         full_name TEXT NOT NULL,
         phone TEXT NOT NULL DEFAULT '',
+        recovery_email TEXT NOT NULL DEFAULT '',
         avatar_url TEXT NOT NULL DEFAULT '',
         bio TEXT NOT NULL DEFAULT '',
         company TEXT NOT NULL DEFAULT '',
@@ -469,6 +471,11 @@ async function ensureSchema(env) {
     `,
   );
 
+  const userColumns = new Set((await allRows(env, "PRAGMA table_info(users)")).map((col) => col.name));
+  if (!userColumns.has("recovery_email")) {
+    await runQuery(env, "ALTER TABLE users ADD COLUMN recovery_email TEXT NOT NULL DEFAULT ''");
+  }
+
   const consultationColumns = new Set((await allRows(env, "PRAGMA table_info(consultations)")).map((col) => col.name));
   if (!consultationColumns.has("next_path")) {
     await runQuery(env, "ALTER TABLE consultations ADD COLUMN next_path TEXT NOT NULL DEFAULT 'service'");
@@ -522,8 +529,8 @@ async function ensureOwnerAccount(env) {
     env,
     `
       INSERT INTO users (
-        id, email, password_hash, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
-      ) VALUES (?, ?, ?, ?, ?, '', '', '', '', ?, ?)
+        id, email, password_hash, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
+      ) VALUES (?, ?, ?, ?, ?, '', '', '', '', '', ?, ?)
     `,
     [id, email, passwordHash, username, fullName, createdAt, createdAt],
   );
@@ -558,6 +565,7 @@ async function getSession(env, request) {
         u.username,
         u.full_name,
         u.phone,
+        u.recovery_email,
         u.avatar_url,
         u.bio,
         u.company,
@@ -769,7 +777,7 @@ async function handleSignup(env, request) {
   const user = await firstRow(
     env,
     `
-      SELECT id, email, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+      SELECT id, email, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
       FROM users
       WHERE id = ?
     `,
@@ -792,7 +800,7 @@ async function handleSignin(env, request) {
   const user = await firstRow(
     env,
     `
-      SELECT id, email, password_hash, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+      SELECT id, email, password_hash, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
       FROM users
       WHERE email = ?
     `,
@@ -846,11 +854,15 @@ async function handleProfileUpdate(env, request) {
   const username = String(body.username || "").trim();
   const fullName = String(body.full_name || "").trim();
   const phone = String(body.phone || "").trim();
+  const recoveryEmail = String(body.recovery_email || "").trim().toLowerCase();
   const bio = String(body.bio || "").trim();
   const company = String(body.company || "").trim();
 
   if (!username || !fullName) {
     return json({ error: "Username and full name are required." }, 400);
+  }
+  if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
+    return json({ error: "Recovery email must be a valid email address." }, 400);
   }
 
   const existingUser = await firstRow(env, "SELECT id FROM users WHERE username = ?", [username]);
@@ -862,16 +874,16 @@ async function handleProfileUpdate(env, request) {
     env,
     `
       UPDATE users
-      SET username = ?, full_name = ?, phone = ?, bio = ?, company = ?, updated_at = ?
+      SET username = ?, full_name = ?, phone = ?, recovery_email = ?, bio = ?, company = ?, updated_at = ?
       WHERE id = ?
     `,
-    [username, fullName, phone, bio, company, nowIso(), auth.session.user.id],
+    [username, fullName, phone, recoveryEmail, bio, company, nowIso(), auth.session.user.id],
   );
 
   const updated = await firstRow(
     env,
     `
-      SELECT id, email, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+      SELECT id, email, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
       FROM users
       WHERE id = ?
     `,
@@ -912,7 +924,7 @@ async function handlePasswordResetRequest(env, request) {
     // If the reset email provider is not set up, allow a fallback owner recovery path
     // by issuing an OTP directly for the configured owner email only.
     if (email && email === ownerEmailFor(env)) {
-      const ownerUser = await firstRow(env, "SELECT id, email, full_name FROM users WHERE email = ?", [email]);
+      const ownerUser = await firstRow(env, "SELECT id, email, recovery_email, full_name FROM users WHERE email = ?", [email]);
       if (ownerUser) {
         const reset = await issuePasswordResetOtp(env, ownerUser);
         return json({
@@ -942,10 +954,12 @@ async function handlePasswordResetRequest(env, request) {
     return json({ error: "Email is required." }, 400);
   }
 
-  const user = await firstRow(env, "SELECT id, email, full_name FROM users WHERE email = ?", [emailAddress]);
+  const user = await firstRow(env, "SELECT id, email, recovery_email, full_name FROM users WHERE email = ?", [emailAddress]);
   if (!user) {
     return json({ success: true });
   }
+
+  const deliveryEmail = String(user.recovery_email || user.email || "").trim().toLowerCase();
 
   const latestOtp = await firstRow(
     env,
@@ -975,7 +989,7 @@ async function handlePasswordResetRequest(env, request) {
 
   try {
     await sendPasswordResetOtpEmail(env, {
-      email: emailAddress,
+      email: deliveryEmail,
       fullName: user.full_name,
       otp,
     });
@@ -990,7 +1004,7 @@ async function handlePasswordResetRequest(env, request) {
     );
   }
 
-  return json({ success: true });
+  return json({ success: true, deliveryEmailMasked: maskEmailAddress(deliveryEmail) });
 }
 
 async function handleOwnerPasswordResetOtpCreate(env, request) {
@@ -1006,7 +1020,7 @@ async function handleOwnerPasswordResetOtpCreate(env, request) {
     return json({ error: "Email is required." }, 400);
   }
 
-  const user = await firstRow(env, "SELECT id, email, full_name FROM users WHERE email = ?", [email]);
+  const user = await firstRow(env, "SELECT id, email, recovery_email, full_name FROM users WHERE email = ?", [email]);
   if (!user) {
     return json({ error: "No account exists for that email." }, 404);
   }

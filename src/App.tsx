@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import ProfileOnboardingGate from "@/components/site/ProfileOnboardingGate";
 import Index from "./pages/Index";
 import Lesson from "./pages/Lesson";
 import TrainingEducation from "./pages/TrainingEducation";
@@ -24,9 +25,9 @@ const App = () => (
             <Sonner />
             <BrowserRouter>
               <Routes>
-                <Route path="/" element={<Index />} />
-                <Route path="/training-education" element={<TrainingEducation />} />
-                <Route path="/lesson/:consultationId" element={<Lesson />} />
+                <Route path="/" element={<ProfileOnboardingGate><Index /></ProfileOnboardingGate>} />
+                <Route path="/training-education" element={<ProfileOnboardingGate><TrainingEducation /></ProfileOnboardingGate>} />
+                <Route path="/lesson/:consultationId" element={<ProfileOnboardingGate><Lesson /></ProfileOnboardingGate>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
             </BrowserRouter>

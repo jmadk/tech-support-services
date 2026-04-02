@@ -1,0 +1,1 @@
+ALTER TABLE users ADD COLUMN recovery_email TEXT NOT NULL DEFAULT '';

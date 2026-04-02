@@ -133,7 +133,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
         if (error) {
           setServerError(error);
         } else {
-          setSuccess('Account created successfully! You are now signed in.');
+          setSuccess('Account created successfully! Complete your bio data next.');
           if (!isPage) {
             setTimeout(() => {
               handleClose();
@@ -157,7 +157,11 @@ const AuthModal: React.FC<AuthModalProps> = ({
             `Email is disabled. For owner account recovery, use this fallback code: ${result.otp}. Expires at ${new Date(result.expiresAt).toLocaleTimeString()}.`,
           );
         } else {
-          setNotice(`If an account exists for ${email}, a 6-digit OTP has been sent. Enter it below and set your new password.`);
+          setNotice(
+            result.deliveryEmailMasked
+              ? `If an account exists for ${email}, a 6-digit OTP has been sent to ${result.deliveryEmailMasked}. Enter it below and set your new password.`
+              : `If an account exists for ${email}, a 6-digit OTP has been sent. Enter it below and set your new password.`,
+          );
         }
         return;
       }

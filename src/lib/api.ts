@@ -22,6 +22,7 @@ export type Profile = {
   username: string;
   full_name: string;
   phone: string;
+  recovery_email: string;
   avatar_url: string;
   bio: string;
   company: string;
@@ -84,6 +85,7 @@ export type PasswordResetRequestResponse = {
   fallback?: boolean;
   otp?: string;
   expiresAt?: string;
+  deliveryEmailMasked?: string;
 };
 
 export type ManualPasswordResetResponse = {

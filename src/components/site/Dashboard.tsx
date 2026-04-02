@@ -389,7 +389,7 @@ const Dashboard: React.FC = () => {
 
   // Profile form
   const [profileForm, setProfileForm] = useState({
-    full_name: '', username: '', phone: '', bio: '', company: '',
+    full_name: '', username: '', phone: '', recovery_email: '', bio: '', company: '',
   });
   const [profileSaving, setProfileSaving] = useState(false);
   const [profileSaved, setProfileSaved] = useState(false);
@@ -473,6 +473,7 @@ const Dashboard: React.FC = () => {
         full_name: profile.full_name || '',
         username: profile.username || '',
         phone: profile.phone || '',
+        recovery_email: profile.recovery_email || '',
         bio: profile.bio || '',
         company: profile.company || '',
       });
@@ -1357,6 +1358,15 @@ const Dashboard: React.FC = () => {
                         className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:border-cyan-500/50 outline-none transition-all"
                         placeholder="+254 700 000 000" />
                     </div>
+                    <div>
+                      <label className="block text-sm font-medium text-blue-200/70 mb-1.5">Recovery Email</label>
+                      <input type="email" value={profileForm.recovery_email} onChange={e => setProfileForm(p => ({ ...p, recovery_email: e.target.value }))}
+                        className="w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white placeholder-blue-300/30 focus:border-cyan-500/50 outline-none transition-all"
+                        placeholder="recovery@example.com" />
+                      <p className="text-blue-200/30 text-xs mt-1">OTP reset codes will be sent to this address.</p>
+                    </div>
+                  </div>
+                  <div className="grid sm:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-sm font-medium text-blue-200/70 mb-1.5">Company</label>
                       <input type="text" value={profileForm.company} onChange={e => setProfileForm(p => ({ ...p, company: e.target.value }))}

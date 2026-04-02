@@ -99,6 +99,7 @@ db.exec(`
     username TEXT NOT NULL UNIQUE,
     full_name TEXT NOT NULL,
     phone TEXT NOT NULL DEFAULT '',
+    recovery_email TEXT NOT NULL DEFAULT '',
     avatar_url TEXT NOT NULL DEFAULT '',
     bio TEXT NOT NULL DEFAULT '',
     company TEXT NOT NULL DEFAULT '',
@@ -226,6 +227,11 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_password_reset_otps_expires_at ON password_reset_otps(expires_at);
   `);
 
+  const userColumns = new Set(getTableColumns("users"));
+  if (!userColumns.has("recovery_email")) {
+    db.exec("ALTER TABLE users ADD COLUMN recovery_email TEXT NOT NULL DEFAULT '';");
+  }
+
   const consultationColumns = new Set(getTableColumns("consultations"));
   if (!consultationColumns.has("next_path")) {
     db.exec("ALTER TABLE consultations ADD COLUMN next_path TEXT NOT NULL DEFAULT 'service';");
@@ -243,11 +249,11 @@ ensureSchema();
 const statements = {
   createUser: db.prepare(`
     INSERT INTO users (
-      id, email, password_hash, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
-    ) VALUES (?, ?, ?, ?, ?, '', '', '', '', ?, ?)
+      id, email, password_hash, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
+    ) VALUES (?, ?, ?, ?, ?, '', '', '', '', '', ?, ?)
   `),
   findUserByEmail: db.prepare(`
-    SELECT id, email, password_hash, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+    SELECT id, email, password_hash, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
     FROM users
     WHERE email = ?
   `),
@@ -255,13 +261,13 @@ const statements = {
     SELECT id FROM users WHERE username = ?
   `),
   getUserProfile: db.prepare(`
-    SELECT id, email, username, full_name, phone, avatar_url, bio, company, created_at, updated_at
+    SELECT id, email, username, full_name, phone, recovery_email, avatar_url, bio, company, created_at, updated_at
     FROM users
     WHERE id = ?
   `),
   updateProfile: db.prepare(`
     UPDATE users
-    SET username = ?, full_name = ?, phone = ?, bio = ?, company = ?, updated_at = ?
+    SET username = ?, full_name = ?, phone = ?, recovery_email = ?, bio = ?, company = ?, updated_at = ?
     WHERE id = ?
   `),
   updatePassword: db.prepare(`
@@ -282,6 +288,7 @@ const statements = {
       u.username,
       u.full_name,
       u.phone,
+      u.recovery_email,
       u.avatar_url,
       u.bio,
       u.company,
@@ -671,6 +678,7 @@ function sanitizeUser(row) {
     username: row.username,
     full_name: row.full_name,
     phone: row.phone,
+    recovery_email: row.recovery_email,
     avatar_url: row.avatar_url,
     bio: row.bio,
     company: row.company,
@@ -1068,11 +1076,15 @@ async function handleProfileUpdate(req, res) {
   const username = String(body.username || "").trim();
   const fullName = String(body.full_name || "").trim();
   const phone = String(body.phone || "").trim();
+  const recoveryEmail = String(body.recovery_email || "").trim().toLowerCase();
   const bio = String(body.bio || "").trim();
   const company = String(body.company || "").trim();
 
   if (!username || !fullName) {
     return json(res, 400, { error: "Username and full name are required." });
+  }
+  if (recoveryEmail && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(recoveryEmail)) {
+    return json(res, 400, { error: "Recovery email must be a valid email address." });
   }
 
   const existingUser = statements.findUserByUsername.get(username);
@@ -1080,7 +1092,7 @@ async function handleProfileUpdate(req, res) {
     return json(res, 409, { error: "That username is already taken." });
   }
 
-  statements.updateProfile.run(username, fullName, phone, bio, company, nowIso(), session.user.id);
+  statements.updateProfile.run(username, fullName, phone, recoveryEmail, bio, company, nowIso(), session.user.id);
   const updated = statements.getUserProfile.get(session.user.id);
   return json(res, 200, { profile: sanitizeUser(updated) });
 }
@@ -1122,6 +1134,8 @@ async function handlePasswordResetRequest(req, res) {
     return json(res, 200, { success: true });
   }
 
+  const deliveryEmail = String(user.recovery_email || user.email || "").trim().toLowerCase();
+
   const latestOtp = statements.latestPasswordResetOtpByEmail.get(email);
   if (latestOtp) {
     const elapsedSeconds = Math.floor((Date.now() - new Date(latestOtp.created_at).getTime()) / 1000);
@@ -1134,7 +1148,7 @@ async function handlePasswordResetRequest(req, res) {
 
   const { otp } = issuePasswordResetOtp(user);
   try {
-    await sendPasswordResetOtpEmail(email, user.full_name, otp);
+    await sendPasswordResetOtpEmail(deliveryEmail, user.full_name, otp);
   } catch (error) {
     console.error("Password reset request email error", error);
     const status = Number(error?.status);
@@ -1143,7 +1157,7 @@ async function handlePasswordResetRequest(req, res) {
     });
   }
 
-  return json(res, 200, { success: true });
+  return json(res, 200, { success: true, deliveryEmailMasked: maskEmailAddress(deliveryEmail) });
 }
 
 async function handleOwnerPasswordResetOtpCreate(req, res) {
