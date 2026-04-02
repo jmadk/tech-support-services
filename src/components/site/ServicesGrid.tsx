@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
-import { api } from '@/lib/api';
+import { api, type Consultation } from '@/lib/api';
 import { IT_SUPPORT_CUSTOMER_CARE_COURSE, IT_SUPPORT_CUSTOMER_CARE_TRACK } from '@/lib/it-support-course';
 
 const serviceCategories = [
@@ -68,19 +68,25 @@ const ServicesGrid: React.FC = () => {
   const [expandedService, setExpandedService] = useState<number | null>(null);
   const [savedTitles, setSavedTitles] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
+  const [consultations, setConsultations] = useState<Consultation[]>([]);
   const [courseTestStatus, setCourseTestStatus] = useState<Record<number, 'not_started' | 'in_progress' | 'completed'>>({});
   const [courseCertificationStarted, setCourseCertificationStarted] = useState<Record<number, boolean>>({});
 
   useEffect(() => {
     if (!user) {
       setSavedTitles(new Set());
+      setConsultations([]);
       return;
     }
-    const loadSaved = async () => {
-      const { savedServices } = await api.getSavedServices();
+    const loadData = async () => {
+      const [{ savedServices }, { consultations }] = await Promise.all([
+        api.getSavedServices(),
+        api.getConsultations(),
+      ]);
       setSavedTitles(new Set(savedServices.map((item) => item.service_title)));
+      setConsultations(consultations);
     };
-    loadSaved();
+    loadData();
   }, [user]);
 
   const filteredServices = useMemo(() => expertServices.filter((service) => {
@@ -115,6 +121,14 @@ const ServicesGrid: React.FC = () => {
   };
 
   const getTrackSessions = (courseTitle: string) => certificationCatalog[courseTitle]?.sessions || buildGenericTrackSessions(courseTitle);
+
+  const getLatestClassConsultation = (courseTitle: string) => {
+    const matches = consultations
+      .filter((consultation) => consultation.service === courseTitle && consultation.next_path === 'class')
+      .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
+
+    return matches[0] || null;
+  };
 
   const handleStartClassTest = (courseId: number) => {
     setCourseTestStatus((prev) => ({ ...prev, [courseId]: 'in_progress' }));
@@ -250,7 +264,11 @@ const ServicesGrid: React.FC = () => {
           </div>
 
           <div className="grid gap-6 sm:grid-cols-2 xl:grid-cols-3">
-            {certificationCourses.map((course) => (
+            {certificationCourses.map((course) => {
+              const classConsultation = getLatestClassConsultation(course.title);
+              const approvedForClass = Boolean(classConsultation && classConsultation.owner_agreed === 'yes');
+
+              return (
               <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:border-emerald-400/30 hover:bg-[#102042]">
                 <div className="relative h-40 overflow-hidden">
                   <img src={course.image} alt={course.title} className="h-full w-full object-cover" />
@@ -262,7 +280,19 @@ const ServicesGrid: React.FC = () => {
                   <p className="mt-2 text-sm leading-relaxed text-blue-200/60">{course.description}</p>
                   <p className="mt-4 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
                   <div className="mt-5 space-y-2">
-                    {courseTestStatus[course.id] !== 'completed' ? (
+                    {!approvedForClass ? (
+                      <>
+                        <button
+                          disabled
+                          className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-2.5 text-sm font-semibold text-white/55"
+                        >
+                          Await admin approval
+                        </button>
+                        <p className="text-xs text-amber-200/85">
+                          No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
+                        </p>
+                      </>
+                    ) : courseTestStatus[course.id] !== 'completed' ? (
                       <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-2.5 text-sm font-semibold text-white hover:opacity-90">
                         {courseTestStatus[course.id] === 'in_progress' ? 'Test in progress...' : 'Start class test'}
                       </button>
@@ -284,7 +314,7 @@ const ServicesGrid: React.FC = () => {
                   </div>
                 </div>
               </div>
-            ))}
+            )})}
           </div>
         </div>
       </div>
