@@ -3,7 +3,7 @@ import React, { useState } from 'react';
 const plans = [
   {
     name: 'Starter',
-    price: 'KES 5,000',
+    price: 'KES 12,000',
     period: '/session',
     description: 'Perfect for individuals seeking one-on-one consultation or training.',
     features: [
@@ -18,7 +18,7 @@ const plans = [
   },
   {
     name: 'Professional',
-    price: 'KES 25,000',
+    price: 'KES 60,000',
     period: '/month',
     description: 'Ideal for businesses needing ongoing IT support and development.',
     features: [
@@ -35,8 +35,8 @@ const plans = [
   },
   {
     name: 'Enterprise',
-    price: 'Custom',
-    period: 'pricing',
+    price: 'From KES 180,000',
+    period: '/month',
     description: 'Comprehensive solutions for large organizations and institutions.',
     features: [
       'All 20+ service areas',
