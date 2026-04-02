@@ -90,13 +90,13 @@ const PricingSection: React.FC = () => {
                 {COMPLEXITY_OPTIONS.map((option) => {
                   const amount = pricing[option.id];
                   return (
-                    <div key={option.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                    <div key={option.id} className="flex min-h-[300px] flex-col rounded-2xl border border-white/10 bg-white/5 p-5">
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-200">{option.label}</p>
-                      <div className="mt-4">
-                        <span className="text-3xl font-extrabold">{formatKes(amount)}</span>
-                        <span className="ml-1 text-sm text-blue-200/60">{option.period}</span>
+                      <div className="mt-4 space-y-2">
+                        <p className="break-words text-3xl font-extrabold leading-tight text-white">{formatKes(amount)}</p>
+                        <p className="text-sm text-blue-200/60">{option.period}</p>
                       </div>
-                      <p className="mt-3 text-sm leading-6 text-blue-100/65">{option.description}</p>
+                      <p className="mt-4 text-sm leading-6 text-blue-100/65">{option.description}</p>
                     </div>
                   );
                 })}

@@ -629,11 +629,11 @@ const servicePricing = {
 };
 
 const defaultServicePricing = { starter: 14000, professional: 52000, enterprise: 155000 };
-const minimumServicePrice = 50000;
+const minimumServicePricing = { starter: 50000, professional: 80000, enterprise: 155000 };
 
 function getServicePrice(service, complexity) {
   const priceBand = servicePricing[service] || defaultServicePricing;
-  return Math.max(minimumServicePrice, priceBand[complexity] || priceBand.starter);
+  return Math.max(minimumServicePricing[complexity] || minimumServicePricing.starter, priceBand[complexity] || priceBand.starter);
 }
 
 function normalizeKenyanPhone(phone) {
