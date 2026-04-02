@@ -2489,17 +2489,8 @@ function mergeCourseProgress(localProgress: CourseProgress, remoteProgress: Cour
 function getNextUnlockedSessionLabel(
   sessionLabels: string[],
   topicScores: Record<string, QuizResult>,
-  readingProgress: Record<string, TopicReadState>,
   fallbackLabel = '',
 ): string {
-  // Prefer continuing an in-progress session over jumping straight to the first quiz-incomplete session.
-  const inProgressSession = sessionLabels.find(
-    (label) => Boolean(readingProgress[label]) && !topicScores[label],
-  );
-  if (inProgressSession) {
-    return inProgressSession;
-  }
-
   const firstIncomplete = sessionLabels.find((label) => !topicScores[label]);
   return firstIncomplete || fallbackLabel || sessionLabels[0] || '';
 }
@@ -2653,14 +2644,12 @@ const Lesson: React.FC = () => {
   const highestUnlockedSessionLabel = getNextUnlockedSessionLabel(
     sessionLabels,
     courseProgress.topicScores,
-    courseProgress.readingProgress,
     resolvedSession,
   );
   const highestUnlockedSessionIndex = sessionLabels.indexOf(highestUnlockedSessionLabel);
   const currentTopicUnlocked =
     currentSessionIndex === -1 ||
     Boolean(courseProgress.topicScores[resolvedSession]) ||
-    Boolean(courseProgress.readingProgress[resolvedSession]) ||
     currentSessionIndex <= Math.max(highestUnlockedSessionIndex, 0);
   const currentTopicResult = latestTopicResult || courseProgress.topicScores[resolvedSession] || null;
   const finalExamQuestions = createFinalExamQuestions(course);
@@ -2862,13 +2851,6 @@ const Lesson: React.FC = () => {
 
     if (!currentTopicUnlocked) {
       fallbackSession = highestUnlockedSessionLabel || sessionLabels[0];
-    } else if (
-      highestUnlockedSessionLabel &&
-      resolvedSession !== highestUnlockedSessionLabel &&
-      Boolean(courseProgress.readingProgress[highestUnlockedSessionLabel])
-    ) {
-      // If there's an in-progress session the user was last on, prioritize it.
-      fallbackSession = highestUnlockedSessionLabel;
     }
 
     if (!fallbackSession || fallbackSession === resolvedSession) {
@@ -2886,7 +2868,6 @@ const Lesson: React.FC = () => {
   }, [
     consultationId,
     course,
-    courseProgress.readingProgress,
     currentTopicUnlocked,
     highestUnlockedSessionLabel,
     navigate,
@@ -2926,14 +2907,15 @@ const Lesson: React.FC = () => {
     setNarrating(true);
     setCourseProgress((prev) => {
       const existingReadState = normalizeTopicReadState(prev.readingProgress[resolvedSession], totalSeconds);
+      const topicCompleted = Boolean(prev.topicScores[resolvedSession]);
       return {
         ...prev,
         readingProgress: {
           ...prev.readingProgress,
           [resolvedSession]:
-            existingReadState && existingReadState.requiredSeconds === totalSeconds
+            topicCompleted && existingReadState
               ? existingReadState
-              : createTopicReadState(totalSeconds, existingReadState?.startedAt, existingReadState?.completedAt || null),
+              : createTopicReadState(totalSeconds),
         },
       };
     });
@@ -3105,8 +3087,14 @@ const Lesson: React.FC = () => {
           const isCompletedTopic = Boolean(courseProgress.topicScores[label]);
           const isUnlockedTopic = index <= Math.max(highestUnlockedSessionIndex, 0) || isCompletedTopic;
           return (
-            <div
+            <button
               key={label}
+              type="button"
+              disabled={!isUnlockedTopic}
+              onClick={() => {
+                if (!isUnlockedTopic || isCurrentTopic) return;
+                goToSession(label);
+              }}
               className={`rounded-2xl border px-3 py-2 transition-all ${
                 isCurrentTopic
                   ? 'border-cyan-400/40 bg-cyan-500/10'
@@ -3115,7 +3103,7 @@ const Lesson: React.FC = () => {
                     : isUnlockedTopic
                       ? 'border-cyan-400/20 bg-cyan-500/5'
                       : 'border-white/10 bg-white/5'
-              }`}
+              } ${isUnlockedTopic ? 'w-full text-left hover:border-cyan-300/40 hover:bg-cyan-500/10' : 'w-full text-left cursor-not-allowed opacity-80'}`}
             >
               <div className="flex items-start justify-between gap-2">
                 <p className="text-[11px] font-semibold leading-4 text-white">{label}</p>
@@ -3133,7 +3121,7 @@ const Lesson: React.FC = () => {
                   {isCurrentTopic ? 'Now' : isCompletedTopic ? 'Done' : isUnlockedTopic ? 'Open' : 'Locked'}
                 </span>
               </div>
-            </div>
+            </button>
           );
         })}
       </div>

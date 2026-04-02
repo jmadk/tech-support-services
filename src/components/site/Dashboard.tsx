@@ -139,23 +139,9 @@ function buildSessionAccessList(
       return acc;
     }, {});
 
-  const localProgress = getLocalLessonProgress(consultationId, courseTitle);
-  const readingProgress = Object.entries(
-    (localProgress?.readingProgress || {}) as Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }>,
-  ).reduce<Record<string, { startedAt: string; requiredSeconds: number; completedAt: string | null }>>((acc, [label, value]) => {
-    acc[resolveSessionLabel(label)] = value;
-    return acc;
-  }, {});
-
-  const inProgressIndex = sessions.findIndex(
-    (session) => Boolean(readingProgress[session]) && !latestTopicRecords[session],
-  );
-
   const firstIncompleteIndex = sessions.findIndex((session) => !latestTopicRecords[session]);
   const highestUnlockedIndex =
-    inProgressIndex !== -1
-      ? inProgressIndex
-      : firstIncompleteIndex === -1
+    firstIncompleteIndex === -1
       ? sessions.length - 1
       : firstIncompleteIndex;
 
@@ -164,8 +150,7 @@ function buildSessionAccessList(
     isCompleted: Boolean(latestTopicRecords[session]),
     isUnlocked:
       index <= highestUnlockedIndex ||
-      Boolean(latestTopicRecords[session]) ||
-      Boolean(readingProgress[session]),
+      Boolean(latestTopicRecords[session]),
     score: latestTopicRecords[session]?.score ?? null,
   }));
 }
