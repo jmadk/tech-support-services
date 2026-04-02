@@ -3,14 +3,19 @@ import { useAuth } from '@/contexts/AuthContext';
 import { api, getErrorMessage } from '@/lib/api';
 
 interface AuthModalProps {
-  isOpen: boolean;
-  onClose: () => void;
+  isOpen?: boolean;
+  onClose?: () => void;
+  variant?: 'modal' | 'page';
 }
 
 type AuthView = 'login' | 'signup' | 'forgot';
 type ForgotStep = 'request' | 'confirm';
 
-const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
+const AuthModal: React.FC<AuthModalProps> = ({
+  isOpen = true,
+  onClose,
+  variant = 'modal',
+}) => {
   const { signIn, signUp } = useAuth();
   const [view, setView] = useState<AuthView>('login');
   const [forgotStep, setForgotStep] = useState<ForgotStep>('request');
@@ -27,6 +32,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const [showPassword, setShowPassword] = useState(false);
   const [serverError, setServerError] = useState('');
 
+  const isPage = variant === 'page';
+
   const resetForm = () => {
     setEmail('');
     setPassword('');
@@ -40,6 +47,11 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     setSuccess(null);
     setNotice(null);
     setShowPassword(false);
+  };
+
+  const handleClose = () => {
+    if (isPage) return;
+    onClose?.();
   };
 
   const switchView = (nextView: AuthView) => {
@@ -105,10 +117,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           setServerError(error);
         } else {
           setSuccess('Login successful! Welcome back.');
-          setTimeout(() => {
-            onClose();
-            resetForm();
-          }, 1500);
+          if (!isPage) {
+            setTimeout(() => {
+              handleClose();
+              resetForm();
+            }, 1200);
+          }
         }
         return;
       }
@@ -119,10 +133,12 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
           setServerError(error);
         } else {
           setSuccess('Account created successfully! You are now signed in.');
-          setTimeout(() => {
-            onClose();
-            resetForm();
-          }, 2000);
+          if (!isPage) {
+            setTimeout(() => {
+              handleClose();
+              resetForm();
+            }, 1400);
+          }
         }
         return;
       }
@@ -155,7 +171,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
       setSuccess('Password updated successfully. Redirecting you to sign in.');
       setTimeout(() => {
         switchView('login');
-      }, 1800);
+      }, 1600);
     } catch (err: unknown) {
       setServerError(getErrorMessage(err));
     } finally {
@@ -163,7 +179,7 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
     }
   };
 
-  if (!isOpen) return null;
+  if (!isPage && !isOpen) return null;
 
   const title =
     view === 'forgot'
@@ -177,8 +193,8 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
             sub: `Enter the 6-digit code sent to ${email}`,
           }
       : view === 'login'
-        ? { heading: 'Welcome Back', sub: 'Sign in to access your dashboard' }
-        : { heading: 'Create Account', sub: 'Join us and explore our services' };
+        ? { heading: 'Sign in', sub: 'Continue to your private KCJ Tech workspace.' }
+        : { heading: 'Create account', sub: 'Set up access to your courses, dashboard, and services.' };
 
   const submitLabel =
     view === 'login'
@@ -192,272 +208,283 @@ const AuthModal: React.FC<AuthModalProps> = ({ isOpen, onClose }) => {
   const isForgotConfirm = view === 'forgot' && forgotStep === 'confirm';
   const emailReadOnly = isForgotConfirm;
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={onClose}>
-      <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
-      <div
-        className="relative w-full max-w-md bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-300 max-h-[90vh] overflow-y-auto"
-        onClick={event => event.stopPropagation()}
-      >
-        <div className="bg-gradient-to-r from-[#0a1628] via-[#1a237e] to-[#0d47a1] p-6 pb-8 text-center relative overflow-hidden">
-          <div className="absolute inset-0 opacity-20">
-            <div className="absolute top-4 left-8 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-            <div className="absolute top-12 right-12 w-1.5 h-1.5 bg-blue-300 rounded-full animate-pulse" />
-            <div className="absolute bottom-6 left-1/3 w-1 h-1 bg-white rounded-full animate-pulse" />
-          </div>
-          <button onClick={onClose} className="absolute top-4 right-4 text-white/70 hover:text-white transition-colors">
+  const formCard = (
+    <div className={`relative overflow-hidden rounded-[2rem] border ${isPage ? 'border-white/10 bg-white shadow-[0_30px_80px_rgba(15,23,42,0.22)]' : 'border-white/10 bg-white shadow-2xl'} `}>
+      <div className="relative overflow-hidden bg-[linear-gradient(135deg,#0f172a_0%,#102b5c_45%,#0ea5e9_100%)] px-6 py-8 text-center sm:px-8">
+        {!isPage && onClose && (
+          <button onClick={handleClose} className="absolute right-4 top-4 text-white/70 transition-colors hover:text-white">
             <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
           </button>
-          <div className="w-16 h-16 mx-auto mb-3 rounded-full bg-white/10 border border-white/20 flex items-center justify-center">
-            <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-          </div>
-          <h2 className="text-2xl font-bold text-white">{title.heading}</h2>
-          <p className="text-blue-200 text-sm mt-1">{title.sub}</p>
+        )}
+        <div className="absolute inset-0 opacity-30">
+          <div className="absolute left-8 top-8 h-16 w-16 rounded-full bg-cyan-300/20 blur-2xl" />
+          <div className="absolute bottom-6 right-8 h-20 w-20 rounded-full bg-blue-200/20 blur-2xl" />
         </div>
+        <div className="relative mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-2xl border border-white/20 bg-white/10">
+          <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 11h8"/><path d="M12 7v8"/></svg>
+        </div>
+        <h2 className="text-3xl font-black tracking-tight text-white">{title.heading}</h2>
+        <p className="mt-2 text-sm text-cyan-100/85">{title.sub}</p>
+      </div>
 
-        <div className="p-6 -mt-4 bg-white rounded-t-2xl relative">
-          {success ? (
-            <div className="text-center py-8">
-              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-green-100 flex items-center justify-center">
-                <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
-              </div>
-              <h3 className="text-xl font-bold text-gray-800">Success!</h3>
-              <p className="text-gray-500 mt-1 text-sm">{success}</p>
+      <div className="relative px-6 py-6 sm:px-8 sm:py-8">
+        {success ? (
+          <div className="py-10 text-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100">
+              <svg xmlns="http://www.w3.org/2000/svg" width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#10b981" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
             </div>
-          ) : (
-            <form onSubmit={handleSubmit} className="space-y-4">
-              {serverError && (
-                <div className="p-3 bg-red-50 border border-red-200 rounded-xl text-red-600 text-sm flex items-center gap-2">
-                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><line x1="15" y1="9" x2="9" y2="15"/><line x1="9" y1="9" x2="15" y2="15"/></svg>
-                  {serverError}
-                </div>
-              )}
-
-              {notice && (
-                <div className="p-3 bg-emerald-50 border border-emerald-200 rounded-xl text-emerald-700 text-sm">
-                  {notice}
-                </div>
-              )}
-
-              {view === 'forgot' && forgotStep === 'request' && (
-                <div className="p-3 bg-blue-50 border border-blue-200 rounded-xl text-blue-700 text-sm">
-                  If email OTP delivery is unavailable, contact the owner and use Dashboard → Settings → Manual Password Reset to generate a code.
-                </div>
-              )}
-
-              {view === 'signup' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Username</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <input
-                      type="text"
-                      value={username}
-                      onChange={event => {
-                        setUsername(event.target.value);
-                        setErrors(previous => ({ ...previous, username: '' }));
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 ${errors.username ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                      placeholder="Choose a username"
-                    />
-                  </div>
-                  {errors.username && <p className="text-red-500 text-xs mt-1 ml-1">{errors.username}</p>}
-                </div>
-              )}
-
-              {view === 'signup' && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Full Name</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                    </div>
-                    <input
-                      type="text"
-                      value={fullName}
-                      onChange={event => {
-                        setFullName(event.target.value);
-                        setErrors(previous => ({ ...previous, fullName: '' }));
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 ${errors.fullName ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                      placeholder="Your full name"
-                    />
-                  </div>
-                  {errors.fullName && <p className="text-red-500 text-xs mt-1 ml-1">{errors.fullName}</p>}
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Email</label>
-                <div className="relative">
-                  <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                    <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
-                  </div>
-                  <input
-                    type="email"
-                    readOnly={emailReadOnly}
-                    value={email}
-                    onChange={event => {
-                      setEmail(event.target.value);
-                      setErrors(previous => ({ ...previous, email: '' }));
-                      setServerError('');
-                    }}
-                    className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 ${errors.email ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} ${emailReadOnly ? 'bg-gray-50 text-gray-500 cursor-not-allowed' : ''} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                    placeholder="you@example.com"
-                  />
-                </div>
-                {errors.email && <p className="text-red-500 text-xs mt-1 ml-1">{errors.email}</p>}
-                {view === 'forgot' && !isForgotConfirm && (
-                  <p className="mt-2 text-xs text-gray-500">
-                    If email delivery is unavailable, contact support for a manual reset code.
-                  </p>
-                )}
-                {isForgotConfirm && (
-                  <div className="mt-2 flex items-center justify-between gap-3 text-xs">
-                    <span className="text-gray-500">Need a new code or different email?</span>
-                    <button type="button" onClick={goToForgotRequest} className="text-blue-600 hover:text-blue-800 font-semibold">
-                      Request another OTP
-                    </button>
-                  </div>
-                )}
+            <h3 className="text-xl font-bold text-slate-900">Success</h3>
+            <p className="mt-2 text-sm text-slate-500">{success}</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            {serverError && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">
+                {serverError}
               </div>
+            )}
 
+            {notice && (
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+                {notice}
+              </div>
+            )}
+
+            {view === 'forgot' && forgotStep === 'request' && (
+              <div className="rounded-2xl border border-sky-200 bg-sky-50 px-4 py-3 text-sm text-sky-700">
+                If email OTP delivery is unavailable, contact the owner and use Dashboard {'->'} Settings {'->'} Manual Password Reset to generate a code.
+              </div>
+            )}
+
+            {view === 'signup' && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Username</label>
+                <input
+                  type="text"
+                  value={username}
+                  onChange={(event) => {
+                    setUsername(event.target.value);
+                    setErrors((previous) => ({ ...previous, username: '' }));
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-3 text-slate-900 outline-none transition-all ${errors.username ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'}`}
+                  placeholder="Choose a username"
+                />
+                {errors.username && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.username}</p>}
+              </div>
+            )}
+
+            {view === 'signup' && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Full Name</label>
+                <input
+                  type="text"
+                  value={fullName}
+                  onChange={(event) => {
+                    setFullName(event.target.value);
+                    setErrors((previous) => ({ ...previous, fullName: '' }));
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-3 text-slate-900 outline-none transition-all ${errors.fullName ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'}`}
+                  placeholder="Your full name"
+                />
+                {errors.fullName && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.fullName}</p>}
+              </div>
+            )}
+
+            <div>
+              <label className="mb-1.5 block text-sm font-semibold text-slate-700">Email</label>
+              <input
+                type="email"
+                readOnly={emailReadOnly}
+                value={email}
+                onChange={(event) => {
+                  setEmail(event.target.value);
+                  setErrors((previous) => ({ ...previous, email: '' }));
+                  setServerError('');
+                }}
+                className={`w-full rounded-2xl border px-4 py-3 text-slate-900 outline-none transition-all ${errors.email ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'} ${emailReadOnly ? 'cursor-not-allowed text-slate-500' : ''}`}
+                placeholder="you@example.com"
+              />
+              {errors.email && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.email}</p>}
               {isForgotConfirm && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">OTP Code</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 0 1 7 7l-1.5 1.5a5 5 0 0 1-7-7"/><path d="m14 11 5-5"/><path d="M5 8a5 5 0 0 1 7 0l1.5 1.5a5 5 0 0 1-7 7L5 15a5 5 0 0 1 0-7"/><path d="m9 13 6-6"/></svg>
-                    </div>
-                    <input
-                      type="text"
-                      inputMode="numeric"
-                      maxLength={6}
-                      value={otp}
-                      onChange={event => {
-                        setOtp(event.target.value.replace(/\D/g, '').slice(0, 6));
-                        setErrors(previous => ({ ...previous, otp: '' }));
-                        setServerError('');
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 tracking-[0.35em] font-semibold ${errors.otp ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                      placeholder="123456"
-                    />
-                  </div>
-                  {errors.otp && <p className="text-red-500 text-xs mt-1 ml-1">{errors.otp}</p>}
-                </div>
-              )}
-
-              {(view === 'login' || view === 'signup' || isForgotConfirm) && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">
-                    {isForgotConfirm ? 'New Password' : 'Password'}
-                  </label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={password}
-                      onChange={event => {
-                        setPassword(event.target.value);
-                        setErrors(previous => ({ ...previous, password: '' }));
-                        setServerError('');
-                      }}
-                      className={`w-full pl-10 pr-12 py-3 rounded-xl border-2 ${errors.password ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                      placeholder="Min 6 characters"
-                    />
-                    <button
-                      type="button"
-                      onClick={() => setShowPassword(!showPassword)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600"
-                    >
-                      {showPassword ? (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
-                      ) : (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
-                      )}
-                    </button>
-                  </div>
-                  {errors.password && <p className="text-red-500 text-xs mt-1 ml-1">{errors.password}</p>}
-                </div>
-              )}
-
-              {(view === 'signup' || isForgotConfirm) && (
-                <div>
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Confirm Password</label>
-                  <div className="relative">
-                    <div className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400">
-                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect width="18" height="11" x="3" y="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
-                    </div>
-                    <input
-                      type={showPassword ? 'text' : 'password'}
-                      value={confirmPassword}
-                      onChange={event => {
-                        setConfirmPassword(event.target.value);
-                        setErrors(previous => ({ ...previous, confirmPassword: '' }));
-                      }}
-                      className={`w-full pl-10 pr-4 py-3 rounded-xl border-2 ${errors.confirmPassword ? 'border-red-400 bg-red-50' : 'border-gray-200 focus:border-blue-500'} outline-none transition-all text-gray-800 placeholder-gray-400`}
-                      placeholder="Re-enter password"
-                    />
-                  </div>
-                  {errors.confirmPassword && <p className="text-red-500 text-xs mt-1 ml-1">{errors.confirmPassword}</p>}
-                </div>
-              )}
-
-              {view === 'login' && (
-                <div className="flex items-center justify-end">
-                  <button type="button" onClick={() => switchView('forgot')} className="text-sm text-blue-600 hover:text-blue-800 font-medium">
-                    Forgot password?
+                <div className="mt-2 flex items-center justify-between gap-3 text-xs">
+                  <span className="text-slate-500">Need a new code or different email?</span>
+                  <button type="button" onClick={goToForgotRequest} className="font-semibold text-sky-600 hover:text-sky-800">
+                    Request another OTP
                   </button>
                 </div>
               )}
+            </div>
 
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full py-3.5 bg-gradient-to-r from-[#1a237e] to-[#0d47a1] text-white font-bold rounded-xl hover:from-[#0d47a1] hover:to-[#1565c0] transition-all duration-300 shadow-lg hover:shadow-xl disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
-              >
-                {isSubmitting ? (
-                  <>
-                    <svg className="animate-spin h-5 w-5" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/><path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                    Processing...
-                  </>
-                ) : (
-                  submitLabel
-                )}
-              </button>
-
-              <div className="text-center text-sm text-gray-500 mt-4 space-y-1">
-                {view === 'login' && (
-                  <p>
-                    Don&apos;t have an account?{' '}
-                    <button type="button" onClick={() => switchView('signup')} className="text-blue-600 hover:text-blue-800 font-semibold">
-                      Sign Up
-                    </button>
-                  </p>
-                )}
-                {view === 'signup' && (
-                  <p>
-                    Already have an account?{' '}
-                    <button type="button" onClick={() => switchView('login')} className="text-blue-600 hover:text-blue-800 font-semibold">
-                      Sign In
-                    </button>
-                  </p>
-                )}
-                {view === 'forgot' && (
-                  <p>
-                    Remember your password?{' '}
-                    <button type="button" onClick={() => switchView('login')} className="text-blue-600 hover:text-blue-800 font-semibold">
-                      Sign In
-                    </button>
-                  </p>
-                )}
+            {isForgotConfirm && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">OTP Code</label>
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={6}
+                  value={otp}
+                  onChange={(event) => {
+                    setOtp(event.target.value.replace(/\D/g, '').slice(0, 6));
+                    setErrors((previous) => ({ ...previous, otp: '' }));
+                    setServerError('');
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-3 font-semibold tracking-[0.35em] text-slate-900 outline-none transition-all ${errors.otp ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'}`}
+                  placeholder="123456"
+                />
+                {errors.otp && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.otp}</p>}
               </div>
-            </form>
-          )}
+            )}
+
+            {(view === 'login' || view === 'signup' || isForgotConfirm) && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">
+                  {isForgotConfirm ? 'New Password' : 'Password'}
+                </label>
+                <div className="relative">
+                  <input
+                    type={showPassword ? 'text' : 'password'}
+                    value={password}
+                    onChange={(event) => {
+                      setPassword(event.target.value);
+                      setErrors((previous) => ({ ...previous, password: '' }));
+                      setServerError('');
+                    }}
+                    className={`w-full rounded-2xl border px-4 py-3 pr-12 text-slate-900 outline-none transition-all ${errors.password ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'}`}
+                    placeholder="Min 6 characters"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                  >
+                    {showPassword ? (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                    ) : (
+                      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+                    )}
+                  </button>
+                </div>
+                {errors.password && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.password}</p>}
+              </div>
+            )}
+
+            {(view === 'signup' || isForgotConfirm) && (
+              <div>
+                <label className="mb-1.5 block text-sm font-semibold text-slate-700">Confirm Password</label>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  value={confirmPassword}
+                  onChange={(event) => {
+                    setConfirmPassword(event.target.value);
+                    setErrors((previous) => ({ ...previous, confirmPassword: '' }));
+                  }}
+                  className={`w-full rounded-2xl border px-4 py-3 text-slate-900 outline-none transition-all ${errors.confirmPassword ? 'border-rose-400 bg-rose-50' : 'border-slate-200 bg-slate-50 focus:border-sky-500 focus:bg-white'}`}
+                  placeholder="Re-enter password"
+                />
+                {errors.confirmPassword && <p className="ml-1 mt-1 text-xs text-rose-500">{errors.confirmPassword}</p>}
+              </div>
+            )}
+
+            {view === 'login' && (
+              <div className="flex justify-end">
+                <button type="button" onClick={() => switchView('forgot')} className="text-sm font-medium text-sky-600 hover:text-sky-800">
+                  Forgot password?
+                </button>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="flex w-full items-center justify-center gap-2 rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_100%)] px-4 py-3.5 text-sm font-bold text-white transition-all hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-60"
+            >
+              {isSubmitting ? 'Processing...' : submitLabel}
+            </button>
+
+            <div className="space-y-1 pt-2 text-center text-sm text-slate-500">
+              {view === 'login' && (
+                <p>
+                  Don&apos;t have an account?{' '}
+                  <button type="button" onClick={() => switchView('signup')} className="font-semibold text-sky-600 hover:text-sky-800">
+                    Create account
+                  </button>
+                </p>
+              )}
+              {view === 'signup' && (
+                <p>
+                  Already have an account?{' '}
+                  <button type="button" onClick={() => switchView('login')} className="font-semibold text-sky-600 hover:text-sky-800">
+                    Sign in
+                  </button>
+                </p>
+              )}
+              {view === 'forgot' && (
+                <p>
+                  Remember your password?{' '}
+                  <button type="button" onClick={() => switchView('login')} className="font-semibold text-sky-600 hover:text-sky-800">
+                    Sign in
+                  </button>
+                </p>
+              )}
+            </div>
+          </form>
+        )}
+      </div>
+    </div>
+  );
+
+  if (!isPage) {
+    return (
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4" onClick={handleClose}>
+        <div className="absolute inset-0 bg-slate-950/65 backdrop-blur-sm" />
+        <div className="relative z-10 w-full max-w-md" onClick={(event) => event.stopPropagation()}>
+          {formCard}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="relative min-h-screen overflow-hidden bg-[#edf2ff]">
+      <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(29,78,216,0.18),transparent_30%)]" />
+      <div className="relative mx-auto flex min-h-screen max-w-7xl items-center px-4 py-10 sm:px-6 lg:px-8">
+        <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
+          <div className="hidden rounded-[2.5rem] bg-[linear-gradient(160deg,#0f172a_0%,#0f2f63_42%,#38bdf8_100%)] p-10 text-white shadow-[0_40px_90px_rgba(15,23,42,0.28)] lg:block">
+            <div className="max-w-lg">
+              <div className="inline-flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-4 py-2 text-xs font-semibold uppercase tracking-[0.28em] text-cyan-100/90">
+                Private Access
+              </div>
+              <h1 className="mt-8 text-5xl font-black leading-[0.95] tracking-tight">
+                Sign in to enter KCJ Tech.
+              </h1>
+              <p className="mt-6 max-w-md text-base leading-7 text-cyan-50/85">
+                Your dashboard, certification tracks, lesson progress, consultations, and saved services stay behind one login-first entry point.
+              </p>
+              <div className="mt-10 grid gap-4 sm:grid-cols-3">
+                {[
+                  { label: 'Courses', value: '10+' },
+                  { label: 'Guided topics', value: '100+' },
+                  { label: 'Private workspace', value: '1 login' },
+                ].map((item) => (
+                  <div key={item.label} className="rounded-2xl border border-white/15 bg-white/10 px-4 py-5 backdrop-blur">
+                    <p className="text-2xl font-black text-white">{item.value}</p>
+                    <p className="mt-1 text-xs uppercase tracking-[0.22em] text-cyan-100/75">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mx-auto w-full max-w-md">
+            <div className="mb-6 text-center lg:hidden">
+              <div className="mx-auto flex h-14 w-14 items-center justify-center rounded-2xl bg-[linear-gradient(135deg,#0f172a_0%,#1d4ed8_100%)] shadow-lg">
+                <svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="18" height="18" rx="5"/><path d="M8 11h8"/><path d="M12 7v8"/></svg>
+              </div>
+              <h1 className="mt-4 text-3xl font-black tracking-tight text-slate-900">KCJ Tech</h1>
+              <p className="mt-2 text-sm text-slate-600">Sign in or create an account to view the site.</p>
+            </div>
+            {formCard}
+          </div>
         </div>
       </div>
     </div>

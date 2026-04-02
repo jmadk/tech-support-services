@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import Navbar from './site/Navbar';
@@ -17,10 +17,9 @@ import ScrollToTop from './site/ScrollToTop';
 import Dashboard from './site/Dashboard';
 
 const AppLayout: React.FC = () => {
-  const { loading } = useAuth();
+  const { loading, user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const [authOpen, setAuthOpen] = useState(false);
   const showDashboard = new URLSearchParams(location.search).get('view') === 'dashboard';
 
   if (loading) {
@@ -36,10 +35,14 @@ const AppLayout: React.FC = () => {
     );
   }
 
+  if (!user) {
+    return <AuthModal variant="page" />;
+  }
+
   return (
     <div className="min-h-screen bg-[#0a1628]">
       <Navbar
-        onAuthClick={() => setAuthOpen(true)}
+        onAuthClick={() => {}}
         onDashboardClick={() => navigate('/?view=dashboard')}
         showDashboard={showDashboard}
         onHomeClick={() => navigate('/')}
@@ -62,7 +65,6 @@ const AppLayout: React.FC = () => {
         </>
       )}
 
-      <AuthModal isOpen={authOpen} onClose={() => setAuthOpen(false)} />
       <ScrollToTop />
     </div>
   );
