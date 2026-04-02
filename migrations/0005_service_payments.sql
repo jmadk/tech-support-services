@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS service_payments (
   merchant_request_id TEXT NOT NULL DEFAULT '',
   checkout_request_id TEXT NOT NULL DEFAULT '',
   receipt_number TEXT NOT NULL DEFAULT '',
+  customer_transaction_code TEXT NOT NULL DEFAULT '',
   provider_response TEXT NOT NULL DEFAULT '',
   last_error TEXT NOT NULL DEFAULT '',
   created_at TEXT NOT NULL,

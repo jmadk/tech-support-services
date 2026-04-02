@@ -629,6 +629,7 @@ async function ensureSchema(env) {
         merchant_request_id TEXT NOT NULL DEFAULT '',
         checkout_request_id TEXT NOT NULL DEFAULT '',
         receipt_number TEXT NOT NULL DEFAULT '',
+        customer_transaction_code TEXT NOT NULL DEFAULT '',
         provider_response TEXT NOT NULL DEFAULT '',
         last_error TEXT NOT NULL DEFAULT '',
         created_at TEXT NOT NULL,
@@ -654,6 +655,11 @@ async function ensureSchema(env) {
   }
   if (!consultationColumns.has("owner_agreed")) {
     await runQuery(env, "ALTER TABLE consultations ADD COLUMN owner_agreed TEXT NOT NULL DEFAULT 'no'");
+  }
+
+  const servicePaymentColumns = new Set((await allRows(env, "PRAGMA table_info(service_payments)")).map((col) => col.name));
+  if (servicePaymentColumns.size > 0 && !servicePaymentColumns.has("customer_transaction_code")) {
+    await runQuery(env, "ALTER TABLE service_payments ADD COLUMN customer_transaction_code TEXT NOT NULL DEFAULT ''");
   }
 
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)");
@@ -1345,6 +1351,7 @@ async function createServicePaymentRecord(env, {
   providerResponse = "",
   lastError = "",
   receiptNumber = "",
+  customerTransactionCode = "",
   paidAt = null,
 }) {
   const payment = {
@@ -1364,6 +1371,7 @@ async function createServicePaymentRecord(env, {
     merchant_request_id: merchantRequestId,
     checkout_request_id: checkoutRequestId,
     receipt_number: receiptNumber,
+    customer_transaction_code: customerTransactionCode,
     provider_response: providerResponse,
     last_error: lastError,
     created_at: nowIso(),
@@ -1376,9 +1384,9 @@ async function createServicePaymentRecord(env, {
     `
       INSERT INTO service_payments (
         id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
         created_at, updated_at, paid_at
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       payment.id,
@@ -1397,6 +1405,7 @@ async function createServicePaymentRecord(env, {
       payment.merchant_request_id,
       payment.checkout_request_id,
       payment.receipt_number,
+      payment.customer_transaction_code,
       payment.provider_response,
       payment.last_error,
       payment.created_at,
@@ -1410,7 +1419,7 @@ async function createServicePaymentRecord(env, {
     `
       SELECT
         id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+        provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
         created_at, updated_at, paid_at
       FROM service_payments
       WHERE id = ?
@@ -1433,9 +1442,10 @@ async function handlePaymentInitialize(env, request) {
   const paymentMethod = String(body.payment_method || "mpesa").trim();
   const providedAmount = Number(body.amount || 0);
   const phone = normalizeKenyanPhone(body.phone || "");
+  const transactionCode = String(body.transaction_code || "").trim().toUpperCase();
   const validRequestTypes = new Set(["service", "class"]);
   const validComplexities = new Set(["starter", "professional", "enterprise"]);
-  const validMethods = new Set(["mpesa", "card", "bank"]);
+  const validMethods = new Set(["mpesa", "manual_mpesa", "card", "bank"]);
 
   if (!consultationId || !service) {
     return json({ error: "Consultation and service are required." }, 400);
@@ -1448,6 +1458,9 @@ async function handlePaymentInitialize(env, request) {
   }
   if (!validMethods.has(paymentMethod)) {
     return json({ error: "Invalid payment method." }, 400);
+  }
+  if (paymentMethod === "manual_mpesa" && !transactionCode) {
+    return json({ error: "Manual M-Pesa transaction code is required." }, 400);
   }
 
   const consultation = await firstRow(
@@ -1466,6 +1479,31 @@ async function handlePaymentInitialize(env, request) {
 
   const amount = Math.max(1, Math.round(providedAmount || getServicePrice(service, complexity)));
   const externalReference = `${service.slice(0, 18).replace(/\s+/g, "-")}-${consultationId.slice(0, 8)}`;
+
+  if (paymentMethod === "manual_mpesa") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: "0757152440",
+      status: "manual_mpesa_pending",
+      provider: "manual",
+      externalReference,
+      customerTransactionCode: transactionCode,
+      lastError: "Manual M-Pesa selected. Awaiting customer payment to 0757152440 and receipt confirmation.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Manual M-Pesa instructions recorded.",
+      customerMessage: "Send the payment to 0757152440, then keep the M-Pesa message and share the transaction code for verification.",
+    });
+  }
 
   if (paymentMethod === "bank") {
     const payment = await createServicePaymentRecord(env, {
@@ -1570,7 +1608,7 @@ async function handlePaymentInitialize(env, request) {
       `
         SELECT
           id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-          provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+          provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
           created_at, updated_at, paid_at
         FROM service_payments
         WHERE id = ?

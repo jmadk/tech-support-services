@@ -129,7 +129,7 @@ export type SaveLessonAssessmentPayload = {
   read_time_completed_at: string | null;
 };
 
-export type PaymentMethod = "mpesa" | "card" | "bank";
+export type PaymentMethod = "mpesa" | "manual_mpesa" | "card" | "bank";
 export type ServiceComplexity = "starter" | "professional" | "enterprise";
 
 export type InitializePaymentPayload = {
@@ -140,6 +140,7 @@ export type InitializePaymentPayload = {
   complexity?: ServiceComplexity;
   amount?: number;
   phone?: string;
+  transaction_code?: string;
 };
 
 export type PaymentInitializationResponse = {
@@ -160,6 +161,7 @@ export type PaymentInitializationResponse = {
     merchant_request_id?: string | null;
     checkout_request_id?: string | null;
     receipt_number?: string | null;
+    customer_transaction_code?: string | null;
     provider_response?: string | null;
     last_error?: string | null;
     created_at: string;

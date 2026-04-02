@@ -199,6 +199,7 @@ db.exec(`
     merchant_request_id TEXT NOT NULL DEFAULT '',
     checkout_request_id TEXT NOT NULL DEFAULT '',
     receipt_number TEXT NOT NULL DEFAULT '',
+    customer_transaction_code TEXT NOT NULL DEFAULT '',
     provider_response TEXT NOT NULL DEFAULT '',
     last_error TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
@@ -265,6 +266,7 @@ function ensureSchema() {
       merchant_request_id TEXT NOT NULL DEFAULT '',
       checkout_request_id TEXT NOT NULL DEFAULT '',
       receipt_number TEXT NOT NULL DEFAULT '',
+      customer_transaction_code TEXT NOT NULL DEFAULT '',
       provider_response TEXT NOT NULL DEFAULT '',
       last_error TEXT NOT NULL DEFAULT '',
       created_at TEXT NOT NULL,
@@ -306,6 +308,11 @@ function ensureSchema() {
   }
   if (!consultationColumns.has("owner_agreed")) {
     db.exec("ALTER TABLE consultations ADD COLUMN owner_agreed TEXT NOT NULL DEFAULT 'no';");
+  }
+
+  const servicePaymentColumns = new Set(getTableColumns("service_payments"));
+  if (servicePaymentColumns.size > 0 && !servicePaymentColumns.has("customer_transaction_code")) {
+    db.exec("ALTER TABLE service_payments ADD COLUMN customer_transaction_code TEXT NOT NULL DEFAULT '';");
   }
 }
 
@@ -390,14 +397,14 @@ const statements = {
   insertServicePayment: db.prepare(`
     INSERT INTO service_payments (
       id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
       created_at, updated_at, paid_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   getServicePaymentById: db.prepare(`
     SELECT
       id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
       created_at, updated_at, paid_at
     FROM service_payments
     WHERE id = ?
@@ -405,7 +412,7 @@ const statements = {
   getServicePaymentByCheckoutRequestId: db.prepare(`
     SELECT
       id, consultation_id, user_id, request_type, service, complexity, payment_method, amount, currency, status, phone,
-      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, provider_response, last_error,
+      provider, external_reference, merchant_request_id, checkout_request_id, receipt_number, customer_transaction_code, provider_response, last_error,
       created_at, updated_at, paid_at
     FROM service_payments
     WHERE checkout_request_id = ?
@@ -1532,6 +1539,7 @@ function createServicePaymentRecord({
   providerResponse = "",
   lastError = "",
   receiptNumber = "",
+  customerTransactionCode = "",
   paidAt = null,
 }) {
   const timestamp = nowIso();
@@ -1552,6 +1560,7 @@ function createServicePaymentRecord({
     merchant_request_id: merchantRequestId,
     checkout_request_id: checkoutRequestId,
     receipt_number: receiptNumber,
+    customer_transaction_code: customerTransactionCode,
     provider_response: providerResponse,
     last_error: lastError,
     created_at: timestamp,
@@ -1576,6 +1585,7 @@ function createServicePaymentRecord({
     payment.merchant_request_id,
     payment.checkout_request_id,
     payment.receipt_number,
+    payment.customer_transaction_code,
     payment.provider_response,
     payment.last_error,
     payment.created_at,
@@ -1598,9 +1608,10 @@ async function handlePaymentInitialize(req, res) {
   const paymentMethod = String(body.payment_method || "mpesa").trim();
   const providedAmount = Number(body.amount || 0);
   const normalizedPhone = normalizeKenyanPhone(body.phone || "");
+  const transactionCode = String(body.transaction_code || "").trim().toUpperCase();
   const validRequestTypes = new Set(["service", "class"]);
   const validComplexities = new Set(["starter", "professional", "enterprise"]);
-  const validMethods = new Set(["mpesa", "card", "bank"]);
+  const validMethods = new Set(["mpesa", "manual_mpesa", "card", "bank"]);
 
   if (!consultationId || !service) {
     return json(res, 400, { error: "Consultation and service are required." });
@@ -1614,6 +1625,9 @@ async function handlePaymentInitialize(req, res) {
   if (!validMethods.has(paymentMethod)) {
     return json(res, 400, { error: "Invalid payment method." });
   }
+  if (paymentMethod === "manual_mpesa" && !transactionCode) {
+    return json(res, 400, { error: "Manual M-Pesa transaction code is required." });
+  }
 
   const consultation = statements.getConsultationById.get(consultationId);
   if (!consultation || consultation.user_id !== session.user.id) {
@@ -1622,6 +1636,31 @@ async function handlePaymentInitialize(req, res) {
 
   const amount = Math.max(1, Math.round(providedAmount || getServicePrice(service, complexity)));
   const externalReference = `${service.slice(0, 18).replace(/\s+/g, "-")}-${consultationId.slice(0, 8)}`;
+
+  if (paymentMethod === "manual_mpesa") {
+    const payment = createServicePaymentRecord({
+      consultation,
+      session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: paymentSupportPhone,
+      status: "manual_mpesa_pending",
+      provider: "manual",
+      externalReference,
+      customerTransactionCode: transactionCode,
+      lastError: "Manual M-Pesa selected. Awaiting customer payment to 0757152440 and receipt confirmation.",
+    });
+
+    return json(res, 200, {
+      success: true,
+      payment,
+      message: "Manual M-Pesa instructions recorded.",
+      customerMessage: "Send the payment to 0757152440, then keep the M-Pesa message and share the transaction code for verification.",
+    });
+  }
 
   if (paymentMethod === "bank") {
     const payment = createServicePaymentRecord({

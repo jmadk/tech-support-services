@@ -22,6 +22,10 @@ const paymentOptions = [
     description: 'Primary checkout path uses Safaricom Daraja STK Push so clients can authorize payment from their phone.',
   },
   {
+    title: 'Manual M-Pesa',
+    description: 'Fallback option lets clients send directly to 0757152440 and then share their M-Pesa confirmation message.',
+  },
+  {
     title: 'Card Option',
     description: 'Debit and credit card checkout stays visible as an alternative for clients who cannot pay by M-Pesa.',
   },
@@ -53,7 +57,7 @@ const PricingSection: React.FC = () => {
             Complexity-Based <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Payment Plan</span>
           </h2>
           <p className="mx-auto max-w-3xl text-lg text-gray-500">
-            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push leads the checkout flow, while card and bank options remain visible for broader client coverage.
+            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push leads the checkout flow, manual M-Pesa is available as a fallback, and card or bank options remain visible for broader client coverage.
           </p>
         </div>
 
@@ -99,7 +103,7 @@ const PricingSection: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-3">
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
               {paymentOptions.map((option) => (
                 <div key={option.title} className="rounded-2xl border border-gray-100 bg-gray-50 p-5">
                   <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">{option.title}</p>
@@ -119,10 +123,14 @@ const PricingSection: React.FC = () => {
               </div>
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
                 <p className="text-sm font-semibold text-cyan-200">2. Choose a payment rail</p>
-                <p className="mt-2 text-sm leading-6 text-blue-100/70">M-Pesa STK Push is the main route. Card payments stay listed as an alternate checkout preference, while bank transfer remains listed but inactive for now.</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">M-Pesa STK Push is the main route. Manual M-Pesa to 0757152440 is the direct fallback when automated checkout is not available.</p>
               </div>
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                <p className="text-sm font-semibold text-cyan-200">3. Start delivery after confirmation</p>
+                <p className="text-sm font-semibold text-cyan-200">3. Confirm payment evidence</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">Manual M-Pesa payments should be followed by the client sharing the transaction message so you can verify and continue delivery.</p>
+              </div>
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <p className="text-sm font-semibold text-cyan-200">4. Start delivery after confirmation</p>
                 <p className="mt-2 text-sm leading-6 text-blue-100/70">Once payment is initiated and your request is reviewed, the project proceeds according to the selected complexity tier.</p>
               </div>
             </div>

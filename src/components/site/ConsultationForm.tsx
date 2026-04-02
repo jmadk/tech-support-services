@@ -31,6 +31,7 @@ const ConsultationForm: React.FC = () => {
     complexity: 'starter' as ServiceComplexity,
     paymentMethod: 'mpesa' as PaymentMethod,
     mpesaPhone: '',
+    transactionCode: '',
     message: '',
   });
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -47,6 +48,7 @@ const ConsultationForm: React.FC = () => {
         email: prev.email || user.email || '',
         phone: prev.phone || profile.phone || '',
         mpesaPhone: prev.mpesaPhone || profile.phone || '',
+        transactionCode: prev.transactionCode || '',
       }));
     }
   }, [user, profile]);
@@ -71,6 +73,9 @@ const ConsultationForm: React.FC = () => {
       if (form.paymentMethod === 'mpesa' && !form.mpesaPhone.trim()) {
         newErrors.mpesaPhone = 'M-Pesa phone number is required for STK push';
       }
+      if (form.paymentMethod === 'manual_mpesa' && !form.transactionCode.trim()) {
+        newErrors.transactionCode = 'Transaction code is required for manual M-Pesa verification';
+      }
     }
 
     setErrors(newErrors);
@@ -94,6 +99,7 @@ const ConsultationForm: React.FC = () => {
       complexity: 'starter',
       paymentMethod: 'mpesa',
       mpesaPhone: profile?.phone || '',
+      transactionCode: '',
       message: '',
     });
   };
@@ -127,6 +133,7 @@ const ConsultationForm: React.FC = () => {
           complexity: form.complexity,
           amount: currentPrice,
           phone: form.paymentMethod === 'mpesa' ? form.mpesaPhone : form.phone,
+          transaction_code: form.paymentMethod === 'manual_mpesa' ? form.transactionCode : '',
         });
         setPaymentFeedback(payment);
       }
@@ -155,7 +162,7 @@ const ConsultationForm: React.FC = () => {
               Start a <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">paid service request</span> or class inquiry
             </h2>
             <p className="mb-10 text-lg leading-relaxed text-blue-200/60">
-              Service requests now include complexity-based pricing and payment preferences. M-Pesa STK Push is the main checkout path, while card and bank options remain visible for clients who need alternate routes.
+              Service requests now include complexity-based pricing and payment preferences. M-Pesa STK Push is the main checkout path, with a separate manual M-Pesa option to 0757152440 when clients need a direct pay route.
             </p>
 
             {user && (
@@ -303,8 +310,9 @@ const ConsultationForm: React.FC = () => {
                           service: '',
                           paymentMethod: 'mpesa',
                           complexity: 'starter',
+                          transactionCode: '',
                         }));
-                        setErrors((prev) => ({ ...prev, service: '', paymentMethod: '', complexity: '' }));
+                        setErrors((prev) => ({ ...prev, service: '', paymentMethod: '', complexity: '', transactionCode: '' }));
                         setSubmitError('');
                         setPaymentFeedback(null);
                       }}
@@ -380,7 +388,7 @@ const ConsultationForm: React.FC = () => {
                     <div>
                       <label className="mb-3 block text-sm font-medium text-blue-200/70">Payment Method *</label>
                       <div className="grid gap-3 md:grid-cols-3">
-                        {PAYMENT_METHOD_OPTIONS.map((option) => (
+                      {PAYMENT_METHOD_OPTIONS.map((option) => (
                           <button
                             key={option.id}
                             type="button"
@@ -415,6 +423,31 @@ const ConsultationForm: React.FC = () => {
                       </div>
                     )}
 
+                    {form.paymentMethod === 'manual_mpesa' && (
+                      <div className="space-y-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4">
+                        <div>
+                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Manual M-Pesa Instructions</p>
+                          <p className="mt-3 text-lg font-bold text-white">Send payment to 0757152440</p>
+                          <p className="mt-2 text-sm leading-6 text-blue-100/75">
+                            After sending the money, paste the M-Pesa transaction code below so the payment can be verified quickly.
+                          </p>
+                        </div>
+                        <div>
+                          <label className="mb-1.5 block text-sm font-medium text-blue-200/70">Transaction Code *</label>
+                          <input
+                            type="text"
+                            value={form.transactionCode}
+                            onChange={(e) => handleChange('transactionCode', e.target.value.toUpperCase())}
+                            className={`w-full rounded-xl border px-4 py-3 text-white outline-none transition-all placeholder:text-blue-300/30 ${
+                              errors.transactionCode ? 'border-red-400 bg-red-500/5' : 'border-white/10 bg-white/5 focus:border-cyan-500/50'
+                            }`}
+                            placeholder="e.g. SGH7K2LM9P"
+                          />
+                          {errors.transactionCode && <p className="mt-1 text-xs text-red-400">{errors.transactionCode}</p>}
+                        </div>
+                      </div>
+                    )}
+
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Primary Route</p>
@@ -425,8 +458,8 @@ const ConsultationForm: React.FC = () => {
                         <p className="mt-2 text-sm font-semibold text-white">Debit and credit card preference can be captured from the same form.</p>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Bank Notes</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Bank transfer stays listed, but bank details are pending.</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Manual M-Pesa</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Direct send to 0757152440 is available when you want to accept payment without STK.</p>
                       </div>
                     </div>
                   </div>
