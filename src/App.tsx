@@ -10,6 +10,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import ProfileOnboardingGate from "@/components/site/ProfileOnboardingGate";
 import Index from "./pages/Index";
 import Lesson from "./pages/Lesson";
+import ServiceDetail from "./pages/ServiceDetail";
 import TrainingEducation from "./pages/TrainingEducation";
 import NotFound from "./pages/NotFound";
 
@@ -26,6 +27,7 @@ const App = () => (
             <BrowserRouter>
               <Routes>
                 <Route path="/" element={<ProfileOnboardingGate><Index /></ProfileOnboardingGate>} />
+                <Route path="/services/:slug" element={<ProfileOnboardingGate><ServiceDetail /></ProfileOnboardingGate>} />
                 <Route path="/training-education" element={<ProfileOnboardingGate><TrainingEducation /></ProfileOnboardingGate>} />
                 <Route path="/lesson/:consultationId" element={<ProfileOnboardingGate><Lesson /></ProfileOnboardingGate>} />
                 <Route path="*" element={<NotFound />} />

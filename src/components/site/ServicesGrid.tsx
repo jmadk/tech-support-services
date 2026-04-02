@@ -2,38 +2,24 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api } from '@/lib/api';
+import { serviceCatalog } from '@/lib/service-catalog';
 
 const serviceCategories = [
   { id: 'all', label: 'All Services' },
   { id: 'development', label: 'Development' },
   { id: 'ai', label: 'AI & Data' },
   { id: 'infrastructure', label: 'Infrastructure' },
-  { id: 'training', label: 'Training' },
   { id: 'specialized', label: 'Specialized' },
   { id: 'business', label: 'Business Services' },
 ];
 
-const expertServices = [
-  { id: 1, category: 'development', badge: 'Build', title: 'Software Development', description: 'Custom application development for web, mobile, and desktop, plus API design, full-stack engineering, testing, debugging, and long-term maintenance.', deliverables: ['web mobile desktop', 'API integration', 'testing updates'], image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1080&q=80' },
-  { id: 2, category: 'development', badge: 'Apps', title: 'Web & App Development', description: 'Website design and development, e-commerce platform creation, mobile apps, UI/UX improvement, and Progressive Web Apps.', deliverables: ['websites stores', 'mobile apps', 'UI UX PWAs'], image: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=1080&q=80' },
-  { id: 3, category: 'ai', badge: 'AI', title: 'Artificial Intelligence & Machine Learning', description: 'Predictive models, natural language processing, chatbots, text analysis, computer vision, recommendation systems, and AI strategy consulting.', deliverables: ['predictive models', 'NLP chatbots', 'computer vision'], image: 'https://images.unsplash.com/photo-1677442136019-21780ecad995?auto=format&fit=crop&w=1080&q=80' },
-  { id: 4, category: 'ai', badge: 'Data', title: 'Data Science & Analytics', description: 'Data collection and cleaning, visualization dashboards, big data processing, business intelligence, forecasting, and statistical analysis.', deliverables: ['data cleaning', 'dashboards BI', 'forecasting'], image: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1080&q=80' },
-  { id: 5, category: 'infrastructure', badge: 'Secure', title: 'Cybersecurity', description: 'Security audits, vulnerability assessments, penetration testing, network security, encryption, data protection, and incident response.', deliverables: ['security audits', 'penetration tests', 'incident recovery'], image: 'https://images.unsplash.com/photo-1510511459019-5dda7724fd87?auto=format&fit=crop&w=1080&q=80' },
-  { id: 6, category: 'infrastructure', badge: 'Cloud', title: 'Cloud Computing & DevOps', description: 'Cloud infrastructure setup, CI/CD pipelines, Docker and Kubernetes, system monitoring, scaling, and deployment automation.', deliverables: ['AWS Azure GCP', 'CI CD', 'Docker Kubernetes'], image: 'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1080&q=80' },
-  { id: 7, category: 'infrastructure', badge: 'Design', title: 'IT Consulting & Systems Design', description: 'Technology strategy, system architecture, digital transformation planning, performance optimization, and legacy system modernization.', deliverables: ['strategy consulting', 'architecture design', 'modernization'], image: 'https://images.unsplash.com/photo-1454165804606-c3d57bc86b40?auto=format&fit=crop&w=1080&q=80' },
-  { id: 8, category: 'infrastructure', badge: 'Support', title: 'Technical Support & Maintenance', description: 'Troubleshooting hardware and software issues, system upgrades, database maintenance, server management, backup, and recovery.', deliverables: ['troubleshooting', 'server management', 'backup recovery'], image: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1080&q=80' },
-  { id: 9, category: 'specialized', badge: 'Game', title: 'Game Development', description: 'Game design and programming, graphics and animation integration, multiplayer systems, testing, and optimization.', deliverables: ['game programming', 'graphics animation', 'multiplayer'], image: 'https://images.unsplash.com/photo-1511512578047-dfb367046420?auto=format&fit=crop&w=1080&q=80' },
-  { id: 10, category: 'training', badge: 'Teach', title: 'Training & Education', description: 'Teaching programming, workshops, bootcamps, corporate training, mentorship, and code reviews for learners and teams.', deliverables: ['programming training', 'bootcamps', 'mentorship'], image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1080&q=80' },
-  { id: 11, category: 'specialized', badge: 'Deep Tech', title: 'Specialized Areas', description: 'Blockchain and smart contracts, IoT solutions, embedded systems, robotics development, and AR/VR applications.', deliverables: ['blockchain IoT', 'embedded robotics', 'AR VR'], image: 'https://images.unsplash.com/photo-1485827404703-89b55fcc595e?auto=format&fit=crop&w=1080&q=80' },
-  { id: 12, category: 'business', badge: 'Startup', title: 'Freelance & Business Services', description: 'Technical documentation, project management, code auditing, agile delivery support, and MVP development for startups.', deliverables: ['technical docs', 'Agile Scrum', 'MVP development'], image: 'https://images.unsplash.com/photo-1552664730-d307ca884978?auto=format&fit=crop&w=1080&q=80' },
-];
+const expertServices = serviceCatalog;
 
 const ServicesGrid: React.FC = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [activeCategory, setActiveCategory] = useState('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [expandedService, setExpandedService] = useState<number | null>(null);
   const [savedTitles, setSavedTitles] = useState<Set<string>>(new Set());
   const [savingId, setSavingId] = useState<number | null>(null);
 
@@ -80,13 +66,8 @@ const ServicesGrid: React.FC = () => {
     setSavingId(null);
   };
 
-  const toggleServiceCard = (serviceId: number, serviceTitle: string) => {
-    if (serviceTitle === 'Training & Education') {
-      navigate('/training-education');
-      return;
-    }
-
-    setExpandedService((prev) => (prev === serviceId ? null : serviceId));
+  const openServiceCard = (serviceSlug: string) => {
+    navigate(`/services/${serviceSlug}`);
   };
 
   return (
@@ -144,8 +125,8 @@ const ServicesGrid: React.FC = () => {
             {filteredServices.map((service) => (
               <div
                 key={service.id}
-                onClick={() => toggleServiceCard(service.id, service.title)}
-                className={`group overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all duration-500 hover:-translate-y-1 hover:border-cyan-500/30 hover:bg-white/10 hover:shadow-xl hover:shadow-cyan-500/10 ${expandedService === service.id ? 'ring-2 ring-cyan-500/50 bg-white/10' : ''}`}
+                onClick={() => openServiceCard(service.slug)}
+                className="group overflow-hidden rounded-2xl border border-white/10 bg-white/5 transition-all duration-500 hover:-translate-y-1 hover:border-cyan-500/30 hover:bg-white/10 hover:shadow-xl hover:shadow-cyan-500/10"
               >
                 <div className="relative h-40 overflow-hidden">
                   <img src={service.image} alt={service.title} className="h-full w-full object-cover transition-transform duration-700 group-hover:scale-110" />
@@ -164,36 +145,23 @@ const ServicesGrid: React.FC = () => {
 
                 <div className="p-5">
                   <h4 className="text-lg font-bold text-white transition-colors group-hover:text-cyan-300">{service.title}</h4>
-                  <p className={`mt-2 text-sm leading-relaxed text-blue-200/55 ${expandedService === service.id ? '' : 'line-clamp-3'}`}>{service.description}</p>
+                  <p className="mt-2 line-clamp-3 text-sm leading-relaxed text-blue-200/55">{service.description}</p>
                   <div className="mt-4 flex flex-wrap gap-2">
                     {service.deliverables.map((item) => (
                       <span key={item} className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-[11px] font-medium uppercase tracking-[0.18em] text-cyan-100/80">{item}</span>
                     ))}
                   </div>
-                  {expandedService === service.id && (
-                    (
-                      <div className="mt-5 flex gap-2">
-                        <button
-                          onClick={(event) => {
-                            event.stopPropagation();
-                            const el = document.getElementById('contact');
-                            if (el) el.scrollIntoView({ behavior: 'smooth' });
-                          }}
-                          className="flex-1 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:from-cyan-400 hover:to-blue-500"
-                        >
-                          Request Service
-                        </button>
-                        {user && (
-                          <button
-                            onClick={(event) => toggleSave(event, service)}
-                            className={`rounded-xl border px-4 py-2.5 text-sm font-bold transition-all ${savedTitles.has(service.title) ? 'border-cyan-500/30 bg-cyan-500/10 text-cyan-400' : 'border-white/10 text-blue-200/70 hover:border-white/30 hover:text-white'}`}
-                          >
-                            {savedTitles.has(service.title) ? 'Saved' : 'Save'}
-                          </button>
-                        )}
-                      </div>
-                    )
-                  )}
+                  <div className="mt-5">
+                    <button
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        openServiceCard(service.slug);
+                      }}
+                      className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-2.5 text-sm font-bold text-white hover:from-cyan-400 hover:to-blue-500"
+                    >
+                      View Full Service Details
+                    </button>
+                  </div>
                 </div>
               </div>
             ))}
