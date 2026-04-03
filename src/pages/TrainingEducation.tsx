@@ -182,9 +182,6 @@ const TrainingEducation: React.FC = () => {
                             <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/55">
                               Await admin approval
                             </button>
-                            <p className="text-sm text-amber-200/85">
-                              waiting for approval from admin
-                            </p>
                           </>
                         ) : (courseTestStatus[course.id] || testStatus) !== 'completed' ? (
                           <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
