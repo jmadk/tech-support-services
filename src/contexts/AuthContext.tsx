@@ -1,6 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { api, getErrorMessage, getSessionToken, setSessionToken, type AuthUser, type Profile } from '@/lib/api';
 
+const AUTH_CACHE_KEY = 'tech-support-auth-cache';
+
+type AuthCache = {
+  user: AuthUser | null;
+  profile: Profile | null;
+};
+
 interface AuthContextType {
   user: AuthUser | null;
   profile: Profile | null;
@@ -28,8 +35,41 @@ const AuthContext = createContext<AuthContextType>({
 export const useAuth = () => useContext(AuthContext);
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [user, setUser] = useState<AuthUser | null>(null);
-  const [profile, setProfile] = useState<Profile | null>(null);
+  const readAuthCache = (): AuthCache => {
+    if (typeof window === 'undefined') {
+      return { user: null, profile: null };
+    }
+
+    try {
+      const raw = window.localStorage.getItem(AUTH_CACHE_KEY);
+      if (!raw) {
+        return { user: null, profile: null };
+      }
+
+      const parsed = JSON.parse(raw) as AuthCache;
+      return {
+        user: parsed?.user || null,
+        profile: parsed?.profile || null,
+      };
+    } catch {
+      return { user: null, profile: null };
+    }
+  };
+
+  const writeAuthCache = (nextUser: AuthUser | null, nextProfile: Profile | null) => {
+    if (typeof window === 'undefined') return;
+
+    if (!nextUser || !nextProfile) {
+      window.localStorage.removeItem(AUTH_CACHE_KEY);
+      return;
+    }
+
+    window.localStorage.setItem(AUTH_CACHE_KEY, JSON.stringify({ user: nextUser, profile: nextProfile }));
+  };
+
+  const cachedAuth = readAuthCache();
+  const [user, setUser] = useState<AuthUser | null>(cachedAuth.user);
+  const [profile, setProfile] = useState<Profile | null>(cachedAuth.profile);
   const [loading, setLoading] = useState(true);
 
   const fetchProfile = useCallback(async () => {
@@ -37,11 +77,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const data = await api.getMe();
       setUser(data.user);
       setProfile(data.profile);
+      writeAuthCache(data.user, data.profile);
     } catch (err) {
       console.error('Profile fetch error:', err);
       setSessionToken(null);
       setUser(null);
       setProfile(null);
+      writeAuthCache(null, null);
     }
   }, []);
 
@@ -52,11 +94,16 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
+      const loadingTimeout = window.setTimeout(() => {
+        setLoading(false);
+      }, 1000);
+
       try {
         await fetchProfile();
       } catch (err) {
         console.error('Init auth error:', err);
       } finally {
+        window.clearTimeout(loadingTimeout);
         setLoading(false);
       }
     };
@@ -75,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSessionToken(data.token);
       setUser(data.user);
       setProfile(data.profile);
+      writeAuthCache(data.user, data.profile);
       return { error: null };
     } catch (err: unknown) {
       return { error: getErrorMessage(err) };
@@ -90,6 +138,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       setSessionToken(data.token);
       setUser(data.user);
       setProfile(data.profile);
+      writeAuthCache(data.user, data.profile);
       return { error: null };
     } catch (err: unknown) {
       return { error: getErrorMessage(err) };
@@ -105,6 +154,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setSessionToken(null);
     setUser(null);
     setProfile(null);
+    writeAuthCache(null, null);
   };
 
   const updateProfile = async (updates: Partial<Profile>) => {
@@ -112,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     try {
       const data = await api.updateProfile(updates);
       setProfile(data.profile);
+      writeAuthCache(user, data.profile);
       return { error: null };
     } catch (err: unknown) {
       return { error: getErrorMessage(err) };
