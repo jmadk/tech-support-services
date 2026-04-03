@@ -9,6 +9,7 @@ const serviceCategories = [
   { id: 'development', label: 'Development' },
   { id: 'ai', label: 'AI & Data' },
   { id: 'infrastructure', label: 'Infrastructure' },
+  { id: 'training', label: 'Training' },
   { id: 'specialized', label: 'Specialized' },
   { id: 'business', label: 'Business Services' },
 ];
@@ -67,6 +68,11 @@ const ServicesGrid: React.FC = () => {
   };
 
   const openServiceCard = (serviceSlug: string) => {
+    if (serviceSlug === 'training-education') {
+      navigate('/training-education');
+      return;
+    }
+
     navigate(`/services/${serviceSlug}`);
   };
 

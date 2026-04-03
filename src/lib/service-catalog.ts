@@ -357,6 +357,43 @@ export const serviceCatalog: ServiceCatalogItem[] = [
     ],
   },
   {
+    id: 10,
+    slug: 'training-education',
+    category: 'training',
+    badge: 'Teach',
+    title: 'Training & Education',
+    description: 'Teaching programming, workshops, bootcamps, corporate training, mentorship, and code reviews for learners and teams.',
+    deliverables: ['programming training', 'bootcamps', 'mentorship'],
+    image: 'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1080&q=80',
+    intro: 'Training and education services focus on structured learning, guided practice, workshops, and certification-ready teaching experiences for individuals and teams.',
+    sections: [
+      {
+        title: 'Learning Delivery',
+        items: [
+          'Programming training for beginners, students, and professionals.',
+          'Workshops, bootcamps, and practical hands-on sessions.',
+          'Corporate learning tracks for teams and institutions.',
+        ],
+      },
+      {
+        title: 'Coaching and Support',
+        items: [
+          'One-on-one mentorship and guided skill development.',
+          'Code reviews and technical feedback for learners.',
+          'Structured support for revision, exercises, and project work.',
+        ],
+      },
+      {
+        title: 'Education Outcomes',
+        items: [
+          'Clear topic-by-topic learning progress.',
+          'Practical knowledge transfer tied to real systems and projects.',
+          'Preparation for certification paths and long-term technical growth.',
+        ],
+      },
+    ],
+  },
+  {
     id: 11,
     slug: 'specialized-areas',
     category: 'specialized',
