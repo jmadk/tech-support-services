@@ -183,7 +183,7 @@ const TrainingEducation: React.FC = () => {
                               Await admin approval
                             </button>
                             <p className="text-sm text-amber-200/85">
-                              No class access until <span className="font-semibold text-white">chegekeith4@gmail.com</span> approves your class request.
+                              waiting for approval from admin
                             </p>
                           </>
                         ) : (courseTestStatus[course.id] || testStatus) !== 'completed' ? (
