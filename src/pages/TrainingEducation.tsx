@@ -26,6 +26,10 @@ const certificationCatalog: Record<string, { sessions: string[] }> = {
   [IT_SUPPORT_CUSTOMER_CARE_COURSE]: { sessions: IT_SUPPORT_CUSTOMER_CARE_TRACK.sessions },
 };
 
+function getTrainingStartStorageKey(courseId: number) {
+  return `training_class_started_${courseId}`;
+}
+
 function buildGenericTrackSessions(courseTitle: string) {
   return [
     `Introduction to ${courseTitle} (1h)`,
@@ -106,6 +110,7 @@ const TrainingEducation: React.FC = () => {
   };
 
   const handleStartClassTest = (courseId: number) => {
+    localStorage.setItem(getTrainingStartStorageKey(courseId), 'yes');
     setCourseTestStatus((prev) => ({ ...prev, [courseId]: 'in_progress' }));
     window.setTimeout(() => {
       setCourseTestStatus((prev) => ({ ...prev, [courseId]: 'completed' }));
@@ -113,6 +118,7 @@ const TrainingEducation: React.FC = () => {
   };
 
   const handleProceedCertification = (courseId: number, courseTitle: string) => {
+    localStorage.setItem(getTrainingStartStorageKey(courseId), 'yes');
     setCourseCertificationStarted((prev) => ({ ...prev, [courseId]: true }));
     const selectedSession = getTrackSessions(courseTitle)[0] || `Introduction to ${courseTitle} (1h)`;
     sessionStorage.setItem(`lesson_service_${courseId}`, JSON.stringify({ course: courseTitle, session: selectedSession }));
@@ -146,7 +152,7 @@ const TrainingEducation: React.FC = () => {
               </div>
               <h1 className="text-4xl font-extrabold text-white sm:text-5xl">Dedicated class and certification workspace.</h1>
               <p className="mt-4 max-w-3xl text-lg leading-8 text-blue-200/60">
-                This page is where learners request approval, start the class test, and continue into certification after admin approval from chegekeith4@gmail.com.
+                This page is where learners request approval, start class, and continue learning after admin approval.
               </p>
             </div>
 
@@ -158,6 +164,10 @@ const TrainingEducation: React.FC = () => {
                   testStatus,
                   certificationStarted,
                 } = getCourseWorkflowState(course.title);
+                const hasStartedClass =
+                  localStorage.getItem(getTrainingStartStorageKey(course.id)) === 'yes' ||
+                  Boolean(courseCertificationStarted[course.id]) ||
+                  certificationStarted;
 
                 return (
                   <div key={course.id} className="overflow-hidden rounded-2xl border border-white/10 bg-[#0b1a33]/85 transition-all hover:-translate-y-1 hover:border-emerald-400/30 hover:bg-[#102042]">
@@ -183,13 +193,17 @@ const TrainingEducation: React.FC = () => {
                               Await admin approval
                             </button>
                           </>
-                        ) : (courseTestStatus[course.id] || testStatus) !== 'completed' ? (
+                        ) : (courseTestStatus[course.id] || testStatus) === 'in_progress' ? (
                           <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
-                            {(courseTestStatus[course.id] || testStatus) === 'in_progress' ? 'Test in progress...' : 'Start class test'}
+                            Loading class...
+                          </button>
+                        ) : hasStartedClass || (courseTestStatus[course.id] || testStatus) === 'completed' ? (
+                          <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
+                            Continue class
                           </button>
                         ) : (
-                          <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
-                            Proceed to Certification Course Introduction
+                          <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
+                            Start class
                           </button>
                         )}
 
