@@ -91,13 +91,15 @@ const TrainingEducation: React.FC = () => {
     }) || null;
   };
 
-  const getCourseWorkflowState = (courseTitle: string) => {
+  const getCourseWorkflowState = (courseTitle: string, courseId: number) => {
     const learningConsultation = getLatestLearningConsultation(courseTitle);
-    const approvedForClass = Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes');
+    const hasStartedClass = localStorage.getItem(getTrainingStartStorageKey(courseId)) === 'yes';
+    const approvedForClass = hasStartedClass || Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes');
     const workflowStatus = learningConsultation?.next_path_status || 'pending';
 
     return {
       learningConsultation,
+      hasStartedClass,
       approvedForClass,
       testStatus:
         workflowStatus === 'test_in_progress'
@@ -160,12 +162,13 @@ const TrainingEducation: React.FC = () => {
               {certificationCourses.map((course) => {
                 const {
                   learningConsultation,
+                  hasStartedClass,
                   approvedForClass,
                   testStatus,
                   certificationStarted,
-                } = getCourseWorkflowState(course.title);
-                const hasStartedClass =
-                  localStorage.getItem(getTrainingStartStorageKey(course.id)) === 'yes' ||
+                } = getCourseWorkflowState(course.title, course.id);
+                const hasImmediateClassAccess =
+                  hasStartedClass ||
                   Boolean(courseCertificationStarted[course.id]) ||
                   certificationStarted;
 
@@ -197,7 +200,7 @@ const TrainingEducation: React.FC = () => {
                           <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
                             Loading class...
                           </button>
-                        ) : hasStartedClass || (courseTestStatus[course.id] || testStatus) === 'completed' ? (
+                        ) : hasImmediateClassAccess || (courseTestStatus[course.id] || testStatus) === 'completed' ? (
                           <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
                             Continue class
                           </button>
