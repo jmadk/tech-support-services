@@ -779,16 +779,19 @@ const ConsultationForm: React.FC = () => {
 
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Primary Route</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Safaricom Daraja STK Push</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Card Notes</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Debit and credit card preference can be captured from the same form.</p>
+                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">M-Pesa First</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Recommended after approval</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Use STK Push once admin reviews the request and shares payment instructions.</p>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Manual M-Pesa</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Direct send to 0757152440 is available when you want to accept payment without STK.</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Use only if requested</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Fallback option for cases where STK Push is not available during review or follow-up.</p>
+                      </div>
+                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
+                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Card or Bank</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Available by arrangement</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Alternative payment routes can be discussed during admin review for approved requests.</p>
                       </div>
                     </div>
                   </div>
@@ -841,17 +844,6 @@ const ConsultationForm: React.FC = () => {
                     <p className="mt-2 text-amber-100/80">
                       Download the PDF, add your handwritten or electronic signature in the signature section, save the signed file, then upload that signed agreement here.
                     </p>
-                  </div>
-
-                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-blue-100">
-                    <p className="font-semibold text-white">Signature and Confirmation</p>
-                    <div className="mt-3 space-y-3 text-blue-100/80">
-                      <p>Client Signature: __________________________________________</p>
-                      <p>Printed Name: _____________________________________________</p>
-                      <p>Date: ___________________</p>
-                      <p>Company Representative: ___________________________________</p>
-                      <p>Position: _________________________________________________</p>
-                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -942,7 +934,7 @@ const ConsultationForm: React.FC = () => {
 
                 <button
                   type="submit"
-                  disabled={isSubmitting}
+                  disabled={isSubmitting || !form.agreementChecked}
                   className="flex w-full items-center justify-center gap-2 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 py-4 font-bold text-white shadow-lg shadow-blue-500/30 transition-all duration-300 hover:from-cyan-400 hover:to-blue-500 hover:shadow-blue-500/50 disabled:cursor-not-allowed disabled:opacity-60"
                 >
                   {isSubmitting ? (
