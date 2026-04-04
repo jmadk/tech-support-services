@@ -56,17 +56,82 @@ const documentOptions: Array<{ value: ConsultationIdDocumentType; label: string 
   { value: 'passport', label: 'Passport' },
   { value: 'birth_certificate', label: 'Birth Certificate' },
 ];
-const agreementPoints = [
-  'Client Identity and Authority: I confirm that I am the person named in this request, or I am properly authorized to submit this request on behalf of the individual or organization named here.',
-  'Accuracy of Information: I confirm that all information, files, documents, and statements I provide to Expert Tech Solutions & Training are true, accurate, current, and not misleading.',
-  'Review and Acceptance Process: I understand that submission of this form does not by itself create a final contract, guaranteed service slot, or confirmed training placement until the request has been reviewed and accepted by admin.',
-  'Scope and Commercial Terms: I understand that service scope, timelines, deliverables, pricing, training schedules, revisions, and implementation steps may be refined or adjusted after admin review and formal confirmation.',
-  'Verification and Compliance Consent: I authorize Expert Tech Solutions & Training to review my signed agreement, identification document, and submitted request details for verification, risk review, onboarding, compliance, and service delivery purposes.',
-  'Document Integrity: I agree not to upload false, forged, altered, stolen, unauthorized, or misleading documents, and I understand that suspicious submissions may be rejected, cancelled, or escalated for further review.',
-  'Payments and Activation: I understand that any payment, class activation, work commencement, or approval milestone should follow official instructions from Expert Tech Solutions & Training and may be delayed until verification is complete.',
-  'Communications and Records: I consent to communication by email, phone, WhatsApp, dashboard notifications, and related digital channels regarding review decisions, onboarding, payment instructions, support, scheduling, and delivery updates.',
-  'Limitation of Submission Effect: I understand that Expert Tech Solutions & Training reserves the right to accept, defer, request clarification on, or decline a request where there are verification concerns, scope conflicts, legal concerns, or operational limitations.',
-  'Electronic Signature Acknowledgment: By signing and uploading this agreement, I acknowledge that my electronic signature and uploaded signed copy are intended to serve as my formal confirmation of these terms.',
+const agreementSections = [
+  {
+    title: '1. Introduction',
+    body:
+      'Welcome to Expert Tech Solutions & Training ("Company," "we," "us," or "our"). These Terms and Conditions ("Agreement") govern all client requests, service engagements, and training registrations submitted through any of our platforms or communication channels. By submitting a service or training request, engaging our team, or signing this Agreement electronically, you ("Client," "you," or "your") acknowledge that you have read, understood, and agreed to these Terms.',
+  },
+  {
+    title: '2. Client Identity and Authorization',
+    body:
+      'You confirm that you are the individual named in the request, or you are duly authorized to act on behalf of the organization or person identified in the request. You further confirm that you have legal capacity and authority to enter into this Agreement. Any submission made by an unauthorized individual may be rejected or voided at our discretion.',
+  },
+  {
+    title: '3. Accuracy of Information',
+    body:
+      'You agree to provide information, documents, and communications that are true, current, complete, and not misleading. Expert Tech Solutions & Training may verify your information at any time to confirm authenticity. Submission of false, misleading, or altered documents or information may result in immediate rejection, suspension, or legal action.',
+  },
+  {
+    title: '4. Request Review and Acceptance',
+    body:
+      'Submitting a request or signed document does not create a binding contract until it has been reviewed and explicitly accepted in writing by Expert Tech Solutions & Training. Only upon written acceptance or formal confirmation will service engagements, schedules, or class placements be guaranteed and deliverables, pricing, or timelines become binding. We reserve the right to accept, defer, seek clarification on, or decline a request at our sole discretion.',
+  },
+  {
+    title: '5. Scope and Commercial Terms',
+    body:
+      'Final service scope, deliverables, pricing, training schedules, revisions, and implementation details are subject to admin review and clarification with the Client, formal written confirmation, and any subsequent agreed addendum, work order, or training plan. No verbal assurances, drafts, or preliminary discussions are considered binding unless explicitly confirmed in writing.',
+  },
+  {
+    title: '6. Verification and Compliance',
+    body:
+      'You authorize Expert Tech Solutions & Training to review and verify identification documents, agreements, and materials submitted, conduct risk, compliance, and onboarding reviews, and retain and process your data and materials for legitimate operational purposes. We may delay or withhold commencement of work or class activation until verification is complete.',
+  },
+  {
+    title: '7. Payments and Activation',
+    body:
+      'Payments must follow official instructions issued by Expert Tech Solutions & Training. You acknowledge that services or classes will not commence until payment requirements and verification are completed, any delay in payment or document verification may cause scheduling delays, and refund and rescheduling terms will be as stated in your approved service or training agreement.',
+  },
+  {
+    title: '8. Communications and Notifications',
+    body:
+      'You consent to receive communications and official updates via email, phone, WhatsApp, dashboard messages, and other approved digital channels. Messages may include onboarding, payment, training, or service update notifications. All communications from our verified business addresses or numbers shall be deemed valid notices under this Agreement.',
+  },
+  {
+    title: '9. Limitation of Submission Effect',
+    body:
+      'Submission of a form, request, or signed file does not guarantee service engagement or acceptance, training seat reservation, or timing, pricing, or delivery inclusion. We reserve full discretion to reject or postpone any submission due to verification concerns, scope or schedule conflicts, commercial feasibility, and legal or compliance considerations.',
+  },
+  {
+    title: '10. Document Integrity',
+    body:
+      'You must not upload, submit, or distribute any document or information that is false or misleading, forged, altered, stolen, or unauthorized, or in violation of third-party intellectual property rights. Suspicious uploads may be reported or escalated for further review.',
+  },
+  {
+    title: '11. Intellectual Property',
+    body:
+      'All materials, content, courseware, and documentation provided by Expert Tech Solutions & Training are protected under intellectual property law. You may not copy, distribute, modify, reproduce, or use any material beyond the scope of your approved training or service engagement.',
+  },
+  {
+    title: '12. Limitation of Liability',
+    body:
+      'To the maximum extent permitted by law, Expert Tech Solutions & Training shall not be liable for indirect, consequential, or incidental damages, including loss of data, profit, or opportunity. Our total liability for any claim related to this Agreement shall not exceed the amount paid by the Client for the specific service or class giving rise to the claim.',
+  },
+  {
+    title: '13. Confidentiality and Data Privacy',
+    body:
+      'Both parties agree to protect confidential information shared during the engagement. Personal data will be processed in accordance with applicable data protection laws and our internal privacy practices.',
+  },
+  {
+    title: '14. Governing Law and Jurisdiction',
+    body:
+      'This Agreement shall be governed by and construed under the laws of Kenya. In case of dispute, both parties agree to first pursue resolution through reasonable mediation before seeking legal recourse in competent courts within the same jurisdiction.',
+  },
+  {
+    title: '15. Electronic Signature and Acceptance',
+    body:
+      'By signing electronically, checking the acceptance box, or submitting this document digitally, you acknowledge and agree that your electronic signature has the same legal effect as a handwritten signature and that you accept and intend to be legally bound by these terms.',
+  },
 ];
 
 function escapePdfText(value: string) {
@@ -95,37 +160,54 @@ function wrapAgreementLine(text: string, maxLength = 82) {
   return lines;
 }
 
-function buildAgreementPdf(points: string[], version: string) {
-  const lines = [
-    'Expert Tech Solutions & Training',
-    'Client Service and Training Request Agreement',
-    `Version ${version}`,
-    '',
-    'This agreement sets out the request review, verification, and acceptance terms that apply',
-    'before a service engagement or class request is approved by Expert Tech Solutions & Training.',
-    '',
-    ...points.flatMap((point, index) => wrapAgreementLine(`${index + 1}. ${point}`)),
-    '',
-    'Signature: ________________________________________________',
-    'Printed Name: _____________________________________________',
-    'Date: ____________________________________________________',
-    '',
-    'Upload the signed copy of this agreement together with one identification document when submitting the request form.',
+function buildAgreementPdf(version: string) {
+  const effectiveDate = version;
+  const contentLines = [
+    '0.08 0.78 0.95 rg',
+    '50 785 58 30 re f',
+    'BT',
+    '/F1 18 Tf',
+    '1 1 1 rg',
+    '64 794 Td',
+    '(KCJ) Tj',
+    'ET',
+    'BT',
+    '/F1 16 Tf',
+    '0 0 0 rg',
+    '120 802 Td',
+    '(Expert Tech Solutions & Training) Tj',
+    'ET',
   ];
 
-  let y = 780;
-  const contentLines = ['BT', '/F1 12 Tf', '50 800 Td'];
+  let y = 760;
+  const writeLine = (line: string, size = 11) => {
+    contentLines.push('BT');
+    contentLines.push(`/F1 ${size} Tf`);
+    contentLines.push('0 0 0 rg');
+    contentLines.push(`1 0 0 1 50 ${y} Tm (${escapePdfText(line)}) Tj`);
+    contentLines.push('ET');
+    y -= size + 7;
+  };
 
-  lines.forEach((line, index) => {
-    if (index === 0) {
-      contentLines.push(`(${escapePdfText(line)}) Tj`);
-    } else {
-      y -= 18;
-      contentLines.push(`1 0 0 1 50 ${y} Tm (${escapePdfText(line)}) Tj`);
-    }
+  writeLine('Legal User Agreement and Terms & Conditions', 14);
+  writeLine(`Version: ${version}`, 11);
+  writeLine(`Effective Date: ${effectiveDate}`, 11);
+  y -= 8;
+
+  agreementSections.forEach((section) => {
+    writeLine(section.title, 12);
+    wrapAgreementLine(section.body, 92).forEach((line) => writeLine(line, 10));
+    y -= 6;
   });
 
-  contentLines.push('ET');
+  writeLine('Signature and Confirmation', 12);
+  writeLine('Client Signature: __________________________________________', 11);
+  writeLine('Printed Name: _____________________________________________', 11);
+  writeLine('Date: ___________________', 11);
+  y -= 4;
+  writeLine('Company Representative: ___________________________________', 11);
+  writeLine('Position: _________________________________________________', 11);
+
   const stream = contentLines.join('\n');
   const objects = [
     '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
@@ -234,7 +316,7 @@ const ConsultationForm: React.FC = () => {
       : 0;
 
   const handleDownloadAgreementPdf = () => {
-    const pdfBlob = buildAgreementPdf(agreementPoints, TERMS_VERSION);
+    const pdfBlob = buildAgreementPdf(TERMS_VERSION);
     const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -704,7 +786,7 @@ const ConsultationForm: React.FC = () => {
                   <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">User Agreement</p>
-                      <h4 className="mt-2 text-xl font-bold text-white">Client Service and Training Request Agreement</h4>
+                      <h4 className="mt-2 text-xl font-bold text-white">Legal User Agreement and Terms & Conditions</h4>
                       <p className="mt-2 text-sm text-blue-200/60">Download this agreement as a PDF, sign it, then upload the signed copy below before submitting your request.</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -719,10 +801,11 @@ const ConsultationForm: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-3 text-sm leading-6 text-blue-100/80">
-                    {agreementPoints.map((point) => (
-                      <div key={point} className="rounded-xl border border-white/10 bg-white/5 px-4 py-3">
-                        {point}
+                  <div className="mt-4 space-y-4 text-sm leading-6 text-blue-100/80">
+                    {agreementSections.map((section) => (
+                      <div key={section.title} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4">
+                        <p className="font-semibold text-white">{section.title}</p>
+                        <p className="mt-2 text-blue-100/80">{section.body}</p>
                       </div>
                     ))}
                   </div>
@@ -732,6 +815,17 @@ const ConsultationForm: React.FC = () => {
                     <p className="mt-2 text-amber-100/80">
                       Download the PDF, add your handwritten or electronic signature in the signature section, save the signed file, then upload that signed agreement here.
                     </p>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-sm text-blue-100">
+                    <p className="font-semibold text-white">Signature and Confirmation</p>
+                    <div className="mt-3 space-y-3 text-blue-100/80">
+                      <p>Client Signature: __________________________________________</p>
+                      <p>Printed Name: _____________________________________________</p>
+                      <p>Date: ___________________</p>
+                      <p>Company Representative: ___________________________________</p>
+                      <p>Position: _________________________________________________</p>
+                    </div>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2">
