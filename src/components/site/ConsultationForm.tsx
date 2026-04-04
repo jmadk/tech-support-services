@@ -60,6 +60,84 @@ const agreementPoints = [
   'I consent to follow-up through email, phone, WhatsApp, or dashboard updates about this request.',
 ];
 
+function escapePdfText(value: string) {
+  return value.replace(/\\/g, '\\\\').replace(/\(/g, '\\(').replace(/\)/g, '\\)');
+}
+
+function wrapAgreementLine(text: string, maxLength = 82) {
+  const words = text.split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let current = '';
+
+  for (const word of words) {
+    const next = current ? `${current} ${word}` : word;
+    if (next.length > maxLength && current) {
+      lines.push(current);
+      current = word;
+    } else {
+      current = next;
+    }
+  }
+
+  if (current) {
+    lines.push(current);
+  }
+
+  return lines;
+}
+
+function buildAgreementPdf(points: string[], version: string) {
+  const lines = [
+    'Expert Tech Solutions & Training',
+    'User Agreement and Terms',
+    `Version ${version}`,
+    '',
+    ...points.flatMap((point, index) => wrapAgreementLine(`${index + 1}. ${point}`)),
+    '',
+    'This agreement must be reviewed before signing and submitting the request form.',
+  ];
+
+  let y = 780;
+  const contentLines = ['BT', '/F1 12 Tf', '50 800 Td'];
+
+  lines.forEach((line, index) => {
+    if (index === 0) {
+      contentLines.push(`(${escapePdfText(line)}) Tj`);
+    } else {
+      y -= 18;
+      contentLines.push(`1 0 0 1 50 ${y} Tm (${escapePdfText(line)}) Tj`);
+    }
+  });
+
+  contentLines.push('ET');
+  const stream = contentLines.join('\n');
+  const objects = [
+    '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
+    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
+    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj',
+    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
+    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj`,
+  ];
+
+  let pdf = '%PDF-1.4\n';
+  const offsets: number[] = [];
+
+  objects.forEach((object) => {
+    offsets.push(pdf.length);
+    pdf += `${object}\n`;
+  });
+
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length + 1}\n`;
+  pdf += '0000000000 65535 f \n';
+  offsets.forEach((offset) => {
+    pdf += `${String(offset).padStart(10, '0')} 00000 n \n`;
+  });
+  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF`;
+
+  return new Blob([pdf], { type: 'application/pdf' });
+}
+
 function formatFileSize(bytes: number) {
   if (bytes >= 1024 * 1024) {
     return `${(bytes / (1024 * 1024)).toFixed(2)} MB`;
@@ -137,6 +215,18 @@ const ConsultationForm: React.FC = () => {
     form.requestType === 'service' && form.service
       ? getServicePrice(form.service, form.complexity)
       : 0;
+
+  const handleDownloadAgreementPdf = () => {
+    const pdfBlob = buildAgreementPdf(agreementPoints, TERMS_VERSION);
+    const url = URL.createObjectURL(pdfBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `expert-tech-user-agreement-${TERMS_VERSION}.pdf`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    window.setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
 
   const handleDocumentUpload = async (file: File | null) => {
     if (!file) {
@@ -556,8 +646,18 @@ const ConsultationForm: React.FC = () => {
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">User Agreement</p>
                       <h4 className="mt-2 text-xl font-bold text-white">Terms and Conditions Before Review</h4>
+                      <p className="mt-2 text-sm text-blue-200/60">Download these terms as a PDF before signing if you want a copy for your records.</p>
                     </div>
-                    <p className="text-xs text-blue-200/50">Version {TERMS_VERSION}</p>
+                    <div className="flex items-center gap-3">
+                      <p className="text-xs text-blue-200/50">Version {TERMS_VERSION}</p>
+                      <button
+                        type="button"
+                        onClick={handleDownloadAgreementPdf}
+                        className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
+                      >
+                        Download PDF
+                      </button>
+                    </div>
                   </div>
 
                   <div className="mt-4 space-y-3 text-sm leading-6 text-blue-100/80">
