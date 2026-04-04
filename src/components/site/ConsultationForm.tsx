@@ -60,7 +60,7 @@ const agreementSections = [
   {
     title: '1. Introduction',
     body:
-      'Welcome to Expert Tech Solutions & Training ("Company," "we," "us," or "our"). These Terms and Conditions ("Agreement") govern all client requests, service engagements, and training registrations submitted through any of our platforms or communication channels. By submitting a service or training request, engaging our team, or signing this Agreement electronically, you ("Client," "you," or "your") acknowledge that you have read, understood, and agreed to these Terms.',
+      'Welcome to Expert Tech Solutions & Training. These Terms and Conditions ("Agreement") govern all client requests, service engagements, and training registrations submitted through any of our platforms or communication channels. By submitting a service or training request, engaging our team, or signing this Agreement electronically, you acknowledge that you have read, understood, and agreed to these Terms.',
   },
   {
     title: '2. Client Identity and Authorization',
@@ -162,31 +162,47 @@ function wrapAgreementLine(text: string, maxLength = 82) {
 
 function buildAgreementPdf(version: string) {
   const effectiveDate = version;
-  const contentLines = [
-    '0.08 0.78 0.95 rg',
-    '50 785 58 30 re f',
-    'BT',
-    '/F1 18 Tf',
-    '1 1 1 rg',
-    '64 794 Td',
-    '(KCJ) Tj',
-    'ET',
-    'BT',
-    '/F1 16 Tf',
-    '0 0 0 rg',
-    '120 802 Td',
-    '(Expert Tech Solutions & Training) Tj',
-    'ET',
-  ];
+  const pageWidth = 612;
+  const pageHeight = 842;
+  const bottomMargin = 60;
+  const pages: string[][] = [];
 
+  const startPage = () => {
+    const pageLines = [
+      '0.08 0.78 0.95 rg',
+      '50 785 58 30 re f',
+      'BT',
+      '/F1 18 Tf',
+      '1 1 1 rg',
+      '64 794 Td',
+      '(KCJ) Tj',
+      'ET',
+      'BT',
+      '/F1 16 Tf',
+      '0 0 0 rg',
+      '120 802 Td',
+      '(Expert Tech Solutions & Training) Tj',
+      'ET',
+    ];
+    pages.push(pageLines);
+    return pageLines;
+  };
+
+  let currentPage = startPage();
   let y = 760;
-  const writeLine = (line: string, size = 11) => {
-    contentLines.push('BT');
-    contentLines.push(`/F1 ${size} Tf`);
-    contentLines.push('0 0 0 rg');
-    contentLines.push(`1 0 0 1 50 ${y} Tm (${escapePdfText(line)}) Tj`);
-    contentLines.push('ET');
-    y -= size + 7;
+
+  const writeLine = (line: string, size = 11, gap = 7) => {
+    if (y < bottomMargin) {
+      currentPage = startPage();
+      y = 760;
+    }
+
+    currentPage.push('BT');
+    currentPage.push(`/F1 ${size} Tf`);
+    currentPage.push('0 0 0 rg');
+    currentPage.push(`1 0 0 1 50 ${y} Tm (${escapePdfText(line)}) Tj`);
+    currentPage.push('ET');
+    y -= size + gap;
   };
 
   writeLine('Legal User Agreement and Terms & Conditions', 14);
@@ -208,14 +224,24 @@ function buildAgreementPdf(version: string) {
   writeLine('Company Representative: ___________________________________', 11);
   writeLine('Position: _________________________________________________', 11);
 
-  const stream = contentLines.join('\n');
   const objects = [
     '1 0 obj\n<< /Type /Catalog /Pages 2 0 R >>\nendobj',
-    '2 0 obj\n<< /Type /Pages /Kids [3 0 R] /Count 1 >>\nendobj',
-    '3 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 842] /Resources << /Font << /F1 4 0 R >> >> /Contents 5 0 R >>\nendobj',
-    '4 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj',
-    `5 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj`,
+    `2 0 obj\n<< /Type /Pages /Kids [${pages.map((_, index) => `${3 + index * 2} 0 R`).join(' ')}] /Count ${pages.length} >>\nendobj`,
   ];
+
+  pages.forEach((pageLines, index) => {
+    const pageObjectId = 3 + index * 2;
+    const contentObjectId = pageObjectId + 1;
+    const stream = pageLines.join('\n');
+    objects.push(
+      `${pageObjectId} 0 obj\n<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${pageWidth} ${pageHeight}] /Resources << /Font << /F1 ${3 + pages.length * 2} 0 R >> >> /Contents ${contentObjectId} 0 R >>\nendobj`,
+    );
+    objects.push(
+      `${contentObjectId} 0 obj\n<< /Length ${stream.length} >>\nstream\n${stream}\nendstream\nendobj`,
+    );
+  });
+
+  objects.push(`${3 + pages.length * 2} 0 obj\n<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>\nendobj`);
 
   let pdf = '%PDF-1.4\n';
   const offsets: number[] = [];
