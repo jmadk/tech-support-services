@@ -131,10 +131,20 @@ db.exec(`
     full_name TEXT NOT NULL,
     email TEXT NOT NULL,
     phone TEXT NOT NULL DEFAULT '',
+    request_type TEXT NOT NULL DEFAULT 'service',
     service TEXT NOT NULL,
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     payment_status TEXT NOT NULL DEFAULT 'not_requested',
+    terms_version TEXT NOT NULL DEFAULT 'v1',
+    agreement_accepted INTEGER NOT NULL DEFAULT 0,
+    signature_name TEXT NOT NULL DEFAULT '',
+    signed_at TEXT NOT NULL DEFAULT '',
+    id_document_type TEXT NOT NULL DEFAULT '',
+    id_document_name TEXT NOT NULL DEFAULT '',
+    id_document_mime TEXT NOT NULL DEFAULT '',
+    id_document_size INTEGER NOT NULL DEFAULT 0,
+    id_document_data TEXT NOT NULL DEFAULT '',
     created_at TEXT NOT NULL,
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
   );
@@ -313,6 +323,36 @@ function ensureSchema() {
   if (!consultationColumns.has("payment_status")) {
     db.exec("ALTER TABLE consultations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'not_requested';");
   }
+  if (!consultationColumns.has("request_type")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN request_type TEXT NOT NULL DEFAULT 'service';");
+  }
+  if (!consultationColumns.has("terms_version")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN terms_version TEXT NOT NULL DEFAULT 'v1';");
+  }
+  if (!consultationColumns.has("agreement_accepted")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN agreement_accepted INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!consultationColumns.has("signature_name")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN signature_name TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("signed_at")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN signed_at TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("id_document_type")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN id_document_type TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("id_document_name")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN id_document_name TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("id_document_mime")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN id_document_mime TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("id_document_size")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN id_document_size INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!consultationColumns.has("id_document_data")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN id_document_data TEXT NOT NULL DEFAULT '';");
+  }
 
   const servicePaymentColumns = new Set(getTableColumns("service_payments"));
   if (servicePaymentColumns.size > 0 && !servicePaymentColumns.has("customer_transaction_code")) {
@@ -379,22 +419,29 @@ const statements = {
   cleanupExpiredSessions: db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`),
   insertConsultation: db.prepare(`
     INSERT INTO consultations (
-      id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   listConsultationsByUser: db.prepare(`
-    SELECT id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+    SELECT
+      id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     WHERE user_id = ?
     ORDER BY datetime(created_at) DESC
   `),
   listAllConsultations: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+    SELECT
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     ORDER BY datetime(created_at) DESC
   `),
   getConsultationById: db.prepare(`
-    SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+    SELECT
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     WHERE id = ?
   `),
@@ -630,6 +677,83 @@ const servicePricing = {
 
 const defaultServicePricing = { starter: 14000, professional: 52000, enterprise: 155000 };
 const minimumServicePricing = { starter: 50000, professional: 80000, enterprise: 155000 };
+const allowedConsultationRequestTypes = new Set(["service", "class"]);
+const allowedConsultationDocumentTypes = new Set(["national_id", "drivers_license", "passport", "birth_certificate"]);
+const allowedConsultationDocumentMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "application/pdf"]);
+const maxConsultationDocumentBytes = 5 * 1024 * 1024;
+
+function estimateBase64Bytes(base64Value) {
+  const normalized = String(base64Value || "").replace(/\s+/g, "");
+  if (!normalized) return 0;
+  const padding = normalized.endsWith("==") ? 2 : normalized.endsWith("=") ? 1 : 0;
+  return Math.max(0, Math.floor((normalized.length * 3) / 4) - padding);
+}
+
+function parseConsultationDocument(document) {
+  if (!document || typeof document !== "object") {
+    return { valid: false, error: "Identification document is required." };
+  }
+
+  const documentType = String(document.document_type || "").trim();
+  const fileName = String(document.file_name || "").trim();
+  const mimeType = String(document.mime_type || "").trim().toLowerCase();
+  const dataUrl = String(document.data_url || "").trim();
+  const sizeBytes = Number(document.size_bytes || 0);
+
+  if (!allowedConsultationDocumentTypes.has(documentType)) {
+    return { valid: false, error: "Invalid identification document type." };
+  }
+  if (!fileName) {
+    return { valid: false, error: "Identification document file name is required." };
+  }
+  if (!allowedConsultationDocumentMimeTypes.has(mimeType)) {
+    return { valid: false, error: "Only PDF, JPG, PNG, or WEBP identification documents are allowed." };
+  }
+  if (!dataUrl.startsWith(`data:${mimeType};base64,`)) {
+    return { valid: false, error: "Identification document data is invalid." };
+  }
+
+  const encodedContent = dataUrl.split(",", 2)[1] || "";
+  const inferredBytes = estimateBase64Bytes(encodedContent);
+  const normalizedSize = Math.max(Number.isFinite(sizeBytes) ? Math.round(sizeBytes) : 0, inferredBytes);
+
+  if (!normalizedSize) {
+    return { valid: false, error: "Identification document file is empty." };
+  }
+  if (normalizedSize > maxConsultationDocumentBytes) {
+    return { valid: false, error: "Identification document must be 5 MB or smaller." };
+  }
+
+  return {
+    valid: true,
+    document: {
+      document_type: documentType,
+      file_name: fileName.slice(0, 180),
+      mime_type: mimeType,
+      size_bytes: normalizedSize,
+      data_url: dataUrl,
+    },
+  };
+}
+
+function formatConsultationRecord(record) {
+  if (!record) return null;
+
+  return {
+    ...record,
+    agreement_accepted: Boolean(record.agreement_accepted),
+    id_document:
+      record.id_document_type && record.id_document_name && record.id_document_mime && record.id_document_data
+        ? {
+            document_type: record.id_document_type,
+            file_name: record.id_document_name,
+            mime_type: record.id_document_mime,
+            size_bytes: Number(record.id_document_size || 0),
+            data_url: record.id_document_data,
+          }
+        : null,
+  };
+}
 
 function getServicePrice(service, complexity) {
   const priceBand = servicePricing[service] || defaultServicePricing;
@@ -1119,6 +1243,15 @@ async function sendConsultationNotification(consultation) {
     return { enabled: false, sent: false };
   }
 
+  const documentLabelMap = {
+    national_id: "National ID",
+    drivers_license: "Driver's License",
+    passport: "Passport",
+    birth_certificate: "Birth Certificate",
+  };
+  const documentLabel = consultation.id_document
+    ? documentLabelMap[consultation.id_document.document_type] || consultation.id_document.document_type
+    : "Not provided";
   const subject = `New consultation: ${consultation.service}`;
   const lines = [
     "A new consultation was submitted on Expert Tech Solutions & Training.",
@@ -1126,8 +1259,15 @@ async function sendConsultationNotification(consultation) {
     `Name: ${consultation.full_name}`,
     `Email: ${consultation.email}`,
     `Phone: ${consultation.phone || "Not provided"}`,
+    `Request type: ${consultation.request_type}`,
     `Service: ${consultation.service}`,
     `Status: ${consultation.status}`,
+    `Terms version: ${consultation.terms_version}`,
+    `Agreement accepted: ${consultation.agreement_accepted ? "Yes" : "No"}`,
+    `Signed by: ${consultation.signature_name || "Not provided"}`,
+    `Signed at: ${consultation.signed_at || "Not provided"}`,
+    `ID document: ${documentLabel}`,
+    `Document file: ${consultation.id_document?.file_name || "Not provided"}`,
     `Submitted: ${consultation.created_at}`,
     "",
     "Message:",
@@ -1146,7 +1286,13 @@ async function sendConsultationNotification(consultation) {
           <p style="margin:0 0 8px"><strong>Name:</strong> ${consultation.full_name}</p>
           <p style="margin:0 0 8px"><strong>Email:</strong> ${consultation.email}</p>
           <p style="margin:0 0 8px"><strong>Phone:</strong> ${consultation.phone || "Not provided"}</p>
+          <p style="margin:0 0 8px"><strong>Request type:</strong> ${consultation.request_type}</p>
           <p style="margin:0 0 8px"><strong>Status:</strong> ${consultation.status}</p>
+          <p style="margin:0 0 8px"><strong>Terms version:</strong> ${consultation.terms_version}</p>
+          <p style="margin:0 0 8px"><strong>Signed by:</strong> ${consultation.signature_name || "Not provided"}</p>
+          <p style="margin:0 0 8px"><strong>Signed at:</strong> ${consultation.signed_at || "Not provided"}</p>
+          <p style="margin:0 0 8px"><strong>ID document:</strong> ${documentLabel}</p>
+          <p style="margin:0 0 8px"><strong>Document file:</strong> ${consultation.id_document?.file_name || "Not provided"}</p>
           <p style="margin:0 0 20px"><strong>Submitted:</strong> ${consultation.created_at}</p>
           <p style="margin:0 0 8px"><strong>Message:</strong></p>
           <div style="padding:16px;border-radius:12px;background:#eff6ff;color:#1e3a8a;line-height:1.6">
@@ -1482,12 +1628,33 @@ async function handleConsultationCreate(req, res) {
   const fullName = String(body.full_name || "").trim();
   const email = String(body.email || "").trim();
   const phone = String(body.phone || "").trim();
+  const requestType = String(body.request_type || "service").trim();
   const service = String(body.service || "").trim();
   const message = String(body.message || "").trim();
   const status = String(body.status || "pending").trim() || "pending";
+  const termsVersion = String(body.terms_version || "v1").trim() || "v1";
+  const agreementAccepted = body.agreement_accepted === true;
+  const signatureName = String(body.signature_name || "").trim();
+  const signedAt = String(body.signed_at || "").trim();
+  const parsedDocument = parseConsultationDocument(body.id_document);
 
   if (!fullName || !email || !service || !message) {
     return json(res, 400, { error: "Name, email, service, and message are required." });
+  }
+  if (!allowedConsultationRequestTypes.has(requestType)) {
+    return json(res, 400, { error: "Invalid request type." });
+  }
+  if (!agreementAccepted) {
+    return json(res, 400, { error: "You must accept the terms and conditions before submitting." });
+  }
+  if (!signatureName) {
+    return json(res, 400, { error: "Typed signature is required before submitting." });
+  }
+  if (!signedAt) {
+    return json(res, 400, { error: "Agreement signing time is required." });
+  }
+  if (!parsedDocument.valid) {
+    return json(res, 400, { error: parsedDocument.error });
   }
 
   const session = getSession(req);
@@ -1498,6 +1665,7 @@ async function handleConsultationCreate(req, res) {
     full_name: fullName,
     email,
     phone,
+    request_type: requestType,
     service,
     message,
     status,
@@ -1505,6 +1673,11 @@ async function handleConsultationCreate(req, res) {
     next_path_status: "pending",
     owner_agreed: "no",
     payment_status: "not_requested",
+    terms_version: termsVersion,
+    agreement_accepted: true,
+    signature_name: signatureName,
+    signed_at: signedAt,
+    id_document: parsedDocument.document,
     created_at: createdAt,
   };
 
@@ -1514,6 +1687,7 @@ async function handleConsultationCreate(req, res) {
     consultation.full_name,
     consultation.email,
     consultation.phone,
+    consultation.request_type,
     consultation.service,
     consultation.message,
     consultation.status,
@@ -1521,6 +1695,15 @@ async function handleConsultationCreate(req, res) {
     consultation.next_path_status,
     consultation.owner_agreed,
     consultation.payment_status,
+    consultation.terms_version,
+    consultation.agreement_accepted ? 1 : 0,
+    consultation.signature_name,
+    consultation.signed_at,
+    consultation.id_document.document_type,
+    consultation.id_document.file_name,
+    consultation.id_document.mime_type,
+    consultation.id_document.size_bytes,
+    consultation.id_document.data_url,
     consultation.created_at,
   );
 
@@ -1838,14 +2021,14 @@ async function handleMpesaCallback(req, res) {
 function handleConsultationList(req, res) {
   const session = requireAuth(req, res);
   if (!session) return;
-  const consultations = statements.listConsultationsByUser.all(session.user.id);
+  const consultations = statements.listConsultationsByUser.all(session.user.id).map(formatConsultationRecord);
   return json(res, 200, { consultations });
 }
 
 function handleAdminConsultationList(req, res) {
   const session = requireOwner(req, res);
   if (!session) return;
-  const consultations = statements.listAllConsultations.all();
+  const consultations = statements.listAllConsultations.all().map(formatConsultationRecord);
   return json(res, 200, { consultations, ownerEmail });
 }
 
@@ -1947,7 +2130,7 @@ async function handleConsultationStatusUpdate(req, res, id) {
     return json(res, 404, { error: "Consultation not found." });
   }
 
-  return json(res, 200, { consultation });
+  return json(res, 200, { consultation: formatConsultationRecord(consultation) });
 }
 
 async function handleConsultationWorkflowUpdate(req, res, id) {
@@ -1990,7 +2173,7 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
     return json(res, 404, { error: "Consultation not found." });
   }
 
-  return json(res, 200, { consultation });
+  return json(res, 200, { consultation: formatConsultationRecord(consultation) });
 }
 
 async function handleConsultationPaymentStatusUpdate(req, res, id) {
@@ -2022,7 +2205,7 @@ async function handleConsultationPaymentStatusUpdate(req, res, id) {
   }
 
   const updatedConsultation = statements.getConsultationById.get(id);
-  return json(res, 200, { consultation: updatedConsultation });
+  return json(res, 200, { consultation: formatConsultationRecord(updatedConsultation) });
 }
 
 function handleSavedServicesList(req, res) {

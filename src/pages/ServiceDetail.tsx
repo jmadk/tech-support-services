@@ -113,13 +113,24 @@ const ServiceDetail: React.FC = () => {
             </p>
             <div className="mt-6 flex flex-wrap gap-3">
               <button
-                onClick={() => navigate('/#contact')}
+                onClick={() =>
+                  navigate({
+                    pathname: '/',
+                    search: `?requestType=service&service=${encodeURIComponent(service.title)}`,
+                    hash: '#contact',
+                  })
+                }
                 className="rounded-2xl bg-gradient-to-r from-cyan-500 to-blue-600 px-6 py-3 text-sm font-bold text-white shadow-lg shadow-cyan-500/20"
               >
                 Go to Request Form
               </button>
               <button
-                onClick={() => navigate('/#services')}
+                onClick={() =>
+                  navigate({
+                    pathname: '/',
+                    hash: '#services',
+                  })
+                }
                 className="rounded-2xl border border-white/15 bg-white/5 px-6 py-3 text-sm font-bold text-white"
               >
                 View Other Cards

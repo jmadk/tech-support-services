@@ -42,6 +42,25 @@ function getPaymentStatusLabel(status: ConsultationPaymentStatus) {
       return 'Awaiting admin review';
   }
 }
+
+function getRequestTypeLabel(type: Consultation['request_type']) {
+  return type === 'class' ? 'Class Inquiry' : 'Service Request';
+}
+
+function getDocumentTypeLabel(type: string) {
+  switch (type) {
+    case 'national_id':
+      return 'National ID';
+    case 'drivers_license':
+      return "Driver's License";
+    case 'passport':
+      return 'Passport';
+    case 'birth_certificate':
+      return 'Birth Certificate';
+    default:
+      return 'Identification Document';
+  }
+}
 const curriculumCards = [
   {
     title: 'Introduction to IT Support & Customer Care',
@@ -1015,6 +1034,9 @@ const Dashboard: React.FC = () => {
                             <div>
                               <div className="flex flex-wrap items-center gap-3">
                                 <h4 className="text-white font-bold text-lg">{c.service}</h4>
+                                <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                                  {getRequestTypeLabel(c.request_type)}
+                                </span>
                                 <span className={`px-3 py-1.5 rounded-full text-xs font-medium border ${statusColors[c.status] || statusColors.pending}`}>
                                   {c.status.replace('_', ' ')}
                                 </span>
@@ -1026,6 +1048,34 @@ const Dashboard: React.FC = () => {
 
                             <p className="text-blue-200/70 font-medium">{c.full_name}</p>
                             <p className="text-blue-200/60 text-sm leading-relaxed">{c.message}</p>
+
+                            <div className="rounded-2xl border border-white/10 bg-[#0c1d34] p-4 text-sm text-blue-100">
+                              <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80 mb-2">Agreement & Verification</p>
+                              <p>
+                                Signed by <span className="font-semibold text-white">{c.signature_name || c.full_name}</span>
+                                {c.signed_at ? ` on ${new Date(c.signed_at).toLocaleString()}` : ''}.
+                              </p>
+                              <p className="mt-2 text-blue-200/70">
+                                Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
+                              </p>
+                              {c.id_document && (
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
+                                    {getDocumentTypeLabel(c.id_document.document_type)}
+                                  </span>
+                                  <span className="text-xs text-blue-200/60">{c.id_document.file_name}</span>
+                                  <a
+                                    href={c.id_document.data_url}
+                                    download={c.id_document.file_name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
+                                  >
+                                    View ID Document
+                                  </a>
+                                </div>
+                              )}
+                            </div>
 
                             <div className="flex flex-wrap gap-3 text-xs text-blue-200/40">
                               <a
@@ -1248,7 +1298,12 @@ const Dashboard: React.FC = () => {
                       <div key={c.id} className="bg-white/5 border border-white/10 rounded-2xl p-6 hover:bg-white/[0.07] transition-all">
                         <div className="flex items-start justify-between mb-3">
                           <div>
-                            <h4 className="text-white font-bold text-lg">{c.service}</h4>
+                            <div className="flex flex-wrap items-center gap-3">
+                              <h4 className="text-white font-bold text-lg">{c.service}</h4>
+                              <span className="rounded-full border border-cyan-400/20 bg-cyan-500/10 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200">
+                                {getRequestTypeLabel(c.request_type)}
+                              </span>
+                            </div>
                             <p className="text-blue-200/40 text-sm">{new Date(c.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                           </div>
                           <div className="flex flex-col items-end gap-2">
@@ -1265,6 +1320,34 @@ const Dashboard: React.FC = () => {
                           <span>Name: {c.full_name}</span>
                           <span>Email: {c.email}</span>
                           {c.phone && <span>Phone: {c.phone}</span>}
+                        </div>
+
+                        <div className="mt-4 rounded-2xl border border-white/10 bg-[#0c1d34] p-4 text-sm text-blue-100">
+                          <p className="text-xs uppercase tracking-[0.2em] text-cyan-200/80 mb-2">Agreement & Verification</p>
+                          <p>
+                            Signed by <span className="font-semibold text-white">{c.signature_name || c.full_name}</span>
+                            {c.signed_at ? ` on ${new Date(c.signed_at).toLocaleString()}` : ''}.
+                          </p>
+                          <p className="mt-2 text-blue-200/70">
+                            Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
+                          </p>
+                          {c.id_document && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
+                                {getDocumentTypeLabel(c.id_document.document_type)}
+                              </span>
+                              <span className="text-xs text-blue-200/60">{c.id_document.file_name}</span>
+                              <a
+                                href={c.id_document.data_url}
+                                download={c.id_document.file_name}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
+                              >
+                                View Uploaded ID
+                              </a>
+                            </div>
+                          )}
                         </div>
 
                         {!isOwner && (

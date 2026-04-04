@@ -31,10 +31,20 @@ export type Profile = {
 };
 
 export type ConsultationStatus = "pending" | "in_progress" | "completed" | "cancelled";
+export type ConsultationRequestType = "service" | "class";
 export type ConsultationNextPath = "service" | "class";
 export type ConsultationNextPathStatus = "pending" | "test_in_progress" | "test_completed" | "certification_started";
 export type ConsultationOwnerAgreement = "yes" | "no";
 export type ConsultationPaymentStatus = "not_requested" | "awaiting_payment" | "paid";
+export type ConsultationIdDocumentType = "national_id" | "drivers_license" | "passport" | "birth_certificate";
+
+export type ConsultationIdDocument = {
+  document_type: ConsultationIdDocumentType;
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  data_url: string;
+};
 
 export type Consultation = {
   id: string;
@@ -42,6 +52,7 @@ export type Consultation = {
   full_name: string;
   email: string;
   phone: string;
+  request_type: ConsultationRequestType;
   service: string;
   message: string;
   status: ConsultationStatus;
@@ -49,6 +60,11 @@ export type Consultation = {
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
   payment_status: ConsultationPaymentStatus;
+  terms_version: string;
+  agreement_accepted: boolean;
+  signature_name: string;
+  signed_at: string;
+  id_document: ConsultationIdDocument | null;
   created_at: string;
 };
 
@@ -102,8 +118,14 @@ export type CreateConsultationPayload = {
   full_name: string;
   email: string;
   phone: string;
+  request_type: ConsultationRequestType;
   service: string;
   message: string;
+  terms_version: string;
+  agreement_accepted: boolean;
+  signature_name: string;
+  signed_at: string;
+  id_document: ConsultationIdDocument;
   status?: ConsultationStatus;
 };
 
