@@ -3,6 +3,7 @@ import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
   api,
+  type ConsultationAgreementDocument,
   getErrorMessage,
   type ConsultationIdDocument,
   type ConsultationIdDocumentType,
@@ -39,6 +40,10 @@ type FormState = {
   agreementChecked: boolean;
 };
 
+type UploadedAgreementState = ConsultationAgreementDocument & {
+  display_size: string;
+};
+
 type UploadedDocumentState = ConsultationIdDocument & {
   display_size: string;
 };
@@ -52,12 +57,16 @@ const documentOptions: Array<{ value: ConsultationIdDocumentType; label: string 
   { value: 'birth_certificate', label: 'Birth Certificate' },
 ];
 const agreementPoints = [
-  'I confirm that the information in this request is accurate and truthful.',
-  'I understand admin must review this request before approval, class activation, or payment confirmation.',
-  'I authorize Expert Tech Solutions & Training to review my agreement details and uploaded ID for verification and service delivery.',
-  'I agree not to upload false, altered, or misleading identification documents.',
-  'I understand scope, timelines, and approval decisions depend on review outcomes, availability, and payment confirmation where applicable.',
-  'I consent to follow-up through email, phone, WhatsApp, or dashboard updates about this request.',
+  'Client Identity and Authority: I confirm that I am the person named in this request, or I am properly authorized to submit this request on behalf of the individual or organization named here.',
+  'Accuracy of Information: I confirm that all information, files, documents, and statements I provide to Expert Tech Solutions & Training are true, accurate, current, and not misleading.',
+  'Review and Acceptance Process: I understand that submission of this form does not by itself create a final contract, guaranteed service slot, or confirmed training placement until the request has been reviewed and accepted by admin.',
+  'Scope and Commercial Terms: I understand that service scope, timelines, deliverables, pricing, training schedules, revisions, and implementation steps may be refined or adjusted after admin review and formal confirmation.',
+  'Verification and Compliance Consent: I authorize Expert Tech Solutions & Training to review my signed agreement, identification document, and submitted request details for verification, risk review, onboarding, compliance, and service delivery purposes.',
+  'Document Integrity: I agree not to upload false, forged, altered, stolen, unauthorized, or misleading documents, and I understand that suspicious submissions may be rejected, cancelled, or escalated for further review.',
+  'Payments and Activation: I understand that any payment, class activation, work commencement, or approval milestone should follow official instructions from Expert Tech Solutions & Training and may be delayed until verification is complete.',
+  'Communications and Records: I consent to communication by email, phone, WhatsApp, dashboard notifications, and related digital channels regarding review decisions, onboarding, payment instructions, support, scheduling, and delivery updates.',
+  'Limitation of Submission Effect: I understand that Expert Tech Solutions & Training reserves the right to accept, defer, request clarification on, or decline a request where there are verification concerns, scope conflicts, legal concerns, or operational limitations.',
+  'Electronic Signature Acknowledgment: By signing and uploading this agreement, I acknowledge that my electronic signature and uploaded signed copy are intended to serve as my formal confirmation of these terms.',
 ];
 
 function escapePdfText(value: string) {
@@ -89,12 +98,19 @@ function wrapAgreementLine(text: string, maxLength = 82) {
 function buildAgreementPdf(points: string[], version: string) {
   const lines = [
     'Expert Tech Solutions & Training',
-    'User Agreement and Terms',
+    'Client Service and Training Request Agreement',
     `Version ${version}`,
+    '',
+    'This agreement sets out the request review, verification, and acceptance terms that apply',
+    'before a service engagement or class request is approved by Expert Tech Solutions & Training.',
     '',
     ...points.flatMap((point, index) => wrapAgreementLine(`${index + 1}. ${point}`)),
     '',
-    'This agreement must be reviewed before signing and submitting the request form.',
+    'Signature: ________________________________________________',
+    'Printed Name: _____________________________________________',
+    'Date: ____________________________________________________',
+    '',
+    'Upload the signed copy of this agreement together with one identification document when submitting the request form.',
   ];
 
   let y = 780;
@@ -168,6 +184,7 @@ const ConsultationForm: React.FC = () => {
   const { user, profile } = useAuth();
   const location = useLocation();
   const [form, setForm] = useState<FormState>(createInitialForm());
+  const [uploadedAgreement, setUploadedAgreement] = useState<UploadedAgreementState | null>(null);
   const [uploadedDocument, setUploadedDocument] = useState<UploadedDocumentState | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -263,6 +280,40 @@ const ConsultationForm: React.FC = () => {
     setErrors((prev) => ({ ...prev, idDocument: '' }));
   };
 
+  const handleAgreementUpload = async (file: File | null) => {
+    if (!file) {
+      setUploadedAgreement(null);
+      return;
+    }
+
+    const allowedMimeTypes = new Set(['image/jpeg', 'image/png', 'image/webp', 'application/pdf']);
+    if (!allowedMimeTypes.has(file.type)) {
+      setErrors((prev) => ({ ...prev, agreementDocument: 'Signed agreement must be a PDF, JPG, PNG, or WEBP file.' }));
+      return;
+    }
+
+    if (file.size > MAX_DOCUMENT_BYTES) {
+      setErrors((prev) => ({ ...prev, agreementDocument: 'Signed agreement must be 5 MB or smaller.' }));
+      return;
+    }
+
+    const dataUrl = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(String(reader.result || ''));
+      reader.onerror = () => reject(new Error('Could not read the selected agreement file.'));
+      reader.readAsDataURL(file);
+    });
+
+    setUploadedAgreement({
+      file_name: file.name,
+      mime_type: file.type,
+      size_bytes: file.size,
+      data_url: dataUrl,
+      display_size: formatFileSize(file.size),
+    });
+    setErrors((prev) => ({ ...prev, agreementDocument: '' }));
+  };
+
   const validate = () => {
     const newErrors: Record<string, string> = {};
 
@@ -273,6 +324,7 @@ const ConsultationForm: React.FC = () => {
     if (!form.message.trim()) newErrors.message = 'Message is required';
     if (!form.signatureName.trim()) newErrors.signatureName = 'Typed signature is required';
     if (!form.agreementChecked) newErrors.agreementChecked = 'You must accept the terms before submitting.';
+    if (!uploadedAgreement) newErrors.agreementDocument = 'Please upload the signed agreement after signing it.';
     if (!uploadedDocument) newErrors.idDocument = 'Please upload one identification document.';
 
     if (form.requestType === 'service') {
@@ -291,6 +343,7 @@ const ConsultationForm: React.FC = () => {
 
   const resetForm = () => {
     setForm(createInitialForm(profile?.full_name || '', user?.email || '', profile?.phone || ''));
+    setUploadedAgreement(null);
     setUploadedDocument(null);
   };
 
@@ -312,6 +365,12 @@ const ConsultationForm: React.FC = () => {
         agreement_accepted: true,
         signature_name: form.signatureName,
         signed_at: new Date().toISOString(),
+        agreement_document: {
+          file_name: uploadedAgreement?.file_name || '',
+          mime_type: uploadedAgreement?.mime_type || '',
+          size_bytes: uploadedAgreement?.size_bytes || 0,
+          data_url: uploadedAgreement?.data_url || '',
+        },
         id_document: {
           document_type: form.documentType,
           file_name: uploadedDocument?.file_name || '',
@@ -348,7 +407,7 @@ const ConsultationForm: React.FC = () => {
               Start a <span className="bg-gradient-to-r from-cyan-400 to-blue-400 bg-clip-text text-transparent">service request</span> or class inquiry
             </h2>
             <p className="mb-10 text-lg leading-relaxed text-blue-200/60">
-              Submit your request, read and sign the agreement, then attach one identification document so admin can review everything before approval or payment steps begin.
+              Download the agreement, sign it, upload the signed copy, then attach one identification document so admin can review everything before approval or payment steps begin.
             </p>
 
             {user && (
@@ -358,7 +417,7 @@ const ConsultationForm: React.FC = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-cyan-300">Signed in as {profile?.full_name || user.email}</p>
-                  <p className="text-xs text-blue-200/40">Your request history, agreement, and document review will stay attached to your dashboard account.</p>
+                  <p className="text-xs text-blue-200/40">Your request history, signed agreement, and document review will stay attached to your dashboard account.</p>
                 </div>
               </div>
             )}
@@ -366,9 +425,9 @@ const ConsultationForm: React.FC = () => {
             <div className="grid gap-4">
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Step One</p>
-                <p className="mt-3 text-2xl font-black text-white">Agreement and ID Verification</p>
+                <p className="mt-3 text-2xl font-black text-white">Download, Sign, Upload, Verify</p>
                 <p className="mt-2 text-sm leading-6 text-blue-200/60">
-                  Every service or class request now includes a typed signature and one uploaded identification document before admin review.
+                  Every request now includes a downloadable agreement, a signed-agreement upload, and one identification document before admin review.
                 </p>
               </div>
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
@@ -381,7 +440,7 @@ const ConsultationForm: React.FC = () => {
               <div className="rounded-2xl border border-white/10 bg-white/5 p-5">
                 <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">Review Flow</p>
                 <p className="mt-3 text-sm leading-7 text-blue-200/60">
-                  1. Submit request. 2. Admin checks your agreement and ID document. 3. Approval, payment instructions, and delivery steps follow in the correct order.
+                  1. Download and sign agreement. 2. Upload signed agreement and ID. 3. Submit request. 4. Admin reviews everything before approval and payment steps.
                 </p>
               </div>
             </div>
@@ -397,7 +456,7 @@ const ConsultationForm: React.FC = () => {
                   {form.requestType === 'service' ? 'Request Submitted!' : 'Class Inquiry Sent'}
                 </h3>
                 <p className="mb-6 text-blue-200/60">
-                  Your signed agreement and attached identification document have been sent with the request for admin review. Wait for official follow-up before making any payment unless admin instructs otherwise.
+                  Your signed agreement, identification document, and request details have been sent for admin review. Wait for official follow-up before making any payment unless admin instructs otherwise.
                 </p>
                 {user && <p className="mb-4 text-sm text-cyan-400/60">View your consultation history in your dashboard.</p>}
                 <button
@@ -413,7 +472,7 @@ const ConsultationForm: React.FC = () => {
             ) : (
               <form onSubmit={handleSubmit} className="space-y-5">
                 <h3 className="mb-2 text-xl font-bold text-white">Submit Your Request</h3>
-                <p className="mb-6 text-sm text-blue-200/50">Choose whether this is a service job or a class inquiry, then complete the agreement and upload one ID document for admin review.</p>
+                <p className="mb-6 text-sm text-blue-200/50">Choose whether this is a service job or a class inquiry, download the agreement, sign it, upload the signed copy, and then attach one ID document for admin review.</p>
 
                 {submitError && (
                   <div className="rounded-xl border border-red-500/20 bg-red-500/10 p-3 text-sm text-red-300">
@@ -645,8 +704,8 @@ const ConsultationForm: React.FC = () => {
                   <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">User Agreement</p>
-                      <h4 className="mt-2 text-xl font-bold text-white">Terms and Conditions Before Review</h4>
-                      <p className="mt-2 text-sm text-blue-200/60">Download these terms as a PDF before signing if you want a copy for your records.</p>
+                      <h4 className="mt-2 text-xl font-bold text-white">Client Service and Training Request Agreement</h4>
+                      <p className="mt-2 text-sm text-blue-200/60">Download this agreement as a PDF, sign it, then upload the signed copy below before submitting your request.</p>
                     </div>
                     <div className="flex items-center gap-3">
                       <p className="text-xs text-blue-200/50">Version {TERMS_VERSION}</p>
@@ -666,6 +725,13 @@ const ConsultationForm: React.FC = () => {
                         {point}
                       </div>
                     ))}
+                  </div>
+
+                  <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
+                    <p className="font-semibold">Signature Instructions</p>
+                    <p className="mt-2 text-amber-100/80">
+                      Download the PDF, add your handwritten or electronic signature in the signature section, save the signed file, then upload that signed agreement here.
+                    </p>
                   </div>
 
                   <div className="mt-5 grid gap-4 md:grid-cols-2">
@@ -698,6 +764,26 @@ const ConsultationForm: React.FC = () => {
                         ))}
                       </select>
                     </div>
+                  </div>
+
+                  <div className="mt-4 rounded-2xl border border-dashed border-cyan-400/30 bg-cyan-500/5 p-4">
+                    <label className="mb-2 block text-sm font-medium text-blue-100">Upload Signed Agreement *</label>
+                    <input
+                      type="file"
+                      accept=".pdf,image/png,image/jpeg,image/webp"
+                      onChange={(e) => {
+                        void handleAgreementUpload(e.target.files?.[0] || null);
+                      }}
+                      className="block w-full cursor-pointer rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-blue-100 file:mr-4 file:rounded-lg file:border-0 file:bg-cyan-500/20 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-cyan-100"
+                    />
+                    <p className="mt-2 text-xs text-blue-200/50">Upload the signed agreement as PDF, JPG, PNG, or WEBP after signing it.</p>
+                    {uploadedAgreement && (
+                      <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-blue-100">
+                        <p className="font-semibold text-white">{uploadedAgreement.file_name}</p>
+                        <p className="mt-1 text-xs text-blue-200/60">{uploadedAgreement.display_size} • Signed agreement uploaded</p>
+                      </div>
+                    )}
+                    {errors.agreementDocument && <p className="mt-2 text-xs text-red-400">{errors.agreementDocument}</p>}
                   </div>
 
                   <div className="mt-4 rounded-2xl border border-dashed border-cyan-400/30 bg-cyan-500/5 p-4">

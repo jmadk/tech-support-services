@@ -140,6 +140,10 @@ db.exec(`
     agreement_accepted INTEGER NOT NULL DEFAULT 0,
     signature_name TEXT NOT NULL DEFAULT '',
     signed_at TEXT NOT NULL DEFAULT '',
+    agreement_document_name TEXT NOT NULL DEFAULT '',
+    agreement_document_mime TEXT NOT NULL DEFAULT '',
+    agreement_document_size INTEGER NOT NULL DEFAULT 0,
+    agreement_document_data TEXT NOT NULL DEFAULT '',
     id_document_type TEXT NOT NULL DEFAULT '',
     id_document_name TEXT NOT NULL DEFAULT '',
     id_document_mime TEXT NOT NULL DEFAULT '',
@@ -338,6 +342,18 @@ function ensureSchema() {
   if (!consultationColumns.has("signed_at")) {
     db.exec("ALTER TABLE consultations ADD COLUMN signed_at TEXT NOT NULL DEFAULT '';");
   }
+  if (!consultationColumns.has("agreement_document_name")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN agreement_document_name TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("agreement_document_mime")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN agreement_document_mime TEXT NOT NULL DEFAULT '';");
+  }
+  if (!consultationColumns.has("agreement_document_size")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN agreement_document_size INTEGER NOT NULL DEFAULT 0;");
+  }
+  if (!consultationColumns.has("agreement_document_data")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN agreement_document_data TEXT NOT NULL DEFAULT '';");
+  }
   if (!consultationColumns.has("id_document_type")) {
     db.exec("ALTER TABLE consultations ADD COLUMN id_document_type TEXT NOT NULL DEFAULT '';");
   }
@@ -420,13 +436,15 @@ const statements = {
   insertConsultation: db.prepare(`
     INSERT INTO consultations (
       id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
-      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
+      id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   listConsultationsByUser: db.prepare(`
     SELECT
       id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
-      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
+      terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
+      id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     WHERE user_id = ?
     ORDER BY datetime(created_at) DESC
@@ -434,14 +452,16 @@ const statements = {
   listAllConsultations: db.prepare(`
     SELECT
       id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
-      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
+      terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
+      id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     ORDER BY datetime(created_at) DESC
   `),
   getConsultationById: db.prepare(`
     SELECT
       id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
-      terms_version, agreement_accepted, signature_name, signed_at, id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
+      terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
+      id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
     WHERE id = ?
   `),
@@ -736,12 +756,64 @@ function parseConsultationDocument(document) {
   };
 }
 
+function parseAgreementDocument(document) {
+  if (!document || typeof document !== "object") {
+    return { valid: false, error: "Signed agreement file is required." };
+  }
+
+  const fileName = String(document.file_name || "").trim();
+  const mimeType = String(document.mime_type || "").trim().toLowerCase();
+  const dataUrl = String(document.data_url || "").trim();
+  const sizeBytes = Number(document.size_bytes || 0);
+  const allowedMimeTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"]);
+
+  if (!fileName) {
+    return { valid: false, error: "Signed agreement file name is required." };
+  }
+  if (!allowedMimeTypes.has(mimeType)) {
+    return { valid: false, error: "Signed agreement must be uploaded as PDF, JPG, PNG, or WEBP." };
+  }
+  if (!dataUrl.startsWith(`data:${mimeType};base64,`)) {
+    return { valid: false, error: "Signed agreement data is invalid." };
+  }
+
+  const encodedContent = dataUrl.split(",", 2)[1] || "";
+  const inferredBytes = estimateBase64Bytes(encodedContent);
+  const normalizedSize = Math.max(Number.isFinite(sizeBytes) ? Math.round(sizeBytes) : 0, inferredBytes);
+
+  if (!normalizedSize) {
+    return { valid: false, error: "Signed agreement file is empty." };
+  }
+  if (normalizedSize > maxConsultationDocumentBytes) {
+    return { valid: false, error: "Signed agreement must be 5 MB or smaller." };
+  }
+
+  return {
+    valid: true,
+    document: {
+      file_name: fileName.slice(0, 180),
+      mime_type: mimeType,
+      size_bytes: normalizedSize,
+      data_url: dataUrl,
+    },
+  };
+}
+
 function formatConsultationRecord(record) {
   if (!record) return null;
 
   return {
     ...record,
     agreement_accepted: Boolean(record.agreement_accepted),
+    agreement_document:
+      record.agreement_document_name && record.agreement_document_mime && record.agreement_document_data
+        ? {
+            file_name: record.agreement_document_name,
+            mime_type: record.agreement_document_mime,
+            size_bytes: Number(record.agreement_document_size || 0),
+            data_url: record.agreement_document_data,
+          }
+        : null,
     id_document:
       record.id_document_type && record.id_document_name && record.id_document_mime && record.id_document_data
         ? {
@@ -1266,6 +1338,7 @@ async function sendConsultationNotification(consultation) {
     `Agreement accepted: ${consultation.agreement_accepted ? "Yes" : "No"}`,
     `Signed by: ${consultation.signature_name || "Not provided"}`,
     `Signed at: ${consultation.signed_at || "Not provided"}`,
+    `Signed agreement file: ${consultation.agreement_document?.file_name || "Not provided"}`,
     `ID document: ${documentLabel}`,
     `Document file: ${consultation.id_document?.file_name || "Not provided"}`,
     `Submitted: ${consultation.created_at}`,
@@ -1291,6 +1364,7 @@ async function sendConsultationNotification(consultation) {
           <p style="margin:0 0 8px"><strong>Terms version:</strong> ${consultation.terms_version}</p>
           <p style="margin:0 0 8px"><strong>Signed by:</strong> ${consultation.signature_name || "Not provided"}</p>
           <p style="margin:0 0 8px"><strong>Signed at:</strong> ${consultation.signed_at || "Not provided"}</p>
+          <p style="margin:0 0 8px"><strong>Signed agreement file:</strong> ${consultation.agreement_document?.file_name || "Not provided"}</p>
           <p style="margin:0 0 8px"><strong>ID document:</strong> ${documentLabel}</p>
           <p style="margin:0 0 8px"><strong>Document file:</strong> ${consultation.id_document?.file_name || "Not provided"}</p>
           <p style="margin:0 0 20px"><strong>Submitted:</strong> ${consultation.created_at}</p>
@@ -1636,6 +1710,7 @@ async function handleConsultationCreate(req, res) {
   const agreementAccepted = body.agreement_accepted === true;
   const signatureName = String(body.signature_name || "").trim();
   const signedAt = String(body.signed_at || "").trim();
+  const parsedAgreementDocument = parseAgreementDocument(body.agreement_document);
   const parsedDocument = parseConsultationDocument(body.id_document);
 
   if (!fullName || !email || !service || !message) {
@@ -1652,6 +1727,9 @@ async function handleConsultationCreate(req, res) {
   }
   if (!signedAt) {
     return json(res, 400, { error: "Agreement signing time is required." });
+  }
+  if (!parsedAgreementDocument.valid) {
+    return json(res, 400, { error: parsedAgreementDocument.error });
   }
   if (!parsedDocument.valid) {
     return json(res, 400, { error: parsedDocument.error });
@@ -1677,6 +1755,7 @@ async function handleConsultationCreate(req, res) {
     agreement_accepted: true,
     signature_name: signatureName,
     signed_at: signedAt,
+    agreement_document: parsedAgreementDocument.document,
     id_document: parsedDocument.document,
     created_at: createdAt,
   };
@@ -1699,6 +1778,10 @@ async function handleConsultationCreate(req, res) {
     consultation.agreement_accepted ? 1 : 0,
     consultation.signature_name,
     consultation.signed_at,
+    consultation.agreement_document.file_name,
+    consultation.agreement_document.mime_type,
+    consultation.agreement_document.size_bytes,
+    consultation.agreement_document.data_url,
     consultation.id_document.document_type,
     consultation.id_document.file_name,
     consultation.id_document.mime_type,

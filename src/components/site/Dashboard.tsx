@@ -1058,6 +1058,23 @@ const Dashboard: React.FC = () => {
                               <p className="mt-2 text-blue-200/70">
                                 Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                               </p>
+                              {c.agreement_document && (
+                                <div className="mt-3 flex flex-wrap items-center gap-2">
+                                  <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
+                                    Signed Agreement
+                                  </span>
+                                  <span className="text-xs text-blue-200/60">{c.agreement_document.file_name}</span>
+                                  <a
+                                    href={c.agreement_document.data_url}
+                                    download={c.agreement_document.file_name}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
+                                  >
+                                    View Signed Agreement
+                                  </a>
+                                </div>
+                              )}
                               {c.id_document && (
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                   <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
@@ -1331,6 +1348,23 @@ const Dashboard: React.FC = () => {
                           <p className="mt-2 text-blue-200/70">
                             Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                           </p>
+                          {c.agreement_document && (
+                            <div className="mt-3 flex flex-wrap items-center gap-2">
+                              <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
+                                Signed Agreement
+                              </span>
+                              <span className="text-xs text-blue-200/60">{c.agreement_document.file_name}</span>
+                              <a
+                                href={c.agreement_document.data_url}
+                                download={c.agreement_document.file_name}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-3 py-1 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
+                              >
+                                View Signed Agreement
+                              </a>
+                            </div>
+                          )}
                           {c.id_document && (
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">

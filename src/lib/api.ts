@@ -46,6 +46,13 @@ export type ConsultationIdDocument = {
   data_url: string;
 };
 
+export type ConsultationAgreementDocument = {
+  file_name: string;
+  mime_type: string;
+  size_bytes: number;
+  data_url: string;
+};
+
 export type Consultation = {
   id: string;
   user_id: string | null;
@@ -64,6 +71,7 @@ export type Consultation = {
   agreement_accepted: boolean;
   signature_name: string;
   signed_at: string;
+  agreement_document: ConsultationAgreementDocument | null;
   id_document: ConsultationIdDocument | null;
   created_at: string;
 };
@@ -125,6 +133,7 @@ export type CreateConsultationPayload = {
   agreement_accepted: boolean;
   signature_name: string;
   signed_at: string;
+  agreement_document: ConsultationAgreementDocument;
   id_document: ConsultationIdDocument;
   status?: ConsultationStatus;
 };
