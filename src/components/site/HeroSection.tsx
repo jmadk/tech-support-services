@@ -30,13 +30,29 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
     <section id="hero" className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background */}
       <div className="absolute inset-0">
-        <img
-          src="https://d64gsuwffb70l.cloudfront.net/6992d77ce0addb6132c1a899_1771231213116_919007b3.jpg"
-          alt="Tech Background"
-          className="w-full h-full object-cover"
-        />
-        <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/95 via-[#0a1628]/85 to-[#0a1628]/70" />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#0a1628] via-transparent to-transparent" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.16),_transparent_28%),radial-gradient(circle_at_78%_22%,_rgba(59,130,246,0.22),_transparent_24%),radial-gradient(circle_at_68%_68%,_rgba(14,165,233,0.12),_transparent_22%),linear-gradient(135deg,_#07111f_0%,_#0b1630_38%,_#0a1835_60%,_#06101d_100%)]" />
+        <div className="absolute inset-0 opacity-[0.14]" style={{
+          backgroundImage: `
+            linear-gradient(rgba(56,189,248,0.22) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56,189,248,0.18) 1px, transparent 1px)
+          `,
+          backgroundSize: '90px 90px',
+          maskImage: 'radial-gradient(circle at center, black 42%, transparent 92%)',
+          WebkitMaskImage: 'radial-gradient(circle at center, black 42%, transparent 92%)',
+        }} />
+        <div className="absolute inset-y-0 right-0 w-[52%] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.12),_transparent_58%)]" />
+        <div className="absolute inset-y-0 right-0 w-[46%] bg-[linear-gradient(180deg,_transparent_0%,_rgba(10,22,40,0.08)_25%,_rgba(10,22,40,0.34)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(90deg,_rgba(6,13,24,0.96)_0%,_rgba(8,18,32,0.90)_32%,_rgba(10,22,40,0.72)_58%,_rgba(10,22,40,0.48)_100%)]" />
+        <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(4,10,18,0.18)_0%,_transparent_22%,_transparent_70%,_rgba(4,10,18,0.60)_100%)]" />
+        <div className="absolute left-0 right-0 top-[18%] h-px bg-gradient-to-r from-transparent via-cyan-400/20 to-transparent" />
+        <div className="absolute left-[9%] top-[20%] h-56 w-56 rounded-full border border-cyan-400/10 bg-cyan-400/5 blur-3xl" />
+        <div className="absolute right-[10%] top-[14%] h-72 w-72 rounded-full border border-blue-400/10 bg-blue-500/10 blur-3xl" />
+      </div>
+
+      <div className="pointer-events-none absolute inset-0">
+        <div className="absolute left-[6%] top-[18%] hidden h-[420px] w-[420px] rounded-full border border-cyan-400/8 lg:block" />
+        <div className="absolute left-[9%] top-[21%] hidden h-[360px] w-[360px] rounded-full border border-cyan-400/8 lg:block" />
+        <div className="absolute right-[6%] top-[14%] hidden h-[520px] w-[520px] rounded-full border border-blue-400/8 lg:block" />
       </div>
 
       {/* Animated particles */}
@@ -118,15 +134,17 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
           <div className="hidden lg:flex justify-center">
             <div className="relative">
               {/* Glow effect */}
-              <div className="absolute -inset-4 bg-gradient-to-r from-cyan-500/20 to-blue-600/20 rounded-3xl blur-2xl" />
+              <div className="absolute -inset-8 rounded-[2.5rem] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.26),_rgba(37,99,235,0.12)_45%,_transparent_72%)] blur-3xl" />
+              <div className="absolute -inset-3 rounded-[2rem] border border-cyan-400/18 bg-white/[0.03]" />
               <div className="relative">
                 <img
                   src={keithImage}
                   alt="Keith Chege Junior - CEO"
-                  className="w-80 h-80 object-cover rounded-3xl border-2 border-white/10 shadow-2xl"
+                  className="h-[30rem] w-[30rem] object-cover rounded-[2rem] border border-white/12 shadow-[0_30px_80px_rgba(2,12,27,0.58)]"
                 />
+                <div className="absolute inset-0 rounded-[2rem] bg-[linear-gradient(180deg,_rgba(255,255,255,0.08)_0%,_transparent_20%,_transparent_70%,_rgba(7,17,31,0.22)_100%)]" />
                 {/* Floating card */}
-                <div className="absolute -bottom-6 -left-8 bg-white/10 backdrop-blur-xl border border-white/20 rounded-2xl p-4 shadow-xl">
+                <div className="absolute -bottom-8 -left-8 rounded-2xl border border-white/18 bg-slate-950/40 p-4 shadow-2xl backdrop-blur-xl">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center">
                       <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
@@ -138,9 +156,10 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
                   </div>
                 </div>
                 {/* Floating badge */}
-                <div className="absolute -top-4 -right-4 bg-gradient-to-br from-cyan-400 to-blue-600 rounded-2xl p-3 shadow-xl">
+                <div className="absolute -right-4 -top-4 rounded-2xl bg-gradient-to-br from-cyan-400 to-blue-600 p-3 shadow-xl shadow-blue-500/30">
                   <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>
                 </div>
+                <div className="absolute -left-6 top-10 h-24 w-24 rounded-2xl border border-cyan-400/14 bg-cyan-400/6 backdrop-blur-sm" />
               </div>
             </div>
           </div>
