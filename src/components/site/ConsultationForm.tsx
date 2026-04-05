@@ -780,18 +780,18 @@ const ConsultationForm: React.FC = () => {
                     <div className="grid gap-3 md:grid-cols-3">
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">M-Pesa First</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Recommended after approval</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Use STK Push once admin reviews the request and shares payment instructions.</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Fast, trusted mobile checkout</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Ideal for clients who want a smooth approval-to-payment experience with secure confirmation directly on their phone.</p>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Manual M-Pesa</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Use only if requested</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Fallback option for cases where STK Push is not available during review or follow-up.</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Flexible backup payment route</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Useful when clients prefer direct transfer confirmation or need an alternative while final onboarding details are being completed.</p>
                       </div>
                       <div className="rounded-xl border border-white/10 bg-white/5 p-4">
                         <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Card or Bank</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Available by arrangement</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Alternative payment routes can be discussed during admin review for approved requests.</p>
+                        <p className="mt-2 text-sm font-semibold text-white">Professional options for larger engagements</p>
+                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Best suited for company clients, structured projects, and approved engagements that require a more formal payment arrangement.</p>
                       </div>
                     </div>
                   </div>

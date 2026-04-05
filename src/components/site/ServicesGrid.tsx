@@ -98,8 +98,8 @@ const ServicesGrid: React.FC = () => {
           <div className="mb-10 flex flex-col gap-6 lg:flex-row lg:items-end lg:justify-between">
             <div className="max-w-2xl">
               <p className="text-sm font-semibold uppercase tracking-[0.24em] text-cyan-300">Expert Services</p>
-              <h3 className="mt-3 text-3xl font-black text-white sm:text-4xl">Professional computer science services.</h3>
-              <p className="mt-3 text-base leading-7 text-blue-200/60">These are practical services a computer science expert typically offers to organizations, founders, teams, and institutions.</p>
+              <h3 className="mt-3 text-3xl font-black text-white sm:text-4xl">High-impact digital solutions for businesses, teams, and serious founders.</h3>
+              <p className="mt-3 text-base leading-7 text-blue-200/60">From custom software and AI systems to cloud delivery, cybersecurity, and technical training, these services are built to help clients launch faster, operate smarter, and scale with confidence.</p>
             </div>
 
             <div className="w-full max-w-xl">
