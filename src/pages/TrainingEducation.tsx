@@ -190,12 +190,23 @@ const TrainingEducation: React.FC = () => {
                       )}
 
                       <div className="mt-6 space-y-3">
-                        {!approvedForClass ? (
-                          <>
-                            <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/55">
-                              Await admin approval
-                            </button>
-                          </>
+                        {!learningConsultation ? (
+                          <button
+                            onClick={() =>
+                              navigate({
+                                pathname: '/training-education',
+                                search: `?requestType=class&service=${encodeURIComponent(course.title)}`,
+                                hash: '#contact',
+                              })
+                            }
+                            className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white hover:opacity-90"
+                          >
+                            Request Class
+                          </button>
+                        ) : !approvedForClass ? (
+                          <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/55">
+                            Await admin approval
+                          </button>
                         ) : (courseTestStatus[course.id] || testStatus) === 'in_progress' ? (
                           <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
                             Loading class...

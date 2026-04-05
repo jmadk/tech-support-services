@@ -67,6 +67,9 @@ export type Consultation = {
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
   payment_status: ConsultationPaymentStatus;
+  latest_payment_method?: PaymentMethod | null;
+  latest_payment_reference?: string | null;
+  latest_payment_recorded_at?: string | null;
   terms_version: string;
   agreement_accepted: boolean;
   signature_name: string;

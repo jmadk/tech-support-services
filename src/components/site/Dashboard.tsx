@@ -1058,6 +1058,18 @@ const Dashboard: React.FC = () => {
                               <p className="mt-2 text-blue-200/70">
                                 Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                               </p>
+                              {c.latest_payment_reference && (
+                                <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
+                                  <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">Payment Verification</p>
+                                  <p className="mt-2 text-sm text-white">
+                                    Code: <span className="font-semibold">{c.latest_payment_reference}</span>
+                                  </p>
+                                  <p className="mt-1 text-xs text-emerald-100/70">
+                                    {c.latest_payment_method ? `Method: ${c.latest_payment_method.replace('_', ' ')}` : 'Payment reference submitted'}
+                                    {c.latest_payment_recorded_at ? ` • Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
+                                  </p>
+                                </div>
+                              )}
                               {c.agreement_document && (
                                 <div className="mt-3 flex flex-wrap items-center gap-2">
                                   <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">
@@ -1348,6 +1360,18 @@ const Dashboard: React.FC = () => {
                           <p className="mt-2 text-blue-200/70">
                             Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                           </p>
+                          {c.latest_payment_reference && (
+                            <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
+                              <p className="text-[11px] uppercase tracking-[0.2em] text-emerald-200/80">Payment Verification</p>
+                              <p className="mt-2 text-sm text-white">
+                                Code: <span className="font-semibold">{c.latest_payment_reference}</span>
+                              </p>
+                              <p className="mt-1 text-xs text-emerald-100/70">
+                                {c.latest_payment_method ? `Method: ${c.latest_payment_method.replace('_', ' ')}` : 'Payment reference submitted'}
+                                {c.latest_payment_recorded_at ? ` • Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
+                              </p>
+                            </div>
+                          )}
                           {c.agreement_document && (
                             <div className="mt-3 flex flex-wrap items-center gap-2">
                               <span className="rounded-full border border-white/10 bg-white/5 px-3 py-1 text-xs text-blue-100">

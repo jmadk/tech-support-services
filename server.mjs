@@ -443,6 +443,27 @@ const statements = {
   listConsultationsByUser: db.prepare(`
     SELECT
       id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      (
+        SELECT payment_method
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_method,
+      (
+        SELECT customer_transaction_code
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_reference,
+      (
+        SELECT created_at
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_recorded_at,
       terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
       id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
@@ -452,6 +473,27 @@ const statements = {
   listAllConsultations: db.prepare(`
     SELECT
       id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      (
+        SELECT payment_method
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_method,
+      (
+        SELECT customer_transaction_code
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_reference,
+      (
+        SELECT created_at
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_recorded_at,
       terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
       id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
@@ -460,6 +502,27 @@ const statements = {
   getConsultationById: db.prepare(`
     SELECT
       id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      (
+        SELECT payment_method
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_method,
+      (
+        SELECT customer_transaction_code
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_reference,
+      (
+        SELECT created_at
+        FROM service_payments sp
+        WHERE sp.consultation_id = consultations.id
+        ORDER BY datetime(sp.created_at) DESC
+        LIMIT 1
+      ) AS latest_payment_recorded_at,
       terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
       id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
     FROM consultations
