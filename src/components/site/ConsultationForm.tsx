@@ -56,7 +56,7 @@ const documentOptions: Array<{ value: ConsultationIdDocumentType; label: string 
   { value: 'passport', label: 'Passport' },
   { value: 'birth_certificate', label: 'Birth Certificate' },
 ];
-const agreementSections = [
+const serviceAgreementSections = [
   {
     title: '1. Introduction',
     body:
@@ -75,12 +75,12 @@ const agreementSections = [
   {
     title: '4. Request Review and Acceptance',
     body:
-      'Submitting a request or signed document does not create a binding contract until it has been reviewed and explicitly accepted in writing by Expert Tech Solutions & Training. Only upon written acceptance or formal confirmation will service engagements, schedules, or class placements be guaranteed and deliverables, pricing, or timelines become binding. We reserve the right to accept, defer, seek clarification on, or decline a request at our sole discretion.',
+      'Submitting a request or signed document does not create a binding contract until it has been reviewed and explicitly accepted in writing by Expert Tech Solutions & Training. Only upon written acceptance or formal confirmation will service engagements, deliverables, pricing, or timelines become binding. We reserve the right to accept, defer, seek clarification on, or decline a request at our sole discretion.',
   },
   {
     title: '5. Scope and Commercial Terms',
     body:
-      'Final service scope, deliverables, pricing, training schedules, revisions, and implementation details are subject to admin review and clarification with the Client, formal written confirmation, and any subsequent agreed addendum, work order, or training plan. No verbal assurances, drafts, or preliminary discussions are considered binding unless explicitly confirmed in writing.',
+      'Final service scope, deliverables, pricing, revisions, milestones, and implementation details are subject to admin review and clarification with the Client, formal written confirmation, and any subsequent agreed addendum, quotation, or work order. No verbal assurances, drafts, or preliminary discussions are considered binding unless explicitly confirmed in writing.',
   },
   {
     title: '6. Verification and Compliance',
@@ -90,7 +90,7 @@ const agreementSections = [
   {
     title: '7. Payments and Activation',
     body:
-      'Payments must follow official instructions issued by Expert Tech Solutions & Training. You acknowledge that services or classes will not commence until payment requirements and verification are completed, any delay in payment or document verification may cause scheduling delays, and refund and rescheduling terms will be as stated in your approved service or training agreement.',
+      'Payments must follow official instructions issued by Expert Tech Solutions & Training. You acknowledge that work will not commence until payment requirements and verification are completed, any delay in payment or document verification may affect scheduling, and refund or rescheduling terms will be governed by your approved service agreement.',
   },
   {
     title: '8. Communications and Notifications',
@@ -100,7 +100,7 @@ const agreementSections = [
   {
     title: '9. Limitation of Submission Effect',
     body:
-      'Submission of a form, request, or signed file does not guarantee service engagement or acceptance, training seat reservation, or timing, pricing, or delivery inclusion. We reserve full discretion to reject or postpone any submission due to verification concerns, scope or schedule conflicts, commercial feasibility, and legal or compliance considerations.',
+      'Submission of a form, request, or signed file does not guarantee service engagement, scheduling, pricing, or delivery inclusion. We reserve full discretion to reject or postpone any submission due to verification concerns, scope or scheduling conflicts, commercial feasibility, and legal or compliance considerations.',
   },
   {
     title: '10. Document Integrity',
@@ -110,12 +110,12 @@ const agreementSections = [
   {
     title: '11. Intellectual Property',
     body:
-      'All materials, content, courseware, and documentation provided by Expert Tech Solutions & Training are protected under intellectual property law. You may not copy, distribute, modify, reproduce, or use any material beyond the scope of your approved training or service engagement.',
+      'All proposals, designs, code, documentation, deliverables, frameworks, and supporting materials provided by Expert Tech Solutions & Training are protected under intellectual property law. You may not copy, distribute, modify, reproduce, or use any material beyond the scope of your approved service engagement.',
   },
   {
     title: '12. Limitation of Liability',
     body:
-      'To the maximum extent permitted by law, Expert Tech Solutions & Training shall not be liable for indirect, consequential, or incidental damages, including loss of data, profit, or opportunity. Our total liability for any claim related to this Agreement shall not exceed the amount paid by the Client for the specific service or class giving rise to the claim.',
+      'To the maximum extent permitted by law, Expert Tech Solutions & Training shall not be liable for indirect, consequential, or incidental damages, including loss of data, profit, or opportunity. Our total liability for any claim related to this Agreement shall not exceed the amount paid by the Client for the specific service engagement giving rise to the claim.',
   },
   {
     title: '13. Confidentiality and Data Privacy',
@@ -131,6 +131,84 @@ const agreementSections = [
     title: '15. Electronic Signature and Acceptance',
     body:
       'By signing electronically, checking the acceptance box, or submitting this document digitally, you acknowledge and agree that your electronic signature has the same legal effect as a handwritten signature and that you accept and intend to be legally bound by these terms.',
+  },
+];
+
+const classAgreementSections = [
+  {
+    title: '1. Introduction',
+    body:
+      'Welcome to Expert Tech Solutions & Training. These Terms and Conditions ("Agreement") govern all class requests, training enrollments, certification access, and learning support arrangements submitted through any of our platforms or communication channels. By requesting a class, signing this Agreement electronically, or proceeding with training onboarding, you acknowledge that you have read, understood, and agreed to these Terms.',
+  },
+  {
+    title: '2. Learner Identity and Authorization',
+    body:
+      'You confirm that you are the learner named in the request, or you are duly authorized to submit the request on behalf of the learner identified in the application. You further confirm that you have legal capacity and authority to enter into this Agreement. Any submission made by an unauthorized individual may be rejected or voided at our discretion.',
+  },
+  {
+    title: '3. Accuracy of Information',
+    body:
+      'You agree to provide information, academic details, identification documents, and communications that are true, current, complete, and not misleading. Expert Tech Solutions & Training may verify your information at any time to confirm authenticity. Submission of false, misleading, or altered information may result in immediate rejection, suspension, or removal from the learning process.',
+  },
+  {
+    title: '4. Enrollment Review and Acceptance',
+    body:
+      'Submitting a class request or signed document does not create a confirmed enrollment until it has been reviewed and explicitly accepted in writing by Expert Tech Solutions & Training. Only upon written acceptance or formal confirmation will class placement, certification access, learning schedules, or onboarding steps become binding. We reserve the right to accept, defer, seek clarification on, or decline a request at our sole discretion.',
+  },
+  {
+    title: '5. Training Scope and Delivery Terms',
+    body:
+      'Final training content, schedules, certification tracks, instructor support, assessments, class progression, and learner access rules are subject to admin review, formal written confirmation, and any approved learning plan issued to the learner. No verbal assurances, promotional statements, or draft schedules are considered binding unless explicitly confirmed in writing.',
+  },
+  {
+    title: '6. Verification and Compliance',
+    body:
+      'You authorize Expert Tech Solutions & Training to review and verify identification documents, signed agreements, learner records, and submitted materials, conduct risk, compliance, and onboarding reviews, and retain and process your data for legitimate training and operational purposes. We may delay or withhold class activation until verification is complete.',
+  },
+  {
+    title: '7. Fees, Payments, and Class Activation',
+    body:
+      'Payments must follow official instructions issued by Expert Tech Solutions & Training. You acknowledge that class access, certification onboarding, assessments, and active learning support may be withheld until payment requirements and verification are completed. Any delay in payment or document verification may affect class scheduling, seat availability, or progression timelines.',
+  },
+  {
+    title: '8. Communications and Notifications',
+    body:
+      'You consent to receive communications and official updates via email, phone, WhatsApp, dashboard messages, and other approved digital channels. Messages may include enrollment confirmation, payment instructions, class scheduling, learner support notices, assessments, and certification updates. All communications from our verified business addresses or numbers shall be deemed valid notices under this Agreement.',
+  },
+  {
+    title: '9. Limitation of Submission Effect',
+    body:
+      'Submission of a class request, form, or signed file does not guarantee training acceptance, class scheduling, certification activation, or seat reservation. We reserve full discretion to reject or postpone any submission due to verification concerns, schedule conflicts, academic fit, operational limitations, or legal and compliance considerations.',
+  },
+  {
+    title: '10. Learner Conduct and Document Integrity',
+    body:
+      'You must not upload, submit, or distribute any document or information that is false, misleading, forged, altered, stolen, unauthorized, abusive, or in violation of third-party rights. You also agree to participate respectfully in the learning process and follow any published learner conduct requirements issued for your class or certification path.',
+  },
+  {
+    title: '11. Intellectual Property and Learning Materials',
+    body:
+      'All class materials, lesson content, assessments, courseware, exercises, slides, recordings, and supporting documents provided by Expert Tech Solutions & Training are protected under intellectual property law. You may not copy, distribute, resell, republish, modify, or use any material beyond your approved personal or organizational learning access without written permission.',
+  },
+  {
+    title: '12. Limitation of Liability',
+    body:
+      'To the maximum extent permitted by law, Expert Tech Solutions & Training shall not be liable for indirect, consequential, or incidental damages, including loss of academic opportunity, data, income, or business interruption. Our total liability for any claim related to this Agreement shall not exceed the amount paid by the learner or sponsoring client for the specific class or training program giving rise to the claim.',
+  },
+  {
+    title: '13. Confidentiality and Data Privacy',
+    body:
+      'Both parties agree to protect confidential information shared during onboarding and training. Personal data will be processed in accordance with applicable data protection laws and our internal privacy practices, including records necessary for training administration, support, assessments, and certification workflows.',
+  },
+  {
+    title: '14. Governing Law and Jurisdiction',
+    body:
+      'This Agreement shall be governed by and construed under the laws of Kenya. In case of dispute, both parties agree to first pursue resolution through reasonable mediation before seeking legal recourse in competent courts within the same jurisdiction.',
+  },
+  {
+    title: '15. Electronic Signature and Acceptance',
+    body:
+      'By signing electronically, checking the acceptance box, or submitting this document digitally, you acknowledge and agree that your electronic signature has the same legal effect as a handwritten signature and that you accept and intend to be legally bound by these training and enrollment terms.',
   },
 ];
 
@@ -160,8 +238,23 @@ function wrapAgreementLine(text: string, maxLength = 82) {
   return lines;
 }
 
-function buildAgreementPdf(version: string) {
+function getAgreementConfig(requestType: RequestType) {
+  if (requestType === 'class') {
+    return {
+      title: 'Learning Class Agreement and Terms & Conditions',
+      sections: classAgreementSections,
+    };
+  }
+
+  return {
+    title: 'Legal User Agreement and Terms & Conditions',
+    sections: serviceAgreementSections,
+  };
+}
+
+function buildAgreementPdf(version: string, requestType: RequestType) {
   const effectiveDate = version;
+  const agreementConfig = getAgreementConfig(requestType);
   const pageWidth = 612;
   const pageHeight = 842;
   const bottomMargin = 60;
@@ -205,12 +298,12 @@ function buildAgreementPdf(version: string) {
     y -= size + gap;
   };
 
-  writeLine('Legal User Agreement and Terms & Conditions', 14);
+  writeLine(agreementConfig.title, 14);
   writeLine(`Version: ${version}`, 11);
   writeLine(`Effective Date: ${effectiveDate}`, 11);
   y -= 8;
 
-  agreementSections.forEach((section) => {
+  agreementConfig.sections.forEach((section) => {
     writeLine(section.title, 12);
     wrapAgreementLine(section.body, 92).forEach((line) => writeLine(line, 10));
     y -= 6;
@@ -340,9 +433,10 @@ const ConsultationForm: React.FC = () => {
     form.requestType === 'service' && form.service
       ? getServicePrice(form.service, form.complexity)
       : 0;
+  const agreementConfig = getAgreementConfig(form.requestType);
 
   const handleDownloadAgreementPdf = () => {
-    const pdfBlob = buildAgreementPdf(TERMS_VERSION);
+    const pdfBlob = buildAgreementPdf(TERMS_VERSION, form.requestType);
     const url = URL.createObjectURL(pdfBlob);
     const link = document.createElement('a');
     link.href = url;
@@ -815,7 +909,7 @@ const ConsultationForm: React.FC = () => {
                   <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
                     <div>
                       <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-300">User Agreement</p>
-                      <h4 className="mt-2 text-xl font-bold text-white">Legal User Agreement and Terms & Conditions</h4>
+                      <h4 className="mt-2 text-xl font-bold text-white">{agreementConfig.title}</h4>
                       <p className="mt-2 text-sm text-blue-200/60">Download this agreement as a PDF, sign it, then upload the signed copy below before submitting your request.</p>
                     </div>
                     <div className="flex items-center gap-3">
@@ -831,7 +925,7 @@ const ConsultationForm: React.FC = () => {
                   </div>
 
                   <div className="mt-4 space-y-4 text-sm leading-6 text-blue-100/80">
-                    {agreementSections.map((section) => (
+                    {agreementConfig.sections.map((section) => (
                       <div key={section.title} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4">
                         <p className="font-semibold text-white">{section.title}</p>
                         <p className="mt-2 text-blue-100/80">{section.body}</p>
