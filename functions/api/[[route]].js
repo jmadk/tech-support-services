@@ -581,6 +581,28 @@ async function ensureSchema(env) {
   await runQuery(
     env,
     `
+      CREATE TABLE IF NOT EXISTS lesson_activity (
+        id TEXT PRIMARY KEY,
+        consultation_id TEXT NOT NULL,
+        user_id TEXT,
+        course TEXT NOT NULL,
+        session_label TEXT NOT NULL,
+        topic_number INTEGER NOT NULL DEFAULT 0,
+        elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+        required_seconds INTEGER NOT NULL DEFAULT 0,
+        started_at TEXT NOT NULL,
+        last_seen_at TEXT NOT NULL,
+        completed_at TEXT,
+        FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+        FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+        UNIQUE (consultation_id, course, session_label)
+      )
+    `,
+  );
+
+  await runQuery(
+    env,
+    `
       CREATE TABLE IF NOT EXISTS saved_services (
         id TEXT PRIMARY KEY,
         user_id TEXT NOT NULL,
@@ -680,6 +702,9 @@ async function ensureSchema(env) {
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_assessments_consultation_id ON lesson_assessments(consultation_id)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_assessments_user_id ON lesson_assessments(user_id)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_assessments_submitted_at ON lesson_assessments(submitted_at)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_activity_consultation_id ON lesson_activity(consultation_id)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_activity_user_id ON lesson_activity(user_id)");
+  await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_lesson_activity_last_seen_at ON lesson_activity(last_seen_at)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_saved_services_user_id ON saved_services(user_id)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at)");
   await runQuery(env, "CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email)");
@@ -1855,6 +1880,39 @@ async function handleAdminLessonAssessmentList(env, request) {
   return json({ records });
 }
 
+async function handleAdminLessonActivityList(env, request) {
+  const auth = await requireOwner(env, request);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const records = await allRows(
+    env,
+    `
+      SELECT
+        la.id,
+        la.consultation_id,
+        la.user_id,
+        la.course,
+        la.session_label,
+        la.topic_number,
+        la.elapsed_seconds,
+        la.required_seconds,
+        la.started_at,
+        la.last_seen_at,
+        la.completed_at,
+        c.service AS consultation_service,
+        c.full_name AS learner_name,
+        c.email AS learner_email
+      FROM lesson_activity la
+      JOIN consultations c ON c.id = la.consultation_id
+      ORDER BY datetime(la.last_seen_at) DESC
+    `,
+  );
+
+  return json({ records });
+}
+
 async function handleLessonAssessmentUpsert(env, request, consultationId) {
   const auth = await requireAuth(env, request);
   if (auth.error) {
@@ -1976,6 +2034,108 @@ async function handleLessonAssessmentUpsert(env, request, consultationId) {
       WHERE la.consultation_id = ? AND la.course = ? AND la.session_label = ? AND la.assessment_type = ?
     `,
     [consultationId, course, sessionLabel, assessmentType],
+  );
+
+  return json({ record });
+}
+
+async function handleLessonActivityUpsert(env, request, consultationId) {
+  const auth = await requireAuth(env, request);
+  if (auth.error) {
+    return auth.error;
+  }
+
+  const consultation = await firstRow(
+    env,
+    `
+      SELECT id, user_id
+      FROM consultations
+      WHERE id = ?
+    `,
+    [consultationId],
+  );
+
+  if (!consultation || consultation.user_id !== auth.session.user.id) {
+    return json({ error: "Consultation not found." }, 404);
+  }
+
+  const body = await readBody(request);
+  const course = String(body.course || "").trim();
+  const sessionLabel = String(body.session_label || "").trim();
+  const topicNumber = Math.max(0, Number(body.topic_number || 0));
+  const elapsedSeconds = Math.max(0, Number(body.elapsed_seconds || 0));
+  const requiredSeconds = Math.max(0, Number(body.required_seconds || 0));
+  const startedAt = String(body.started_at || "").trim();
+  const completedAt = body.completed_at ? String(body.completed_at) : null;
+
+  if (!course || !sessionLabel || !startedAt) {
+    return json({ error: "Course, session label, and started time are required." }, 400);
+  }
+
+  const now = nowIso();
+  await runQuery(
+    env,
+    `
+      INSERT INTO lesson_activity (
+        id,
+        consultation_id,
+        user_id,
+        course,
+        session_label,
+        topic_number,
+        elapsed_seconds,
+        required_seconds,
+        started_at,
+        last_seen_at,
+        completed_at
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      ON CONFLICT(consultation_id, course, session_label) DO UPDATE SET
+        user_id = excluded.user_id,
+        topic_number = excluded.topic_number,
+        elapsed_seconds = excluded.elapsed_seconds,
+        required_seconds = excluded.required_seconds,
+        started_at = excluded.started_at,
+        last_seen_at = excluded.last_seen_at,
+        completed_at = excluded.completed_at
+    `,
+    [
+      createId(),
+      consultationId,
+      auth.session.user.id,
+      course,
+      sessionLabel,
+      Math.round(topicNumber),
+      Math.round(elapsedSeconds),
+      Math.round(requiredSeconds),
+      startedAt,
+      now,
+      completedAt,
+    ],
+  );
+
+  const record = await firstRow(
+    env,
+    `
+      SELECT
+        la.id,
+        la.consultation_id,
+        la.user_id,
+        la.course,
+        la.session_label,
+        la.topic_number,
+        la.elapsed_seconds,
+        la.required_seconds,
+        la.started_at,
+        la.last_seen_at,
+        la.completed_at,
+        c.service AS consultation_service,
+        c.full_name AS learner_name,
+        c.email AS learner_email
+      FROM lesson_activity la
+      JOIN consultations c ON c.id = la.consultation_id
+      WHERE la.consultation_id = ? AND la.course = ? AND la.session_label = ?
+    `,
+    [consultationId, course, sessionLabel],
   );
 
   return json({ record });
@@ -2265,6 +2425,9 @@ export async function onRequest(context) {
     if (request.method === "GET" && pathname === "/api/admin/lesson-assessments") {
       return await handleAdminLessonAssessmentList(env, request);
     }
+    if (request.method === "GET" && pathname === "/api/admin/lesson-activities") {
+      return await handleAdminLessonActivityList(env, request);
+    }
     if (request.method === "POST" && pathname === "/api/admin/password-reset-otp") {
       return await handleOwnerPasswordResetOtpCreate(env, request);
     }
@@ -2275,6 +2438,14 @@ export async function onRequest(context) {
     ) {
       const id = pathname.replace("/api/consultations/", "").replace("/lesson-assessments", "").replace(/\//g, "");
       return await handleLessonAssessmentUpsert(env, request, id);
+    }
+    if (
+      request.method === "POST" &&
+      pathname.startsWith("/api/consultations/") &&
+      pathname.endsWith("/lesson-activity")
+    ) {
+      const id = pathname.replace("/api/consultations/", "").replace("/lesson-activity", "").replace(/\//g, "");
+      return await handleLessonActivityUpsert(env, request, id);
     }
 
     if (

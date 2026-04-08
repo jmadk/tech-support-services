@@ -174,6 +174,23 @@ db.exec(`
     UNIQUE (consultation_id, course, session_label, assessment_type)
   );
 
+  CREATE TABLE IF NOT EXISTS lesson_activity (
+    id TEXT PRIMARY KEY,
+    consultation_id TEXT NOT NULL,
+    user_id TEXT,
+    course TEXT NOT NULL,
+    session_label TEXT NOT NULL,
+    topic_number INTEGER NOT NULL DEFAULT 0,
+    elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+    required_seconds INTEGER NOT NULL DEFAULT 0,
+    started_at TEXT NOT NULL,
+    last_seen_at TEXT NOT NULL,
+    completed_at TEXT,
+    FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+    FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+    UNIQUE (consultation_id, course, session_label)
+  );
+
   CREATE TABLE IF NOT EXISTS saved_services (
     id TEXT PRIMARY KEY,
     user_id TEXT NOT NULL,
@@ -252,6 +269,23 @@ function ensureSchema() {
       UNIQUE (consultation_id, course, session_label, assessment_type)
     );
 
+    CREATE TABLE IF NOT EXISTS lesson_activity (
+      id TEXT PRIMARY KEY,
+      consultation_id TEXT NOT NULL,
+      user_id TEXT,
+      course TEXT NOT NULL,
+      session_label TEXT NOT NULL,
+      topic_number INTEGER NOT NULL DEFAULT 0,
+      elapsed_seconds INTEGER NOT NULL DEFAULT 0,
+      required_seconds INTEGER NOT NULL DEFAULT 0,
+      started_at TEXT NOT NULL,
+      last_seen_at TEXT NOT NULL,
+      completed_at TEXT,
+      FOREIGN KEY (consultation_id) REFERENCES consultations(id) ON DELETE CASCADE,
+      FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL,
+      UNIQUE (consultation_id, course, session_label)
+    );
+
     CREATE TABLE IF NOT EXISTS password_reset_otps (
       id TEXT PRIMARY KEY,
       user_id TEXT NOT NULL,
@@ -301,6 +335,9 @@ function ensureSchema() {
     CREATE INDEX IF NOT EXISTS idx_lesson_assessments_consultation_id ON lesson_assessments(consultation_id);
     CREATE INDEX IF NOT EXISTS idx_lesson_assessments_user_id ON lesson_assessments(user_id);
     CREATE INDEX IF NOT EXISTS idx_lesson_assessments_submitted_at ON lesson_assessments(submitted_at);
+    CREATE INDEX IF NOT EXISTS idx_lesson_activity_consultation_id ON lesson_activity(consultation_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_activity_user_id ON lesson_activity(user_id);
+    CREATE INDEX IF NOT EXISTS idx_lesson_activity_last_seen_at ON lesson_activity(last_seen_at);
     CREATE INDEX IF NOT EXISTS idx_saved_services_user_id ON saved_services(user_id);
     CREATE INDEX IF NOT EXISTS idx_saved_services_saved_at ON saved_services(saved_at);
     CREATE INDEX IF NOT EXISTS idx_password_reset_otps_email ON password_reset_otps(email);
@@ -609,6 +646,69 @@ const statements = {
     FROM lesson_assessments la
     JOIN consultations c ON c.id = la.consultation_id
     ORDER BY datetime(la.submitted_at) DESC
+  `),
+  listAllLessonActivity: db.prepare(`
+    SELECT
+      la.id,
+      la.consultation_id,
+      la.user_id,
+      la.course,
+      la.session_label,
+      la.topic_number,
+      la.elapsed_seconds,
+      la.required_seconds,
+      la.started_at,
+      la.last_seen_at,
+      la.completed_at,
+      c.service AS consultation_service,
+      c.full_name AS learner_name,
+      c.email AS learner_email
+    FROM lesson_activity la
+    JOIN consultations c ON c.id = la.consultation_id
+    ORDER BY datetime(la.last_seen_at) DESC
+  `),
+  upsertLessonActivity: db.prepare(`
+    INSERT INTO lesson_activity (
+      id,
+      consultation_id,
+      user_id,
+      course,
+      session_label,
+      topic_number,
+      elapsed_seconds,
+      required_seconds,
+      started_at,
+      last_seen_at,
+      completed_at
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ON CONFLICT(consultation_id, course, session_label) DO UPDATE SET
+      user_id = excluded.user_id,
+      topic_number = excluded.topic_number,
+      elapsed_seconds = excluded.elapsed_seconds,
+      required_seconds = excluded.required_seconds,
+      started_at = excluded.started_at,
+      last_seen_at = excluded.last_seen_at,
+      completed_at = excluded.completed_at
+  `),
+  getLessonActivityByIdentity: db.prepare(`
+    SELECT
+      la.id,
+      la.consultation_id,
+      la.user_id,
+      la.course,
+      la.session_label,
+      la.topic_number,
+      la.elapsed_seconds,
+      la.required_seconds,
+      la.started_at,
+      la.last_seen_at,
+      la.completed_at,
+      c.service AS consultation_service,
+      c.full_name AS learner_name,
+      c.email AS learner_email
+    FROM lesson_activity la
+    JOIN consultations c ON c.id = la.consultation_id
+    WHERE la.consultation_id = ? AND la.course = ? AND la.session_label = ?
   `),
   upsertLessonAssessment: db.prepare(`
     INSERT INTO lesson_assessments (
@@ -2199,6 +2299,13 @@ function handleAdminLessonAssessmentList(req, res) {
   return json(res, 200, { records });
 }
 
+function handleAdminLessonActivityList(req, res) {
+  const session = requireOwner(req, res);
+  if (!session) return;
+  const records = statements.listAllLessonActivity.all();
+  return json(res, 200, { records });
+}
+
 async function handleLessonAssessmentUpsert(req, res, consultationId) {
   const session = requireAuth(req, res);
   if (!session) return;
@@ -2261,6 +2368,47 @@ async function handleLessonAssessmentUpsert(req, res, consultationId) {
     assessmentType,
   );
 
+  return json(res, 200, { record });
+}
+
+async function handleLessonActivityUpsert(req, res, consultationId) {
+  const session = requireAuth(req, res);
+  if (!session) return;
+
+  const consultation = statements.getConsultationById.get(consultationId);
+  if (!consultation || consultation.user_id !== session.user.id) {
+    return json(res, 404, { error: "Consultation not found." });
+  }
+
+  const body = await readBody(req);
+  const course = String(body.course || "").trim();
+  const sessionLabel = String(body.session_label || "").trim();
+  const topicNumber = Math.max(0, Number(body.topic_number || 0));
+  const elapsedSeconds = Math.max(0, Number(body.elapsed_seconds || 0));
+  const requiredSeconds = Math.max(0, Number(body.required_seconds || 0));
+  const startedAt = String(body.started_at || "").trim();
+  const completedAt = body.completed_at ? String(body.completed_at) : null;
+
+  if (!course || !sessionLabel || !startedAt) {
+    return json(res, 400, { error: "Course, session label, and started time are required." });
+  }
+
+  const now = nowIso();
+  statements.upsertLessonActivity.run(
+    createId(),
+    consultationId,
+    session.user.id,
+    course,
+    sessionLabel,
+    Math.round(topicNumber),
+    Math.round(elapsedSeconds),
+    Math.round(requiredSeconds),
+    startedAt,
+    now,
+    completedAt,
+  );
+
+  const record = statements.getLessonActivityByIdentity.get(consultationId, course, sessionLabel);
   return json(res, 200, { record });
 }
 
@@ -2456,6 +2604,9 @@ const server = createServer(async (req, res) => {
     if (req.method === "GET" && pathname === "/api/admin/lesson-assessments") {
       return await handleAdminLessonAssessmentList(req, res);
     }
+    if (req.method === "GET" && pathname === "/api/admin/lesson-activities") {
+      return await handleAdminLessonActivityList(req, res);
+    }
     if (req.method === "POST" && pathname === "/api/admin/password-reset-otp") {
       return await handleOwnerPasswordResetOtpCreate(req, res);
     }
@@ -2466,6 +2617,14 @@ const server = createServer(async (req, res) => {
     ) {
       const id = pathname.replace("/api/consultations/", "").replace("/lesson-assessments", "").replace(/\//g, "");
       return await handleLessonAssessmentUpsert(req, res, id);
+    }
+    if (
+      req.method === "POST" &&
+      pathname.startsWith("/api/consultations/") &&
+      pathname.endsWith("/lesson-activity")
+    ) {
+      const id = pathname.replace("/api/consultations/", "").replace("/lesson-activity", "").replace(/\//g, "");
+      return await handleLessonActivityUpsert(req, res, id);
     }
     if (
       req.method === "PATCH" &&

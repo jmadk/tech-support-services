@@ -2316,6 +2316,8 @@ function formatDuration(seconds: number): string {
   return `${hrs ? `${hrs}h ` : ''}${mins}m ${secs}s`;
 }
 
+const LESSON_ACTIVITY_HEARTBEAT_MS = 15000;
+
 function normalizeSessionTitle(label: string): string {
   return label
     .replace(/^\d+\.\s*/, '')
@@ -2743,6 +2745,33 @@ const Lesson: React.FC = () => {
     }
   };
 
+  const persistLessonActivity = async (record: {
+    sessionLabel: string;
+    topicNumber: number;
+    elapsedSeconds: number;
+    requiredSeconds: number;
+    startedAt: string;
+    completedAt: string | null;
+  }) => {
+    if (!isPersistableConsultation || !consultationId) {
+      return;
+    }
+
+    try {
+      await api.saveLessonActivity(consultationId, {
+        course,
+        session_label: record.sessionLabel,
+        topic_number: record.topicNumber,
+        elapsed_seconds: record.elapsedSeconds,
+        required_seconds: record.requiredSeconds,
+        started_at: record.startedAt,
+        completed_at: record.completedAt,
+      });
+    } catch (error) {
+      console.error('Could not save lesson activity:', error);
+    }
+  };
+
   useEffect(() => {
     if (storageKey && course && resolvedSession) {
       sessionStorage.setItem(storageKey, JSON.stringify({ course, session: resolvedSession }));
@@ -2974,6 +3003,40 @@ const Lesson: React.FC = () => {
 
     return () => window.clearInterval(interval);
   }, [currentReadState, narrating, phase, resolvedSession]);
+
+  useEffect(() => {
+    if (
+      !isPersistableConsultation ||
+      !consultationId ||
+      !currentReadState ||
+      phase !== 'narrator'
+    ) {
+      return;
+    }
+
+    const syncActivity = () => {
+      void persistLessonActivity({
+        sessionLabel: resolvedSession,
+        topicNumber: chapterNumber,
+        elapsedSeconds: narratorSeconds,
+        requiredSeconds: currentReadState.requiredSeconds,
+        startedAt: currentReadState.startedAt,
+        completedAt: currentReadState.completedAt,
+      });
+    };
+
+    syncActivity();
+    const interval = window.setInterval(syncActivity, LESSON_ACTIVITY_HEARTBEAT_MS);
+    return () => window.clearInterval(interval);
+  }, [
+    chapterNumber,
+    consultationId,
+    currentReadState,
+    isPersistableConsultation,
+    narratorSeconds,
+    phase,
+    resolvedSession,
+  ]);
 
   const speakText = (text: string) => {
     if ('speechSynthesis' in window) {

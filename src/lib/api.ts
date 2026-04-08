@@ -109,6 +109,23 @@ export type LessonAssessmentRecord = {
   learner_email?: string;
 };
 
+export type LessonActivityRecord = {
+  id: string;
+  consultation_id: string;
+  user_id: string | null;
+  course: string;
+  session_label: string;
+  topic_number: number;
+  elapsed_seconds: number;
+  required_seconds: number;
+  started_at: string;
+  last_seen_at: string;
+  completed_at: string | null;
+  consultation_service?: string;
+  learner_name?: string;
+  learner_email?: string;
+};
+
 export type SavedService = {
   id: string;
   service_title: string;
@@ -176,6 +193,16 @@ export type SaveLessonAssessmentPayload = {
   total_questions: number;
   read_time_required_seconds: number;
   read_time_completed_at: string | null;
+};
+
+export type SaveLessonActivityPayload = {
+  course: string;
+  session_label: string;
+  topic_number: number;
+  elapsed_seconds: number;
+  required_seconds: number;
+  started_at: string;
+  completed_at: string | null;
 };
 
 export type PaymentMethod = "mpesa" | "manual_mpesa" | "card" | "bank";
@@ -354,8 +381,17 @@ export const api = {
   getAdminLessonAssessments() {
     return request<{ records: LessonAssessmentRecord[] }>("/admin/lesson-assessments");
   },
+  getAdminLessonActivities() {
+    return request<{ records: LessonActivityRecord[] }>("/admin/lesson-activities");
+  },
   saveLessonAssessment(consultationId: string, payload: SaveLessonAssessmentPayload) {
     return request<{ record: LessonAssessmentRecord }>(`/consultations/${consultationId}/lesson-assessments`, {
+      method: "POST",
+      body: payload,
+    });
+  },
+  saveLessonActivity(consultationId: string, payload: SaveLessonActivityPayload) {
+    return request<{ record: LessonActivityRecord }>(`/consultations/${consultationId}/lesson-activity`, {
       method: "POST",
       body: payload,
     });

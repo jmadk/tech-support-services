@@ -6,6 +6,7 @@ import {
   api,
   getErrorMessage,
   type Consultation,
+  type LessonActivityRecord,
   type ConsultationNextPathStatus,
   type ConsultationPaymentStatus,
   type ConsultationStatus,
@@ -55,6 +56,23 @@ function getApprovalStatusLabel(consultation: Consultation) {
 function matchesCourseTitle(consultation: Consultation, courseTitle: string) {
   const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
   return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
+}
+
+function formatElapsedDuration(totalSeconds: number) {
+  const seconds = Math.max(0, Math.floor(totalSeconds));
+  const hours = Math.floor(seconds / 3600);
+  const minutes = Math.floor((seconds % 3600) / 60);
+  const remainingSeconds = seconds % 60;
+
+  if (hours > 0) {
+    return `${hours}h ${minutes}m ${remainingSeconds}s`;
+  }
+
+  if (minutes > 0) {
+    return `${minutes}m ${remainingSeconds}s`;
+  }
+
+  return `${remainingSeconds}s`;
 }
 
 const classWorkflowColors: Record<ConsultationNextPathStatus, string> = {
@@ -237,6 +255,7 @@ const Dashboard: React.FC = () => {
   const [savedServices, setSavedServices] = useState<SavedService[]>([]);
   const [lessonAssessments, setLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
   const [ownerLessonAssessments, setOwnerLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
+  const [ownerLessonActivities, setOwnerLessonActivities] = useState<LessonActivityRecord[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState('');
@@ -437,12 +456,13 @@ const Dashboard: React.FC = () => {
     setDashboardError('');
     setOwnerInboxError('');
 
-    const [consResult, savedResult, ownerResult, lessonResult, ownerLessonResult] = await Promise.allSettled([
+    const [consResult, savedResult, ownerResult, lessonResult, ownerLessonResult, ownerActivityResult] = await Promise.allSettled([
       api.getConsultations(),
       api.getSavedServices(),
       isOwner ? api.getAdminConsultations() : Promise.resolve(null),
       isOwner ? Promise.resolve(null) : api.getLessonAssessments(),
       isOwner ? api.getAdminLessonAssessments() : Promise.resolve(null),
+      isOwner ? api.getAdminLessonActivities() : Promise.resolve(null),
     ]);
 
     if (consResult.status === 'fulfilled') {
@@ -483,6 +503,14 @@ const Dashboard: React.FC = () => {
       console.error('Error fetching owner lesson assessments:', ownerLessonResult.reason);
       setOwnerLessonAssessments([]);
       setOwnerInboxError(prev => prev || (ownerLessonResult.reason instanceof Error ? ownerLessonResult.reason.message : 'Could not load lesson assessment records.'));
+    }
+
+    if (ownerActivityResult.status === 'fulfilled') {
+      setOwnerLessonActivities(ownerActivityResult.value?.records || []);
+    } else if (isOwner) {
+      console.error('Error fetching lesson activity records:', ownerActivityResult.reason);
+      setOwnerLessonActivities([]);
+      setOwnerInboxError(prev => prev || (ownerActivityResult.reason instanceof Error ? ownerActivityResult.reason.message : 'Could not load lesson activity records.'));
     }
 
     setLoadingData(false);
@@ -773,6 +801,17 @@ const Dashboard: React.FC = () => {
       consultation.next_path_status !== 'revoked' &&
       consultation.next_path_status !== 'terminated',
   );
+  const ownerLatestLessonActivityByConsultation = ownerLessonActivities.reduce<Record<string, LessonActivityRecord>>((acc, record) => {
+    const existing = acc[record.consultation_id];
+    if (!existing || new Date(record.last_seen_at).getTime() > new Date(existing.last_seen_at).getTime()) {
+      acc[record.consultation_id] = record;
+    }
+    return acc;
+  }, {});
+  const ownerActiveLessonCount = ownerOngoingClasses.filter((consultation) => {
+    const record = ownerLatestLessonActivityByConsultation[consultation.id];
+    return record && Date.now() - new Date(record.last_seen_at).getTime() <= 60000;
+  }).length;
 
   const learnerApprovedClassConsultation = !isOwner
     ? consultations
@@ -987,6 +1026,8 @@ const Dashboard: React.FC = () => {
                       </div>
                       <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
                         Active classes: <span className="font-semibold text-white">{ownerOngoingClasses.length}</span>
+                        <span className="mx-2 text-emerald-300/50">|</span>
+                        Live now: <span className="font-semibold text-white">{ownerActiveLessonCount}</span>
                       </div>
                     </div>
 
@@ -998,6 +1039,8 @@ const Dashboard: React.FC = () => {
                       <div className="space-y-4">
                         {ownerOngoingClasses.map((consultation) => {
                           const summary = getAssessmentSummaryForConsultation(consultation.id);
+                          const lessonActivity = ownerLatestLessonActivityByConsultation[consultation.id];
+                          const isLessonLive = lessonActivity && Date.now() - new Date(lessonActivity.last_seen_at).getTime() <= 60000;
                           return (
                             <div key={consultation.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1007,6 +1050,11 @@ const Dashboard: React.FC = () => {
                                     <span className={`px-3 py-1 rounded-full text-xs font-medium border ${classWorkflowColors[consultation.next_path_status || 'pending']}`}>
                                       {getClassWorkflowLabel(consultation.next_path_status || 'pending')}
                                     </span>
+                                    {lessonActivity && (
+                                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${isLessonLive ? 'border-cyan-400/30 bg-cyan-500/10 text-cyan-200' : 'border-white/10 bg-white/5 text-blue-200/70'}`}>
+                                        {isLessonLive ? 'Live now' : 'Recent lesson activity'}
+                                      </span>
+                                    )}
                                   </div>
                                   <p className="text-sm text-blue-200/60">
                                     {consultation.full_name} • {consultation.email}
@@ -1014,6 +1062,21 @@ const Dashboard: React.FC = () => {
                                   <p className="text-xs text-blue-200/45">
                                     Started from consultation on {new Date(consultation.created_at).toLocaleString()}
                                   </p>
+                                  {lessonActivity && (
+                                    <div className="rounded-xl border border-cyan-400/15 bg-cyan-500/5 px-4 py-3 text-sm text-cyan-100">
+                                      <p>
+                                        Current lesson: <span className="font-semibold text-white">{lessonActivity.session_label}</span>
+                                      </p>
+                                      <p className="mt-1">
+                                        Reading timer: <span className="font-semibold text-white">{formatElapsedDuration(lessonActivity.elapsed_seconds)}</span>
+                                        {' / '}
+                                        <span className="font-semibold text-white">{formatElapsedDuration(lessonActivity.required_seconds)}</span>
+                                      </p>
+                                      <p className="mt-1 text-xs text-cyan-100/70">
+                                        Last seen {new Date(lessonActivity.last_seen_at).toLocaleString()}
+                                      </p>
+                                    </div>
+                                  )}
                                   <p className="text-sm text-blue-100/80">
                                     Topic quizzes completed: <span className="font-semibold text-white">{summary.topicCount}</span>
                                     {summary.finalExamRecord ? ` • Final exam: ${summary.finalExamRecord.score}%` : ' • Final exam pending'}
