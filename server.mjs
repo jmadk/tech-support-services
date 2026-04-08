@@ -136,6 +136,7 @@ db.exec(`
     message TEXT NOT NULL,
     status TEXT NOT NULL DEFAULT 'pending',
     payment_status TEXT NOT NULL DEFAULT 'not_requested',
+    manual_access_granted TEXT NOT NULL DEFAULT 'no',
     terms_version TEXT NOT NULL DEFAULT 'v1',
     agreement_accepted INTEGER NOT NULL DEFAULT 0,
     signature_name TEXT NOT NULL DEFAULT '',
@@ -327,6 +328,9 @@ function ensureSchema() {
   if (!consultationColumns.has("payment_status")) {
     db.exec("ALTER TABLE consultations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'not_requested';");
   }
+  if (!consultationColumns.has("manual_access_granted")) {
+    db.exec("ALTER TABLE consultations ADD COLUMN manual_access_granted TEXT NOT NULL DEFAULT 'no';");
+  }
   if (!consultationColumns.has("request_type")) {
     db.exec("ALTER TABLE consultations ADD COLUMN request_type TEXT NOT NULL DEFAULT 'service';");
   }
@@ -435,14 +439,14 @@ const statements = {
   cleanupExpiredSessions: db.prepare(`DELETE FROM sessions WHERE expires_at <= ?`),
   insertConsultation: db.prepare(`
     INSERT INTO consultations (
-      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted,
       terms_version, agreement_accepted, signature_name, signed_at, agreement_document_name, agreement_document_mime, agreement_document_size, agreement_document_data,
       id_document_type, id_document_name, id_document_mime, id_document_size, id_document_data, created_at
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `),
   listConsultationsByUser: db.prepare(`
     SELECT
-      id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted,
       (
         SELECT payment_method
         FROM service_payments sp
@@ -472,7 +476,7 @@ const statements = {
   `),
   listAllConsultations: db.prepare(`
     SELECT
-      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted,
       (
         SELECT payment_method
         FROM service_payments sp
@@ -501,7 +505,7 @@ const statements = {
   `),
   getConsultationById: db.prepare(`
     SELECT
-      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status,
+      id, user_id, full_name, email, phone, request_type, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted,
       (
         SELECT payment_method
         FROM service_payments sp
@@ -664,7 +668,7 @@ const statements = {
   `),
   updateConsultationWorkflow: db.prepare(`
     UPDATE consultations
-    SET next_path = ?, next_path_status = ?, owner_agreed = ?
+    SET next_path = ?, next_path_status = ?, owner_agreed = ?, manual_access_granted = ?
     WHERE id = ?
   `),
   updateConsultationPaymentStatus: db.prepare(`
@@ -868,6 +872,7 @@ function formatConsultationRecord(record) {
   return {
     ...record,
     agreement_accepted: Boolean(record.agreement_accepted),
+    manual_access_granted: record.manual_access_granted || "no",
     agreement_document:
       record.agreement_document_name && record.agreement_document_mime && record.agreement_document_data
         ? {
@@ -1814,6 +1819,7 @@ async function handleConsultationCreate(req, res) {
     next_path_status: "pending",
     owner_agreed: "no",
     payment_status: "not_requested",
+    manual_access_granted: "no",
     terms_version: termsVersion,
     agreement_accepted: true,
     signature_name: signatureName,
@@ -1837,6 +1843,7 @@ async function handleConsultationCreate(req, res) {
     consultation.next_path_status,
     consultation.owner_agreed,
     consultation.payment_status,
+    consultation.manual_access_granted,
     consultation.terms_version,
     consultation.agreement_accepted ? 1 : 0,
     consultation.signature_name,
@@ -2297,6 +2304,14 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
       : body.owner_agreed === true || body.owner_agreed === "yes"
       ? "yes"
       : "no";
+  const manualAccessGranted =
+    ownerAgreed === "no"
+      ? "no"
+      : body.manual_access_granted === undefined
+      ? existingConsultation.manual_access_granted || "no"
+      : body.manual_access_granted === true || body.manual_access_granted === "yes"
+      ? "yes"
+      : "no";
   const allowedNextPath = new Set(["service", "class"]);
   const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started", "revoked", "terminated"]);
 
@@ -2308,11 +2323,11 @@ async function handleConsultationWorkflowUpdate(req, res, id) {
     return json(res, 400, { error: "Invalid next path status." });
   }
 
-  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid") {
+  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid" && manualAccessGranted !== "yes") {
     return json(res, 400, { error: "Payment must be received before approving this request." });
   }
 
-  statements.updateConsultationWorkflow.run(nextPath, nextPathStatus, ownerAgreed, id);
+  statements.updateConsultationWorkflow.run(nextPath, nextPathStatus, ownerAgreed, manualAccessGranted, id);
 
   const consultation = statements.getConsultationById.get(id);
   if (!consultation) {
@@ -2341,10 +2356,11 @@ async function handleConsultationPaymentStatusUpdate(req, res, id) {
 
   statements.updateConsultationPaymentStatus.run(paymentStatus, id);
 
-  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes") {
+  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes" && consultation.manual_access_granted !== "yes") {
     statements.updateConsultationWorkflow.run(
       consultation.next_path,
       consultation.next_path_status,
+      "no",
       "no",
       id,
     );

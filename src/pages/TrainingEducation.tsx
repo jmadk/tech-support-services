@@ -45,6 +45,11 @@ function buildGenericTrackSessions(courseTitle: string) {
   ];
 }
 
+function matchesCourseTitle(consultation: Consultation, courseTitle: string) {
+  const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
+  return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
+}
+
 const TrainingEducation: React.FC = () => {
   const { loading, user } = useAuth();
   const navigate = useNavigate();
@@ -82,13 +87,10 @@ const TrainingEducation: React.FC = () => {
 
   const getLatestLearningConsultation = (courseTitle: string) => {
     const classConsultations = consultations
-      .filter((consultation) => consultation.next_path === 'class')
+      .filter((consultation) => consultation.next_path === 'class' && matchesCourseTitle(consultation, courseTitle))
       .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime());
 
-    return classConsultations.find((consultation) => {
-      const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
-      return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
-    }) || null;
+    return classConsultations[0] || null;
   };
 
   const getCourseWorkflowState = (courseTitle: string, courseId: number) => {
@@ -187,9 +189,11 @@ const TrainingEducation: React.FC = () => {
                       <h2 className="text-2xl font-bold text-white">{course.title}</h2>
                       <p className="mt-3 text-sm leading-7 text-blue-200/60">{course.description}</p>
                       <p className="mt-5 text-xs uppercase tracking-[0.22em] text-emerald-200/70">{getTrackSessions(course.title).length} sessions in this track</p>
-                      {approvedForClass && learningConsultation && learningConsultation.service !== course.title && (
+                      {learningConsultation?.owner_agreed === 'yes' && (
                         <p className="mt-3 text-xs text-cyan-100/80">
-                          Access enabled from approved certification request: <span className="font-semibold text-white">{learningConsultation.service}</span>
+                          {learningConsultation.manual_access_granted === 'yes'
+                            ? 'Access granted by admin without payment for this class only.'
+                            : 'Access approved after payment verification for this class only.'}
                         </p>
                       )}
 
@@ -213,7 +217,9 @@ const TrainingEducation: React.FC = () => {
                           </button>
                         ) : !approvedForClass ? (
                           <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/55">
-                            Await admin approval
+                            {learningConsultation?.payment_status === 'awaiting_payment'
+                              ? 'Await payment before approval'
+                              : 'Await admin approval'}
                           </button>
                         ) : (courseTestStatus[course.id] || testStatus) === 'in_progress' ? (
                           <button onClick={() => handleStartClassTest(course.id)} className="w-full rounded-xl bg-gradient-to-r from-blue-500 to-cyan-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">

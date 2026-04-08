@@ -42,6 +42,7 @@ export type ConsultationNextPathStatus =
   | "terminated";
 export type ConsultationOwnerAgreement = "yes" | "no";
 export type ConsultationPaymentStatus = "not_requested" | "awaiting_payment" | "paid";
+export type ConsultationManualAccessGranted = "yes" | "no";
 export type ConsultationIdDocumentType = "national_id" | "drivers_license" | "passport" | "birth_certificate";
 
 export type ConsultationIdDocument = {
@@ -73,6 +74,7 @@ export type Consultation = {
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
   payment_status: ConsultationPaymentStatus;
+  manual_access_granted: ConsultationManualAccessGranted;
   latest_payment_method?: PaymentMethod | null;
   latest_payment_reference?: string | null;
   latest_payment_recorded_at?: string | null;
@@ -151,6 +153,7 @@ export type UpdateConsultationWorkflowPayload = {
   next_path: ConsultationNextPath;
   next_path_status: ConsultationNextPathStatus;
   owner_agreed: ConsultationOwnerAgreement;
+  manual_access_granted?: ConsultationManualAccessGranted;
 };
 
 export type UpdateConsultationPaymentPayload = {

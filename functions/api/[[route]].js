@@ -546,6 +546,7 @@ async function ensureSchema(env) {
         next_path_status TEXT NOT NULL DEFAULT 'pending',
         owner_agreed TEXT NOT NULL DEFAULT 'no',
         payment_status TEXT NOT NULL DEFAULT 'not_requested',
+        manual_access_granted TEXT NOT NULL DEFAULT 'no',
         created_at TEXT NOT NULL,
         FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
       )
@@ -660,6 +661,9 @@ async function ensureSchema(env) {
   }
   if (!consultationColumns.has("payment_status")) {
     await runQuery(env, "ALTER TABLE consultations ADD COLUMN payment_status TEXT NOT NULL DEFAULT 'not_requested'");
+  }
+  if (!consultationColumns.has("manual_access_granted")) {
+    await runQuery(env, "ALTER TABLE consultations ADD COLUMN manual_access_granted TEXT NOT NULL DEFAULT 'no'");
   }
 
   const servicePaymentColumns = new Set((await allRows(env, "PRAGMA table_info(service_payments)")).map((col) => col.name));
@@ -1312,14 +1316,15 @@ async function handleConsultationCreate(env, request) {
     next_path_status: "pending",
     owner_agreed: "no",
     payment_status: "not_requested",
+    manual_access_granted: "no",
     created_at: nowIso(),
   };
 
   await runQuery(
     env,
     `
-      INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO consultations (id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `,
     [
       consultation.id,
@@ -1334,6 +1339,7 @@ async function handleConsultationCreate(env, request) {
       consultation.next_path_status,
       consultation.owner_agreed,
       consultation.payment_status,
+      consultation.manual_access_granted,
       consultation.created_at,
     ],
   );
@@ -1728,9 +1734,10 @@ async function handleConsultationList(env, request) {
     columns.includes("next_path") &&
     columns.includes("next_path_status") &&
     columns.includes("owner_agreed") &&
-    columns.includes("payment_status");
+    columns.includes("payment_status") &&
+    columns.includes("manual_access_granted");
   const columnsQuery = includeWorkflow
-    ? "id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at"
+    ? "id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at"
     : "id, full_name, email, phone, service, message, status, created_at";
 
   const consultations = await allRows(
@@ -1758,9 +1765,10 @@ async function handleAdminConsultationList(env, request) {
     columns.includes("next_path") &&
     columns.includes("next_path_status") &&
     columns.includes("owner_agreed") &&
-    columns.includes("payment_status");
+    columns.includes("payment_status") &&
+    columns.includes("manual_access_granted");
   const columnsQuery = includeWorkflow
-    ? "id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at"
+    ? "id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at"
     : "id, user_id, full_name, email, phone, service, message, status, created_at";
 
   const consultations = await allRows(
@@ -1991,7 +1999,7 @@ async function handleConsultationStatusUpdate(env, request, id) {
   const consultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -2014,7 +2022,7 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
   const existingConsultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -2034,6 +2042,14 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
       : body.owner_agreed === true || body.owner_agreed === "yes"
       ? "yes"
       : "no";
+  const manualAccessGranted =
+    ownerAgreed === "no"
+      ? "no"
+      : body.manual_access_granted === undefined
+      ? existingConsultation.manual_access_granted || "no"
+      : body.manual_access_granted === true || body.manual_access_granted === "yes"
+      ? "yes"
+      : "no";
 
   const allowedNextPath = new Set(["service", "class"]);
   const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started", "revoked", "terminated"]);
@@ -2046,20 +2062,20 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
     return json({ error: "Invalid next path status." }, 400);
   }
 
-  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid") {
+  if (ownerAgreed === "yes" && existingConsultation.payment_status !== "paid" && manualAccessGranted !== "yes") {
     return json({ error: "Payment must be received before approving this request." }, 400);
   }
 
   await runQuery(
     env,
-    "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ? WHERE id = ?",
-    [nextPath, nextPathStatus, ownerAgreed, id],
+    "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ?, manual_access_granted = ? WHERE id = ?",
+    [nextPath, nextPathStatus, ownerAgreed, manualAccessGranted, id],
   );
 
   const consultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -2082,7 +2098,7 @@ async function handleConsultationPaymentStatusUpdate(env, request, id) {
   const consultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at
       FROM consultations
       WHERE id = ?
     `,
@@ -2103,18 +2119,18 @@ async function handleConsultationPaymentStatusUpdate(env, request, id) {
 
   await runQuery(env, "UPDATE consultations SET payment_status = ? WHERE id = ?", [paymentStatus, id]);
 
-  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes") {
+  if (paymentStatus !== "paid" && consultation.owner_agreed === "yes" && consultation.manual_access_granted !== "yes") {
     await runQuery(
       env,
-      "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ? WHERE id = ?",
-      [consultation.next_path, consultation.next_path_status, "no", id],
+      "UPDATE consultations SET next_path = ?, next_path_status = ?, owner_agreed = ?, manual_access_granted = ? WHERE id = ?",
+      [consultation.next_path, consultation.next_path_status, "no", "no", id],
     );
   }
 
   const updatedConsultation = await firstRow(
     env,
     `
-      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, created_at
+      SELECT id, user_id, full_name, email, phone, service, message, status, next_path, next_path_status, owner_agreed, payment_status, manual_access_granted, created_at
       FROM consultations
       WHERE id = ?
     `,

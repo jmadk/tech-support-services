@@ -44,6 +44,14 @@ function getPaymentStatusLabel(status: ConsultationPaymentStatus) {
   }
 }
 
+function getApprovalStatusLabel(consultation: Consultation) {
+  if (consultation.owner_agreed !== 'yes') {
+    return 'Pending';
+  }
+
+  return consultation.manual_access_granted === 'yes' ? 'Approved by admin override' : 'Approved after payment';
+}
+
 const classWorkflowColors: Record<ConsultationNextPathStatus, string> = {
   pending: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
   test_in_progress: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
@@ -628,10 +636,27 @@ const Dashboard: React.FC = () => {
         next_path: consultation.next_path || 'service',
         next_path_status: consultation.next_path_status || 'pending',
         owner_agreed: 'yes',
+        manual_access_granted: 'no',
       });
       syncConsultation(updatedConsultation);
     } catch (err) {
       console.error('Error approving consultation:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
+  const handleGrantManualAccess = async (consultation: Consultation) => {
+    setStatusUpdatingId(consultation.id);
+    try {
+      const { consultation: updatedConsultation } = await api.updateConsultationWorkflow(consultation.id, {
+        next_path: consultation.next_path || 'class',
+        next_path_status: consultation.next_path_status || 'pending',
+        owner_agreed: 'yes',
+        manual_access_granted: 'yes',
+      });
+      syncConsultation(updatedConsultation);
+    } catch (err) {
+      console.error('Error granting manual access:', err);
     }
     setStatusUpdatingId(null);
   };
@@ -1083,7 +1108,7 @@ const Dashboard: React.FC = () => {
                               {c.payment_status === 'not_requested' && 'Your request has been submitted and is waiting for admin review.'}
                               {c.payment_status === 'awaiting_payment' && 'Admin reviewed your request. Complete payment to continue to approval.'}
                               {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && 'Payment has been received. Your request is awaiting final admin approval.'}
-                              {c.payment_status === 'paid' && c.owner_agreed === 'yes' && `Your request is approved for the ${c.next_path === 'class' ? 'training path' : 'service path'}.`}
+                              {c.owner_agreed === 'yes' && `Your request is approved for the ${c.next_path === 'class' ? 'training path' : 'service path'}${c.manual_access_granted === 'yes' ? ' by admin override.' : ' after payment approval.'}`}
                               {c.next_path_status === 'revoked' && ' Class access has been revoked by admin.'}
                               {c.next_path_status === 'terminated' && ' This class has been terminated by admin.'}
                             </div>
@@ -1344,7 +1369,7 @@ const Dashboard: React.FC = () => {
                                     ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-300'
                                     : 'border-amber-400/30 bg-amber-500/10 text-amber-300'
                                 }`}>
-                                  {c.owner_agreed === 'yes' ? '✓ Approved' : '⏳ Pending'}
+                                  {c.owner_agreed === 'yes' ? getApprovalStatusLabel(c) : 'Pending'}
                                 </span>
                               </div>
 
@@ -1373,6 +1398,13 @@ const Dashboard: React.FC = () => {
                                     : statusUpdatingId === c.id
                                     ? 'Updating...'
                                     : 'Approve request'}
+                                </button>
+                                <button
+                                  onClick={() => handleGrantManualAccess(c)}
+                                  disabled={statusUpdatingId === c.id || c.owner_agreed === 'yes'}
+                                  className="rounded-lg border border-violet-400/30 bg-violet-500/10 px-3 py-2 text-xs font-medium text-violet-200 transition-all hover:bg-violet-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                >
+                                  {statusUpdatingId === c.id ? 'Updating...' : 'Grant access without payment'}
                                 </button>
                               </div>
 
@@ -1566,9 +1598,9 @@ const Dashboard: React.FC = () => {
                         {!isOwner && (
                           <div className="mt-4 rounded-2xl border border-white/10 bg-white/5 p-4 text-xs text-blue-100">
                             {c.payment_status === 'not_requested' && <p>Step 1 complete: request submitted. Wait for admin review before making any payment.</p>}
-                            {c.payment_status === 'awaiting_payment' && <p>Admin has reviewed this request. Payment can now be made so the request can move to approval.</p>}
+                            {c.payment_status === 'awaiting_payment' && <p>Admin has reviewed this request. Payment can now be made so the request can move to approval, unless admin grants manual access first.</p>}
                             {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && <p>Payment has been marked as received. Final admin approval is pending.</p>}
-                            {c.payment_status === 'paid' && c.owner_agreed === 'yes' && <p>Your request has been approved. You can continue with the selected path below.</p>}
+                            {c.owner_agreed === 'yes' && <p>Your request has been approved. {c.manual_access_granted === 'yes' ? 'Access was granted directly by admin without payment.' : 'Access was approved after payment verification.'}</p>}
                             {c.next_path_status === 'revoked' && <p>Admin has revoked your class access for this request.</p>}
                             {c.next_path_status === 'terminated' && <p>This class has been terminated by admin.</p>}
                           </div>
