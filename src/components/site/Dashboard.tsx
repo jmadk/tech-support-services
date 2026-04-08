@@ -1203,7 +1203,7 @@ const Dashboard: React.FC = () => {
 
                                   <div className="grid gap-2 sm:grid-cols-1 lg:w-[220px]">
                                     <button
-                                      onClick={() => handleClassLifecycleChange(consultation, 'pending', 'yes')}
+                                      onClick={() => handleClassLifecycleChange(consultation, 'certification_started', 'yes')}
                                       disabled={statusUpdatingId === consultation.id}
                                       className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
                                     >
