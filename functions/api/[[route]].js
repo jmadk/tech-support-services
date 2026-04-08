@@ -2036,7 +2036,7 @@ async function handleConsultationWorkflowUpdate(env, request, id) {
       : "no";
 
   const allowedNextPath = new Set(["service", "class"]);
-  const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started"]);
+  const allowedNextPathStatus = new Set(["pending", "test_in_progress", "test_completed", "certification_started", "revoked", "terminated"]);
 
   if (!allowedNextPath.has(nextPath)) {
     return json({ error: "Invalid next path." }, 400);

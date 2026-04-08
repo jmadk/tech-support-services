@@ -48,8 +48,22 @@ type UploadedDocumentState = ConsultationIdDocument & {
   display_size: string;
 };
 
+type PaymentSelectionDetail = {
+  paymentMethod: PaymentMethod;
+  service?: string;
+};
+
+type PaymentSubmissionState = {
+  success: boolean;
+  message: string;
+  customerMessage?: string | null;
+  checkoutRequestId?: string | null;
+  consultationId?: string;
+};
+
 const TERMS_VERSION = '2026-04-05';
 const MAX_DOCUMENT_BYTES = 5 * 1024 * 1024;
+const PAYMENT_SELECTION_STORAGE_KEY = 'consultation-payment-selection';
 const documentOptions: Array<{ value: ConsultationIdDocumentType; label: string }> = [
   { value: 'national_id', label: 'National ID' },
   { value: 'drivers_license', label: "Driver's License" },
@@ -391,6 +405,7 @@ const ConsultationForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [paymentSubmission, setPaymentSubmission] = useState<PaymentSubmissionState | null>(null);
   useEffect(() => {
     if (user && profile) {
       setForm((prev) => ({
@@ -428,6 +443,49 @@ const ConsultationForm: React.FC = () => {
       });
     }
   }, [location.search, location.hash]);
+
+  useEffect(() => {
+    const applyPaymentSelection = (selection: PaymentSelectionDetail | null) => {
+      if (!selection) return;
+
+      const validPaymentMethod = PAYMENT_METHOD_OPTIONS.some((option) => option.id === selection.paymentMethod);
+      if (!validPaymentMethod) return;
+
+      const nextService =
+        selection.service && SERVICE_OPTIONS.includes(selection.service as never) ? selection.service : '';
+
+      setForm((prev) => ({
+        ...prev,
+        requestType: 'service',
+        service: nextService || prev.service,
+        paymentMethod: selection.paymentMethod,
+        complexity: prev.complexity || 'starter',
+        transactionCode: selection.paymentMethod === 'manual_mpesa' ? prev.transactionCode : '',
+      }));
+      setErrors((prev) => ({ ...prev, paymentMethod: '', service: '', transactionCode: '' }));
+      setSubmitError('');
+    };
+
+    const storedSelection = window.localStorage.getItem(PAYMENT_SELECTION_STORAGE_KEY);
+    if (storedSelection) {
+      try {
+        applyPaymentSelection(JSON.parse(storedSelection) as PaymentSelectionDetail);
+        window.localStorage.removeItem(PAYMENT_SELECTION_STORAGE_KEY);
+      } catch {
+        window.localStorage.removeItem(PAYMENT_SELECTION_STORAGE_KEY);
+      }
+    }
+
+    const handleSelectionEvent = (event: Event) => {
+      const customEvent = event as CustomEvent<PaymentSelectionDetail>;
+      applyPaymentSelection(customEvent.detail ?? null);
+    };
+
+    window.addEventListener('consultation-payment-selection', handleSelectionEvent as EventListener);
+    return () => {
+      window.removeEventListener('consultation-payment-selection', handleSelectionEvent as EventListener);
+    };
+  }, []);
 
   const currentPrice =
     form.requestType === 'service' && form.service
@@ -531,6 +589,13 @@ const ConsultationForm: React.FC = () => {
 
     if (form.requestType === 'service') {
       if (!form.complexity) newErrors.complexity = 'Please select service complexity';
+      if (!form.paymentMethod) newErrors.paymentMethod = 'Please select a payment method';
+      if (form.paymentMethod === 'mpesa' && !form.mpesaPhone.trim()) {
+        newErrors.mpesaPhone = 'Please provide the M-Pesa phone number for STK Push';
+      }
+      if (form.paymentMethod === 'manual_mpesa' && !form.transactionCode.trim()) {
+        newErrors.transactionCode = 'Please enter the M-Pesa transaction code';
+      }
     }
 
     setErrors(newErrors);
@@ -541,12 +606,14 @@ const ConsultationForm: React.FC = () => {
     setForm((prev) => ({ ...prev, [field]: value }));
     if (errors[field]) setErrors((prev) => ({ ...prev, [field]: '' }));
     if (submitError) setSubmitError('');
+    if (paymentSubmission) setPaymentSubmission(null);
   };
 
   const resetForm = () => {
     setForm(createInitialForm(profile?.full_name || '', user?.email || '', profile?.phone || ''));
     setUploadedAgreement(null);
     setUploadedDocument(null);
+    setPaymentSubmission(null);
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -583,7 +650,39 @@ const ConsultationForm: React.FC = () => {
         status: 'pending',
       };
 
-      await api.createConsultation(consultationData);
+      const { consultation } = await api.createConsultation(consultationData);
+
+      if (form.requestType === 'service') {
+        try {
+          const paymentResponse = await api.initializePayment({
+            consultation_id: consultation.id,
+            service: form.service,
+            request_type: form.requestType,
+            payment_method: form.paymentMethod,
+            complexity: form.complexity,
+            amount: currentPrice,
+            phone: form.paymentMethod === 'mpesa' ? form.mpesaPhone : form.phone,
+            transaction_code: form.paymentMethod === 'manual_mpesa' ? form.transactionCode : undefined,
+          });
+
+          setPaymentSubmission({
+            success: true,
+            message: paymentResponse.message,
+            customerMessage: paymentResponse.customerMessage,
+            checkoutRequestId: paymentResponse.checkoutRequestId,
+            consultationId: consultation.id,
+          });
+        } catch (paymentError: unknown) {
+          setPaymentSubmission({
+            success: false,
+            message: 'Your request was submitted, but payment could not be started automatically.',
+            customerMessage: getErrorMessage(paymentError, 'Please retry payment or contact support to continue.'),
+            consultationId: consultation.id,
+          });
+        }
+      } else {
+        setPaymentSubmission(null);
+      }
 
       setSubmitted(true);
     } catch (err: unknown) {
@@ -655,11 +754,33 @@ const ConsultationForm: React.FC = () => {
                   <svg xmlns="http://www.w3.org/2000/svg" width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
                 </div>
                 <h3 className="mb-2 text-2xl font-bold text-white">
-                  {form.requestType === 'service' ? 'Request Submitted!' : 'Class Inquiry Sent'}
+                  {form.requestType === 'service'
+                    ? paymentSubmission?.success
+                      ? 'Request Submitted and Payment Started'
+                      : 'Request Submitted'
+                    : 'Class Inquiry Sent'}
                 </h3>
                 <p className="mb-6 text-blue-200/60">
-                  Your signed agreement, identification document, and request details have been sent for admin review. Wait for official follow-up before making any payment unless admin instructs otherwise.
+                  {form.requestType === 'service'
+                    ? paymentSubmission?.success
+                      ? paymentSubmission.message
+                      : paymentSubmission?.message || 'Your signed agreement, identification document, and request details have been sent for admin review.'
+                    : 'Your signed agreement, identification document, and request details have been sent for admin review.'}
                 </p>
+                {paymentSubmission?.customerMessage && (
+                  <div className={`mb-6 rounded-2xl border p-4 text-left text-sm ${
+                    paymentSubmission.success
+                      ? 'border-emerald-400/20 bg-emerald-500/10 text-emerald-100'
+                      : 'border-amber-400/20 bg-amber-500/10 text-amber-100'
+                  }`}>
+                    {paymentSubmission.customerMessage}
+                  </div>
+                )}
+                {paymentSubmission?.checkoutRequestId && (
+                  <p className="mb-4 text-xs text-blue-200/50">
+                    Checkout Request ID: {paymentSubmission.checkoutRequestId}
+                  </p>
+                )}
                 {user && <p className="mb-4 text-sm text-cyan-400/60">View your consultation history in your dashboard.</p>}
                 <button
                   onClick={() => {
@@ -738,6 +859,7 @@ const ConsultationForm: React.FC = () => {
                         }));
                         setErrors((prev) => ({ ...prev, service: '', paymentMethod: '', complexity: '', transactionCode: '' }));
                         setSubmitError('');
+                        setPaymentSubmission(null);
                       }}
                       className="w-full cursor-pointer appearance-none rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-white outline-none transition-all focus:border-cyan-500/50"
                     >
@@ -1038,7 +1160,7 @@ const ConsultationForm: React.FC = () => {
                     </>
                   ) : (
                     <>
-                      {form.requestType === 'service' ? 'Submit Request' : 'Send Class Inquiry'}
+                      {form.requestType === 'service' ? 'Submit Request & Start Payment' : 'Send Class Inquiry'}
                       <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg>
                     </>
                   )}

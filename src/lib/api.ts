@@ -33,7 +33,13 @@ export type Profile = {
 export type ConsultationStatus = "pending" | "in_progress" | "completed" | "cancelled";
 export type ConsultationRequestType = "service" | "class";
 export type ConsultationNextPath = "service" | "class";
-export type ConsultationNextPathStatus = "pending" | "test_in_progress" | "test_completed" | "certification_started";
+export type ConsultationNextPathStatus =
+  | "pending"
+  | "test_in_progress"
+  | "test_completed"
+  | "certification_started"
+  | "revoked"
+  | "terminated";
 export type ConsultationOwnerAgreement = "yes" | "no";
 export type ConsultationPaymentStatus = "not_requested" | "awaiting_payment" | "paid";
 export type ConsultationIdDocumentType = "national_id" | "drivers_license" | "passport" | "birth_certificate";

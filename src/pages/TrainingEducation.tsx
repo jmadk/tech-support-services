@@ -94,13 +94,16 @@ const TrainingEducation: React.FC = () => {
   const getCourseWorkflowState = (courseTitle: string, courseId: number) => {
     const learningConsultation = getLatestLearningConsultation(courseTitle);
     const hasStartedClass = localStorage.getItem(getTrainingStartStorageKey(courseId)) === 'yes';
-    const approvedForClass = hasStartedClass || Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes');
     const workflowStatus = learningConsultation?.next_path_status || 'pending';
+    const accessBlocked = workflowStatus === 'revoked' || workflowStatus === 'terminated';
+    const approvedForClass =
+      !accessBlocked && (hasStartedClass || Boolean(learningConsultation && learningConsultation.owner_agreed === 'yes'));
 
     return {
       learningConsultation,
       hasStartedClass,
       approvedForClass,
+      accessBlocked,
       testStatus:
         workflowStatus === 'test_in_progress'
           ? 'in_progress'
@@ -164,6 +167,7 @@ const TrainingEducation: React.FC = () => {
                   learningConsultation,
                   hasStartedClass,
                   approvedForClass,
+                  accessBlocked,
                   testStatus,
                   certificationStarted,
                 } = getCourseWorkflowState(course.title, course.id);
@@ -202,6 +206,10 @@ const TrainingEducation: React.FC = () => {
                             className="w-full rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 px-4 py-3 text-sm font-semibold text-white hover:opacity-90"
                           >
                             Request Class
+                          </button>
+                        ) : accessBlocked ? (
+                          <button disabled className="w-full cursor-not-allowed rounded-xl bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200/80 border border-red-400/20">
+                            {learningConsultation?.next_path_status === 'terminated' ? 'Class terminated by admin' : 'Class access revoked by admin'}
                           </button>
                         ) : !approvedForClass ? (
                           <button disabled className="w-full cursor-not-allowed rounded-xl bg-white/10 px-4 py-3 text-sm font-semibold text-white/55">

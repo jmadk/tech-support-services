@@ -6,6 +6,7 @@ import {
   api,
   getErrorMessage,
   type Consultation,
+  type ConsultationNextPathStatus,
   type ConsultationPaymentStatus,
   type ConsultationStatus,
   type LessonAssessmentRecord,
@@ -40,6 +41,33 @@ function getPaymentStatusLabel(status: ConsultationPaymentStatus) {
       return 'Payment received';
     default:
       return 'Awaiting admin review';
+  }
+}
+
+const classWorkflowColors: Record<ConsultationNextPathStatus, string> = {
+  pending: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
+  test_in_progress: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
+  test_completed: 'bg-cyan-500/10 text-cyan-300 border-cyan-500/20',
+  certification_started: 'bg-emerald-500/10 text-emerald-300 border-emerald-500/20',
+  revoked: 'bg-amber-500/10 text-amber-300 border-amber-500/20',
+  terminated: 'bg-red-500/10 text-red-300 border-red-500/20',
+};
+
+function getClassWorkflowLabel(status: ConsultationNextPathStatus) {
+  switch (status) {
+    case 'test_in_progress':
+      return 'Class test running';
+    case 'test_completed':
+      return 'Test completed';
+    case 'certification_started':
+      return 'Certification live';
+    case 'revoked':
+      return 'Revoked';
+    case 'terminated':
+      return 'Terminated';
+    case 'pending':
+    default:
+      return 'Ready to start';
   }
 }
 
@@ -646,6 +674,25 @@ const Dashboard: React.FC = () => {
     setStatusUpdatingId(null);
   };
 
+  const handleClassLifecycleChange = async (
+    consultation: Consultation,
+    nextPathStatus: ConsultationNextPathStatus,
+    ownerAgreed: 'yes' | 'no',
+  ) => {
+    setStatusUpdatingId(consultation.id);
+    try {
+      const update = await api.updateConsultationWorkflow(consultation.id, {
+        next_path: 'class',
+        next_path_status: nextPathStatus,
+        owner_agreed: ownerAgreed,
+      });
+      syncConsultation(update.consultation);
+    } catch (err) {
+      console.error('Error updating class lifecycle:', err);
+    }
+    setStatusUpdatingId(null);
+  };
+
   const handleManualResetGenerate = async () => {
     const normalizedEmail = manualResetEmail.trim().toLowerCase();
     setManualResetError('');
@@ -727,6 +774,14 @@ const Dashboard: React.FC = () => {
   const inboxConsultations = isOwner ? ownerConsultations : consultations;
   const overviewConsultations = isOwner ? ownerConsultations : consultations;
   const currentLessonRecords = isOwner ? ownerLessonAssessments : lessonAssessments;
+  const ownerOngoingClasses = ownerConsultations.filter(
+    (consultation) =>
+      consultation.next_path === 'class' &&
+      consultation.owner_agreed === 'yes' &&
+      consultation.status !== 'cancelled' &&
+      consultation.next_path_status !== 'revoked' &&
+      consultation.next_path_status !== 'terminated',
+  );
 
   const activeCertificationConsultation = !isOwner
     ? consultations.find(c => c.next_path === 'class' && c.next_path_status === 'certification_started')
@@ -911,7 +966,9 @@ const Dashboard: React.FC = () => {
                     { label: isOwner ? 'Client Consultations' : 'Total Consultations', value: overviewConsultations.length, color: 'from-cyan-400 to-blue-600', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg> },
                     { label: 'Pending', value: overviewConsultations.filter(c => c.status === 'pending').length, color: 'from-amber-400 to-orange-500', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg> },
                     { label: 'Completed', value: overviewConsultations.filter(c => c.status === 'completed').length, color: 'from-green-400 to-emerald-600', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg> },
-                    { label: 'Saved Services', value: savedServices.length, color: 'from-purple-400 to-pink-600', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> },
+                    isOwner
+                      ? { label: 'Ongoing Classes', value: ownerOngoingClasses.length, color: 'from-emerald-400 to-cyan-600', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg> }
+                      : { label: 'Saved Services', value: savedServices.length, color: 'from-purple-400 to-pink-600', icon: <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg> },
                   ].map((stat, i) => (
                     <div key={i} className="bg-white/5 border border-white/10 rounded-2xl p-5 hover:bg-white/[0.07] transition-all">
                       <div className="flex items-center justify-between mb-3">
@@ -924,6 +981,75 @@ const Dashboard: React.FC = () => {
                     </div>
                   ))}
                 </div>
+
+                {isOwner && (
+                  <div>
+                    <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                      <div>
+                        <h3 className="text-lg font-bold text-white">Ongoing Classes</h3>
+                        <p className="text-sm text-blue-200/40">
+                          Approved class requests that are active right now. Admin can revoke access or terminate the class from here.
+                        </p>
+                      </div>
+                      <div className="rounded-2xl border border-emerald-500/20 bg-emerald-500/10 px-4 py-3 text-sm text-emerald-200">
+                        Active classes: <span className="font-semibold text-white">{ownerOngoingClasses.length}</span>
+                      </div>
+                    </div>
+
+                    {ownerOngoingClasses.length === 0 ? (
+                      <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                        <p className="text-blue-200/40">No ongoing classes at the moment.</p>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {ownerOngoingClasses.map((consultation) => {
+                          const summary = getAssessmentSummaryForConsultation(consultation.id);
+                          return (
+                            <div key={consultation.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
+                              <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                <div className="space-y-2">
+                                  <div className="flex flex-wrap items-center gap-3">
+                                    <h4 className="text-white font-bold text-lg">{consultation.service}</h4>
+                                    <span className={`px-3 py-1 rounded-full text-xs font-medium border ${classWorkflowColors[consultation.next_path_status || 'pending']}`}>
+                                      {getClassWorkflowLabel(consultation.next_path_status || 'pending')}
+                                    </span>
+                                  </div>
+                                  <p className="text-sm text-blue-200/60">
+                                    {consultation.full_name} • {consultation.email}
+                                  </p>
+                                  <p className="text-xs text-blue-200/45">
+                                    Started from consultation on {new Date(consultation.created_at).toLocaleString()}
+                                  </p>
+                                  <p className="text-sm text-blue-100/80">
+                                    Topic quizzes completed: <span className="font-semibold text-white">{summary.topicCount}</span>
+                                    {summary.finalExamRecord ? ` • Final exam: ${summary.finalExamRecord.score}%` : ' • Final exam pending'}
+                                  </p>
+                                </div>
+
+                                <div className="grid gap-2 sm:grid-cols-2 lg:w-[320px]">
+                                  <button
+                                    onClick={() => handleClassLifecycleChange(consultation, 'revoked', 'no')}
+                                    disabled={statusUpdatingId === consultation.id}
+                                    className="rounded-xl border border-amber-400/30 bg-amber-500/10 px-4 py-3 text-sm font-semibold text-amber-200 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {statusUpdatingId === consultation.id ? 'Updating...' : 'Revoke Class Access'}
+                                  </button>
+                                  <button
+                                    onClick={() => handleClassLifecycleChange(consultation, 'terminated', 'no')}
+                                    disabled={statusUpdatingId === consultation.id}
+                                    className="rounded-xl border border-red-400/30 bg-red-500/10 px-4 py-3 text-sm font-semibold text-red-200 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                  >
+                                    {statusUpdatingId === consultation.id ? 'Updating...' : 'Terminate Class'}
+                                  </button>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    )}
+                  </div>
+                )}
 
                 {/* Recent consultations */}
                 <div>
@@ -958,6 +1084,8 @@ const Dashboard: React.FC = () => {
                               {c.payment_status === 'awaiting_payment' && 'Admin reviewed your request. Complete payment to continue to approval.'}
                               {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && 'Payment has been received. Your request is awaiting final admin approval.'}
                               {c.payment_status === 'paid' && c.owner_agreed === 'yes' && `Your request is approved for the ${c.next_path === 'class' ? 'training path' : 'service path'}.`}
+                              {c.next_path_status === 'revoked' && ' Class access has been revoked by admin.'}
+                              {c.next_path_status === 'terminated' && ' This class has been terminated by admin.'}
                             </div>
                           )}
                         </div>
@@ -1276,6 +1404,33 @@ const Dashboard: React.FC = () => {
                                 </button>
                               </div>
 
+                              {c.next_path === 'class' && c.owner_agreed === 'yes' && (
+                                <div className="mb-4 rounded-2xl border border-white/10 bg-[#0c1d34] p-4">
+                                  <div className="flex flex-wrap items-center gap-3 mb-3">
+                                    <span className="text-xs text-blue-200/60">Class workflow:</span>
+                                    <span className={`px-3 py-1 text-xs font-semibold rounded-full border ${classWorkflowColors[c.next_path_status || 'pending']}`}>
+                                      {getClassWorkflowLabel(c.next_path_status || 'pending')}
+                                    </span>
+                                  </div>
+                                  <div className="grid grid-cols-1 gap-2">
+                                    <button
+                                      onClick={() => handleClassLifecycleChange(c, 'revoked', 'no')}
+                                      disabled={statusUpdatingId === c.id}
+                                      className="rounded-lg border border-amber-400/30 bg-amber-500/10 px-3 py-2 text-xs font-medium text-amber-200 transition-all hover:bg-amber-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {statusUpdatingId === c.id ? 'Updating...' : 'Revoke class access'}
+                                    </button>
+                                    <button
+                                      onClick={() => handleClassLifecycleChange(c, 'terminated', 'no')}
+                                      disabled={statusUpdatingId === c.id}
+                                      className="rounded-lg border border-red-400/30 bg-red-500/10 px-3 py-2 text-xs font-medium text-red-200 transition-all hover:bg-red-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {statusUpdatingId === c.id ? 'Updating...' : 'Terminate class'}
+                                    </button>
+                                  </div>
+                                </div>
+                              )}
+
                               <div className="flex gap-2">
                                 <button
                                   onClick={() => openGmailReply(c)}
@@ -1414,10 +1569,12 @@ const Dashboard: React.FC = () => {
                             {c.payment_status === 'awaiting_payment' && <p>Admin has reviewed this request. Payment can now be made so the request can move to approval.</p>}
                             {c.payment_status === 'paid' && c.owner_agreed !== 'yes' && <p>Payment has been marked as received. Final admin approval is pending.</p>}
                             {c.payment_status === 'paid' && c.owner_agreed === 'yes' && <p>Your request has been approved. You can continue with the selected path below.</p>}
+                            {c.next_path_status === 'revoked' && <p>Admin has revoked your class access for this request.</p>}
+                            {c.next_path_status === 'terminated' && <p>This class has been terminated by admin.</p>}
                           </div>
                         )}
 
-                        {!isOwner && c.next_path === 'class' && c.payment_status === 'paid' && c.owner_agreed === 'yes' && (
+                        {!isOwner && c.next_path === 'class' && c.payment_status === 'paid' && c.owner_agreed === 'yes' && c.next_path_status !== 'revoked' && c.next_path_status !== 'terminated' && (
                           <div className="mt-4 rounded-2xl border border-cyan-500/30 bg-cyan-500/10 p-4 text-sm text-cyan-100">
                             <p className="mb-2 font-semibold">Class learning path for this consultation.</p>
 
