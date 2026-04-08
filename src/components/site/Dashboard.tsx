@@ -463,11 +463,14 @@ const Dashboard: React.FC = () => {
   const [manualResetExpiresAt, setManualResetExpiresAt] = useState('');
   const [manualResetGenerating, setManualResetGenerating] = useState(false);
 
-  const fetchData = useCallback(async () => {
+  const fetchData = useCallback(async (options?: { silent?: boolean }) => {
     if (!user) return;
-    setLoadingData(true);
-    setDashboardError('');
-    setOwnerInboxError('');
+    const silent = Boolean(options?.silent);
+    if (!silent) {
+      setLoadingData(true);
+      setDashboardError('');
+      setOwnerInboxError('');
+    }
 
     const [consResult, savedResult, ownerResult, lessonResult, ownerLessonResult, ownerActivityResult] = await Promise.allSettled([
       api.getConsultations(),
@@ -526,7 +529,9 @@ const Dashboard: React.FC = () => {
       setOwnerInboxError(prev => prev || (ownerActivityResult.reason instanceof Error ? ownerActivityResult.reason.message : 'Could not load lesson activity records.'));
     }
 
-    setLoadingData(false);
+    if (!silent) {
+      setLoadingData(false);
+    }
   }, [user, isOwner]);
 
   useEffect(() => {
@@ -539,7 +544,7 @@ const Dashboard: React.FC = () => {
     }
 
     const refreshInterval = window.setInterval(() => {
-      fetchData();
+      fetchData({ silent: true });
     }, 15000);
 
     return () => window.clearInterval(refreshInterval);
