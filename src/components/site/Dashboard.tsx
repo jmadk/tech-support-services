@@ -796,6 +796,7 @@ const Dashboard: React.FC = () => {
           c.next_path === 'class' &&
           c.next_path_status === 'certification_started' &&
           c.owner_agreed === 'yes' &&
+          (c.payment_status === 'paid' || c.manual_access_granted === 'yes') &&
           c.status !== 'cancelled' &&
           c.next_path_status !== 'revoked' &&
           c.next_path_status !== 'terminated',
@@ -851,55 +852,33 @@ const Dashboard: React.FC = () => {
             </div>
           </div>
         </div>
-
         {!isOwner && activeCertificationConsultation && (
           <div className="mb-6 rounded-2xl border border-indigo-500/20 bg-indigo-500/10 p-6 text-white">
-            <h3 className="text-lg font-bold mb-1">🎓 Certification Curriculum</h3>
+            <h3 className="text-lg font-bold mb-1">Certification Curriculum</h3>
             <p className="text-sm text-indigo-200 mb-4">
               Your provider activated the <span className="font-semibold">{activeCertificationConsultation.service}</span> certification path.
               {activatedCourseTitle ? (
                 <> You can now begin <span className="font-semibold">{getCertificationTrack(activatedCourseTitle).title}</span>.</>
               ) : (
-                <> Select a course to begin your interactive learning journey with AI narrator, Q&A, and certification quiz.</>
+                <> This class stays locked until admin assigns the exact approved course path.</>
               )}
             </p>
 
-            {!activatedCourseTitle && !selectedCourse[activeCertificationConsultation.id] ? (
-              <div>
-                <p className="text-xs text-indigo-300 mb-3 font-medium">Available courses:</p>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {Object.entries(certificationCatalog).map(([key, course]) => (
-                    <button
-                      key={key}
-                      onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: key }))}
-                      className="text-left p-4 rounded-xl border border-cyan-400/30 bg-cyan-500/5 hover:bg-cyan-500/15 transition-all"
-                    >
-                      <h4 className="font-bold text-cyan-300 mb-1">{course.title}</h4>
-                      <p className="text-xs text-cyan-200/70">{course.description}</p>
-                      <p className="text-xs text-cyan-300/50 mt-2">📚 {course.sessions.length} sessions</p>
-                    </button>
-                  ))}
-                </div>
+            {!activatedCourseTitle ? (
+              <div className="rounded-xl border border-amber-400/20 bg-amber-500/10 px-4 py-4 text-sm text-amber-100">
+                Access is blocked until admin approves and assigns the exact course for this learner. Users cannot choose courses on their own.
               </div>
             ) : (
               <div>
                 <div className="flex items-center gap-2 mb-4">
-                  {!activatedCourseTitle && (
-                    <button
-                      onClick={() => setSelectedCourse(prev => ({ ...prev, [activeCertificationConsultation.id]: '' }))}
-                      className="px-3 py-1 text-xs font-medium rounded-lg bg-white/10 hover:bg-white/20 border border-white/20"
-                    >
-                      ← Back
-                    </button>
-                  )}
                   <span className="text-sm font-semibold text-cyan-300">
-                    {getCertificationTrack(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id]).title}
+                    {getCertificationTrack(activatedCourseTitle).title}
                   </span>
                 </div>
 
                 <div className="mb-4 p-3 rounded-lg bg-white/5 border border-white/10">
                   <p className="text-xs text-gray-300">
-                    {getCertificationTrack(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id]).description}
+                    {getCertificationTrack(activatedCourseTitle).description}
                   </p>
                 </div>
 
@@ -908,7 +887,7 @@ const Dashboard: React.FC = () => {
                   <div className="grid grid-cols-1 gap-2">
                     {getSessionAccessForConsultation(
                       activeCertificationConsultation.id,
-                      activatedCourseTitle || selectedCourse[activeCertificationConsultation.id],
+                      activatedCourseTitle,
                     ).map((item) => {
                       const session = `${item.isCompleted ? `Done ${item.score}%` : item.isUnlocked ? 'Open' : 'Locked'} - ${item.session}`;
                       return (
@@ -917,11 +896,11 @@ const Dashboard: React.FC = () => {
                         onClick={() => {
                           if (!item.isUnlocked) return;
                           sessionStorage.setItem(`lesson_${activeCertificationConsultation.id}`, JSON.stringify({
-                            course: activatedCourseTitle || selectedCourse[activeCertificationConsultation.id],
+                            course: activatedCourseTitle,
                             session: item.session
                           }));
                           navigate(
-                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(activatedCourseTitle || selectedCourse[activeCertificationConsultation.id])}&session=${encodeURIComponent(item.session)}`
+                            `/lesson/${activeCertificationConsultation.id}?course=${encodeURIComponent(activatedCourseTitle)}&session=${encodeURIComponent(item.session)}`
                           );
                         }}
                         disabled={!item.isUnlocked}
@@ -933,7 +912,7 @@ const Dashboard: React.FC = () => {
                               : 'border-white/10 bg-white/5 text-blue-200/40 cursor-not-allowed'
                         }`}
                       >
-                        ▶ {session}
+                        {session}
                       </button>
                       );
                     })}
