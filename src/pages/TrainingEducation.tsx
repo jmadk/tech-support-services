@@ -124,12 +124,16 @@ const TrainingEducation: React.FC = () => {
     }, 800);
   };
 
-  const handleProceedCertification = (courseId: number, courseTitle: string) => {
+  const handleProceedCertification = (courseId: number, courseTitle: string, consultationId: string | null) => {
+    if (!consultationId) {
+      return;
+    }
+
     localStorage.setItem(getTrainingStartStorageKey(courseId), 'yes');
     setCourseCertificationStarted((prev) => ({ ...prev, [courseId]: true }));
     const selectedSession = getTrackSessions(courseTitle)[0] || `Introduction to ${courseTitle} (1h)`;
-    sessionStorage.setItem(`lesson_service_${courseId}`, JSON.stringify({ course: courseTitle, session: selectedSession }));
-    navigate(`/lesson/service-${courseId}`);
+    sessionStorage.setItem(`lesson_${consultationId}`, JSON.stringify({ course: courseTitle, session: selectedSession }));
+    navigate(`/lesson/${consultationId}?course=${encodeURIComponent(courseTitle)}&session=${encodeURIComponent(selectedSession)}`);
   };
 
   return (
@@ -226,7 +230,7 @@ const TrainingEducation: React.FC = () => {
                             Loading class...
                           </button>
                         ) : hasImmediateClassAccess || (courseTestStatus[course.id] || testStatus) === 'completed' ? (
-                          <button onClick={() => handleProceedCertification(course.id, course.title)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
+                          <button onClick={() => handleProceedCertification(course.id, course.title, learningConsultation?.id || null)} className="w-full rounded-xl bg-gradient-to-r from-green-500 to-emerald-500 px-4 py-3 text-sm font-semibold text-white hover:opacity-90">
                             Continue class
                           </button>
                         ) : (
