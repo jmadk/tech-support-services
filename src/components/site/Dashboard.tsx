@@ -52,6 +52,11 @@ function getApprovalStatusLabel(consultation: Consultation) {
   return consultation.manual_access_granted === 'yes' ? 'Approved by admin override' : 'Approved after payment';
 }
 
+function matchesCourseTitle(consultation: Consultation, courseTitle: string) {
+  const resolvedCourseTitle = resolveCertificationCourseTitle(consultation.service);
+  return consultation.service === courseTitle || resolvedCourseTitle === courseTitle;
+}
+
 const classWorkflowColors: Record<ConsultationNextPathStatus, string> = {
   pending: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
   test_in_progress: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
@@ -97,45 +102,6 @@ function getDocumentTypeLabel(type: string) {
       return 'Identification Document';
   }
 }
-const curriculumCards = [
-  {
-    title: 'Introduction to IT Support & Customer Care',
-    description: 'Begin your technical support journey with service mindset, communication, and problem-solving foundations.',
-    image: 'https://images.unsplash.com/photo-1521790362022-53dde6ca36f0?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Core track',
-  },
-  {
-    title: 'Computer Systems Foundations',
-    description: 'Learn about hardware components, operating systems, and system architecture for reliable support.',
-    image: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Systems',
-  },
-  {
-    title: 'Network & Connectivity',
-    description: 'Understand networks, routers, switching, and troubleshooting common connectivity issues.',
-    image: 'https://images.unsplash.com/photo-1517142089942-ba376ce32a2a?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Networking',
-  },
-  {
-    title: 'Security & Incident Response',
-    description: 'Gain practical security practices, risk mitigation, and response methods for small scale infrastructure.',
-    image: 'https://images.unsplash.com/photo-1518773553398-650c184e8bef?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Security',
-  },
-  {
-    title: 'Database Basics & Data Management',
-    description: 'Master data modeling, SQL basics, and performance practices for service support workflows.',
-    image: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Database',
-  },
-  {
-    title: 'Software Engineering & DevOps Fundamentals',
-    description: 'Bridge requirements, development, testing, and deployment for production-grade support solutions.',
-    image: 'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1080&q=80',
-    tag: 'Engineering',
-  },
-];
-
 type SessionAccessItem = {
   session: string;
   isCompleted: boolean;
@@ -808,8 +774,32 @@ const Dashboard: React.FC = () => {
       consultation.next_path_status !== 'terminated',
   );
 
+  const learnerApprovedClassConsultation = !isOwner
+    ? consultations
+        .filter(
+          (consultation) =>
+            consultation.next_path === 'class' &&
+            consultation.owner_agreed === 'yes' &&
+            consultation.status !== 'cancelled' &&
+            consultation.next_path_status !== 'revoked' &&
+            consultation.next_path_status !== 'terminated',
+        )
+        .sort((a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime())[0]
+    : undefined;
+  const learnerApprovedCourseTitle = learnerApprovedClassConsultation
+    ? resolveCertificationCourseTitle(learnerApprovedClassConsultation.service) || learnerApprovedClassConsultation.service
+    : null;
+
   const activeCertificationConsultation = !isOwner
-    ? consultations.find(c => c.next_path === 'class' && c.next_path_status === 'certification_started')
+    ? consultations.find(
+        c =>
+          c.next_path === 'class' &&
+          c.next_path_status === 'certification_started' &&
+          c.owner_agreed === 'yes' &&
+          c.status !== 'cancelled' &&
+          c.next_path_status !== 'revoked' &&
+          c.next_path_status !== 'terminated',
+      )
     : undefined;
   const activatedCourseTitle = activeCertificationConsultation
     ? resolveCertificationCourseTitle(activeCertificationConsultation.service)
@@ -1120,30 +1110,68 @@ const Dashboard: React.FC = () => {
                 </div>
 
                 <div className="mt-8">
-                  <h3 className="text-lg font-bold text-white mb-4">📘 Curriculum Explorations</h3>
+                  <div className="mb-4 flex flex-col gap-2 sm:flex-row sm:items-end sm:justify-between">
+                    <div>
+                      <h3 className="text-lg font-bold text-white">Certification Access</h3>
+                      <p className="text-sm text-blue-200/40">Only your single approved class is active here.</p>
+                    </div>
+                    <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 px-4 py-3 text-sm text-cyan-100">
+                      Active class: <span className="font-semibold text-white">{learnerApprovedCourseTitle || 'None yet'}</span>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {curriculumCards.map(card => (
-                      <div key={card.title} className="bg-white/5 border border-white/10 rounded-2xl overflow-hidden shadow-md hover:shadow-lg transition-all">
+                    {Object.entries(certificationCatalog).map(([courseKey, course]) => {
+                      const isActiveCourse = Boolean(
+                        learnerApprovedClassConsultation && matchesCourseTitle(learnerApprovedClassConsultation, courseKey),
+                      );
+
+                      return (
                         <div
-                          className="h-40 bg-cover bg-center"
-                          style={{ backgroundImage: `url(${card.image})` }}
-                          aria-label={card.title}
-                        />
-                        <div className="p-4">
-                          <span className="text-xs font-semibold uppercase tracking-wider text-cyan-300">{card.tag}</span>
-                          <h4 className="text-white font-bold text-lg mt-2">{card.title}</h4>
-                          <p className="text-blue-200/80 text-sm mt-2">{card.description}</p>
+                          key={courseKey}
+                          className={`rounded-2xl border p-5 transition-all ${
+                            isActiveCourse
+                              ? 'border-emerald-400/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/10'
+                              : 'border-white/10 bg-white/5'
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-3">
+                            <div>
+                              <p className="text-xs font-semibold uppercase tracking-[0.2em] text-cyan-300/80">
+                                {course.sessions.length} sessions
+                              </p>
+                              <h4 className="mt-2 text-lg font-bold text-white">{course.title}</h4>
+                            </div>
+                            <span
+                              className={`rounded-full border px-3 py-1 text-[11px] font-semibold ${
+                                isActiveCourse
+                                  ? 'border-emerald-400/30 bg-emerald-500/10 text-emerald-200'
+                                  : 'border-white/10 bg-white/5 text-blue-200/60'
+                              }`}
+                            >
+                              {isActiveCourse ? 'Active' : 'Locked'}
+                            </span>
+                          </div>
+
+                          <p className="mt-3 text-sm leading-6 text-blue-200/70">{course.description}</p>
+
                           <button
                             onClick={() => {
-                              alert('Continue learning: ' + card.title);
+                              if (!isActiveCourse) return;
+                              navigate('/training-education');
                             }}
-                            className="mt-4 inline-flex items-center gap-2 px-3 py-2 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white text-xs font-semibold hover:from-cyan-400 hover:to-blue-500 transition-all"
+                            disabled={!isActiveCourse}
+                            className={`mt-4 inline-flex items-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold transition-all ${
+                              isActiveCourse
+                                ? 'bg-gradient-to-r from-cyan-500 to-blue-600 text-white hover:from-cyan-400 hover:to-blue-500'
+                                : 'cursor-not-allowed border border-white/10 bg-white/5 text-blue-200/40'
+                            }`}
                           >
-                            Continue
+                            {isActiveCourse ? 'Continue active class' : 'Locked until approved'}
                           </button>
                         </div>
-                      </div>
-                    ))}
+                      );
+                    })}
                   </div>
                 </div>
               </div>
