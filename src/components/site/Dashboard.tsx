@@ -75,6 +75,17 @@ function formatElapsedDuration(totalSeconds: number) {
   return `${remainingSeconds}s`;
 }
 
+function getLiveElapsedSeconds(activity: LessonActivityRecord, nowMs: number) {
+  const completedAtMs = activity.completed_at ? new Date(activity.completed_at).getTime() : null;
+  if (completedAtMs) {
+    return Math.min(activity.required_seconds, activity.elapsed_seconds);
+  }
+
+  const lastSeenMs = new Date(activity.last_seen_at).getTime();
+  const extraSeconds = Math.max(0, Math.floor((nowMs - lastSeenMs) / 1000));
+  return Math.min(activity.required_seconds || Number.MAX_SAFE_INTEGER, activity.elapsed_seconds + extraSeconds);
+}
+
 const classWorkflowColors: Record<ConsultationNextPathStatus, string> = {
   pending: 'bg-slate-500/10 text-slate-300 border-slate-500/20',
   test_in_progress: 'bg-blue-500/10 text-blue-300 border-blue-500/20',
@@ -256,6 +267,7 @@ const Dashboard: React.FC = () => {
   const [lessonAssessments, setLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
   const [ownerLessonAssessments, setOwnerLessonAssessments] = useState<LessonAssessmentRecord[]>([]);
   const [ownerLessonActivities, setOwnerLessonActivities] = useState<LessonActivityRecord[]>([]);
+  const [activityNowMs, setActivityNowMs] = useState(() => Date.now());
   const [loadingData, setLoadingData] = useState(true);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState('');
@@ -519,6 +531,30 @@ const Dashboard: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, [fetchData]);
+
+  useEffect(() => {
+    if (!isOwner) {
+      return;
+    }
+
+    const refreshInterval = window.setInterval(() => {
+      fetchData();
+    }, 15000);
+
+    return () => window.clearInterval(refreshInterval);
+  }, [fetchData, isOwner]);
+
+  useEffect(() => {
+    if (!isOwner) {
+      return;
+    }
+
+    const timerInterval = window.setInterval(() => {
+      setActivityNowMs(Date.now());
+    }, 1000);
+
+    return () => window.clearInterval(timerInterval);
+  }, [isOwner]);
 
   useEffect(() => {
     if (profile) {
@@ -810,7 +846,7 @@ const Dashboard: React.FC = () => {
   }, {});
   const ownerActiveLessonCount = ownerOngoingClasses.filter((consultation) => {
     const record = ownerLatestLessonActivityByConsultation[consultation.id];
-    return record && Date.now() - new Date(record.last_seen_at).getTime() <= 60000;
+    return record && activityNowMs - new Date(record.last_seen_at).getTime() <= 60000;
   }).length;
 
   const learnerApprovedClassConsultation = !isOwner
@@ -1040,7 +1076,8 @@ const Dashboard: React.FC = () => {
                         {ownerOngoingClasses.map((consultation) => {
                           const summary = getAssessmentSummaryForConsultation(consultation.id);
                           const lessonActivity = ownerLatestLessonActivityByConsultation[consultation.id];
-                          const isLessonLive = lessonActivity && Date.now() - new Date(lessonActivity.last_seen_at).getTime() <= 60000;
+                          const isLessonLive = lessonActivity && activityNowMs - new Date(lessonActivity.last_seen_at).getTime() <= 60000;
+                          const displayedElapsedSeconds = lessonActivity ? getLiveElapsedSeconds(lessonActivity, activityNowMs) : 0;
                           return (
                             <div key={consultation.id} className="rounded-2xl border border-white/10 bg-white/5 p-5">
                               <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
@@ -1068,7 +1105,7 @@ const Dashboard: React.FC = () => {
                                         Current lesson: <span className="font-semibold text-white">{lessonActivity.session_label}</span>
                                       </p>
                                       <p className="mt-1">
-                                        Reading timer: <span className="font-semibold text-white">{formatElapsedDuration(lessonActivity.elapsed_seconds)}</span>
+                                        Reading timer: <span className="font-semibold text-white">{formatElapsedDuration(displayedElapsedSeconds)}</span>
                                         {' / '}
                                         <span className="font-semibold text-white">{formatElapsedDuration(lessonActivity.required_seconds)}</span>
                                       </p>
