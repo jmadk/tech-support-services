@@ -269,6 +269,7 @@ const Dashboard: React.FC = () => {
   const [ownerLessonActivities, setOwnerLessonActivities] = useState<LessonActivityRecord[]>([]);
   const [activityNowMs, setActivityNowMs] = useState(() => Date.now());
   const [loadingData, setLoadingData] = useState(true);
+  const [showRevokedClasses, setShowRevokedClasses] = useState(false);
   const [statusUpdatingId, setStatusUpdatingId] = useState<string | null>(null);
   const [dashboardError, setDashboardError] = useState('');
   const [ownerInboxError, setOwnerInboxError] = useState('');
@@ -837,6 +838,12 @@ const Dashboard: React.FC = () => {
       consultation.next_path_status !== 'revoked' &&
       consultation.next_path_status !== 'terminated',
   );
+  const ownerRevokedClasses = ownerConsultations.filter(
+    (consultation) =>
+      consultation.next_path === 'class' &&
+      consultation.next_path_status === 'revoked' &&
+      consultation.status !== 'cancelled',
+  );
   const ownerLatestLessonActivityByConsultation = ownerLessonActivities.reduce<Record<string, LessonActivityRecord>>((acc, record) => {
     const existing = acc[record.consultation_id];
     if (!existing || new Date(record.last_seen_at).getTime() > new Date(existing.last_seen_at).getTime()) {
@@ -1067,6 +1074,19 @@ const Dashboard: React.FC = () => {
                       </div>
                     </div>
 
+                    <div className="mb-4 flex justify-end">
+                      <button
+                        onClick={() => setShowRevokedClasses((prev) => !prev)}
+                        className={`rounded-xl border px-4 py-2 text-sm font-medium transition-all ${
+                          showRevokedClasses
+                            ? 'border-amber-400/30 bg-amber-500/10 text-amber-200'
+                            : 'border-white/10 bg-white/5 text-blue-100/80 hover:bg-white/10'
+                        }`}
+                      >
+                        {showRevokedClasses ? 'Hide revoked classes' : `View revoked classes (${ownerRevokedClasses.length})`}
+                      </button>
+                    </div>
+
                     {ownerOngoingClasses.length === 0 ? (
                       <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
                         <p className="text-blue-200/40">No ongoing classes at the moment.</p>
@@ -1140,6 +1160,61 @@ const Dashboard: React.FC = () => {
                             </div>
                           );
                         })}
+                      </div>
+                    )}
+
+                    {showRevokedClasses && (
+                      <div className="mt-6">
+                        <div className="mb-4 flex items-center justify-between">
+                          <div>
+                            <h4 className="text-lg font-bold text-white">Revoked Classes</h4>
+                            <p className="text-sm text-blue-200/40">
+                              Classes that were revoked by admin and are no longer active.
+                            </p>
+                          </div>
+                          <div className="rounded-2xl border border-amber-400/20 bg-amber-500/10 px-4 py-3 text-sm text-amber-200">
+                            Revoked: <span className="font-semibold text-white">{ownerRevokedClasses.length}</span>
+                          </div>
+                        </div>
+
+                        {ownerRevokedClasses.length === 0 ? (
+                          <div className="bg-white/5 border border-white/10 rounded-2xl p-8 text-center">
+                            <p className="text-blue-200/40">No revoked classes yet.</p>
+                          </div>
+                        ) : (
+                          <div className="space-y-4">
+                            {ownerRevokedClasses.map((consultation) => (
+                              <div key={consultation.id} className="rounded-2xl border border-amber-400/15 bg-amber-500/5 p-5">
+                                <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+                                  <div className="space-y-2">
+                                    <div className="flex flex-wrap items-center gap-3">
+                                      <h4 className="text-white font-bold text-lg">{consultation.service}</h4>
+                                      <span className={`px-3 py-1 rounded-full text-xs font-medium border ${classWorkflowColors[consultation.next_path_status || 'revoked']}`}>
+                                        {getClassWorkflowLabel(consultation.next_path_status || 'revoked')}
+                                      </span>
+                                    </div>
+                                    <p className="text-sm text-blue-200/60">
+                                      {consultation.full_name} • {consultation.email}
+                                    </p>
+                                    <p className="text-xs text-blue-200/45">
+                                      Revoked after consultation on {new Date(consultation.created_at).toLocaleString()}
+                                    </p>
+                                  </div>
+
+                                  <div className="grid gap-2 sm:grid-cols-1 lg:w-[220px]">
+                                    <button
+                                      onClick={() => handleClassLifecycleChange(consultation, 'pending', 'yes')}
+                                      disabled={statusUpdatingId === consultation.id}
+                                      className="rounded-xl border border-emerald-400/30 bg-emerald-500/10 px-4 py-3 text-sm font-semibold text-emerald-200 transition-all hover:bg-emerald-500/20 disabled:cursor-not-allowed disabled:opacity-50"
+                                    >
+                                      {statusUpdatingId === consultation.id ? 'Updating...' : 'Restore class access'}
+                                    </button>
+                                  </div>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
