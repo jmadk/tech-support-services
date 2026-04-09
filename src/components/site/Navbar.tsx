@@ -10,16 +10,9 @@ interface NavbarProps {
 
 const Navbar: React.FC<NavbarProps> = ({ onAuthClick, onDashboardClick, showDashboard, onHomeClick }) => {
   const { user, profile, signOut } = useAuth();
-  const [scrolled, setScrolled] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [dropdownOpen, setDropdownOpen] = useState(false);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const handleScroll = () => setScrolled(window.scrollY > 20);
-    window.addEventListener('scroll', handleScroll);
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, []);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,7 +57,7 @@ const Navbar: React.FC<NavbarProps> = ({ onAuthClick, onDashboardClick, showDash
     : profile?.username?.slice(0, 2).toUpperCase() || user?.email?.slice(0, 2).toUpperCase() || 'U';
 
   return (
-    <nav className={`fixed top-0 left-0 right-0 z-40 transition-all duration-500 ${scrolled || showDashboard ? 'bg-[#0a1628]/95 backdrop-blur-xl shadow-2xl shadow-blue-900/20 py-2' : 'bg-transparent py-4'}`}>
+    <nav className="fixed top-0 left-0 right-0 z-40 bg-[#0a1628]/95 py-2 shadow-2xl shadow-blue-900/20 backdrop-blur-xl transition-all duration-500">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo */}
