@@ -7,6 +7,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { ThemeProvider } from "@/components/theme-provider";
 import { AppProvider } from "@/contexts/AppContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import FloatingWhatsApp from "@/components/site/FloatingWhatsApp";
 import ProfileOnboardingGate from "@/components/site/ProfileOnboardingGate";
 import Index from "./pages/Index";
 import Lesson from "./pages/Lesson";
@@ -32,6 +33,7 @@ const App = () => (
                 <Route path="/lesson/:consultationId" element={<ProfileOnboardingGate><Lesson /></ProfileOnboardingGate>} />
                 <Route path="*" element={<NotFound />} />
               </Routes>
+              <FloatingWhatsApp />
             </BrowserRouter>
           </AuthProvider>
         </AppProvider>
