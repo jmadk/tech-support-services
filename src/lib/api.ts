@@ -205,7 +205,7 @@ export type SaveLessonActivityPayload = {
   completed_at: string | null;
 };
 
-export type PaymentMethod = "mpesa" | "manual_mpesa" | "card" | "bank";
+export type PaymentMethod = "mpesa";
 export type ServiceComplexity = "starter" | "professional" | "enterprise";
 
 export type InitializePaymentPayload = {

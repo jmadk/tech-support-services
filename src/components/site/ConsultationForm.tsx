@@ -460,7 +460,7 @@ const ConsultationForm: React.FC = () => {
         service: nextService || prev.service,
         paymentMethod: selection.paymentMethod,
         complexity: prev.complexity || 'starter',
-        transactionCode: selection.paymentMethod === 'manual_mpesa' ? prev.transactionCode : '',
+        transactionCode: '',
       }));
       setErrors((prev) => ({ ...prev, paymentMethod: '', service: '', transactionCode: '' }));
       setSubmitError('');
@@ -590,11 +590,8 @@ const ConsultationForm: React.FC = () => {
     if (form.requestType === 'service') {
       if (!form.complexity) newErrors.complexity = 'Please select service complexity';
       if (!form.paymentMethod) newErrors.paymentMethod = 'Please select a payment method';
-      if (form.paymentMethod === 'mpesa' && !form.mpesaPhone.trim()) {
+      if (!form.mpesaPhone.trim()) {
         newErrors.mpesaPhone = 'Please provide the M-Pesa phone number for STK Push';
-      }
-      if (form.paymentMethod === 'manual_mpesa' && !form.transactionCode.trim()) {
-        newErrors.transactionCode = 'Please enter the M-Pesa transaction code';
       }
     }
 
@@ -661,8 +658,7 @@ const ConsultationForm: React.FC = () => {
             payment_method: form.paymentMethod,
             complexity: form.complexity,
             amount: currentPrice,
-            phone: form.paymentMethod === 'mpesa' ? form.mpesaPhone : form.phone,
-            transaction_code: form.paymentMethod === 'manual_mpesa' ? form.transactionCode : undefined,
+            phone: form.mpesaPhone,
           });
 
           setPaymentSubmission({
@@ -932,83 +928,25 @@ const ConsultationForm: React.FC = () => {
 
                     <div>
                       <label className="mb-3 block text-sm font-medium text-blue-200/70">Payment Method *</label>
-                      <div className="grid gap-3 md:grid-cols-3">
-                      {PAYMENT_METHOD_OPTIONS.map((option) => (
-                          <button
-                            key={option.id}
-                            type="button"
-                            onClick={() => handleChange('paymentMethod', option.id)}
-                            className={`rounded-2xl border p-4 text-left transition-all ${
-                              form.paymentMethod === option.id
-                                ? 'border-cyan-400 bg-cyan-500/15 text-white'
-                                : 'border-white/10 bg-white/5 text-blue-100/70 hover:border-cyan-500/30'
-                            }`}
-                          >
-                            <p className="text-sm font-semibold uppercase tracking-[0.18em]">{option.label}</p>
-                            <p className="mt-2 text-xs leading-5 text-inherit/80">{option.description}</p>
-                          </button>
-                        ))}
+                      <div className="rounded-2xl border border-cyan-400/30 bg-cyan-500/10 p-4">
+                        <p className="text-sm font-semibold uppercase tracking-[0.18em] text-cyan-300">M-Pesa Send Money</p>
+                        <p className="mt-2 text-sm leading-6 text-blue-100/70">The payment request will be sent directly from your phone.</p>
                       </div>
                       {errors.paymentMethod && <p className="mt-1 text-xs text-red-400">{errors.paymentMethod}</p>}
                     </div>
 
-                    {form.paymentMethod === 'mpesa' && (
-                      <div>
-                        <label className="mb-1.5 block text-sm font-medium text-blue-200/70">M-Pesa Phone *</label>
-                        <input
-                          type="tel"
-                          value={form.mpesaPhone}
-                          onChange={(e) => handleChange('mpesaPhone', e.target.value)}
-                          className={`w-full rounded-xl border px-4 py-3 text-white outline-none transition-all placeholder:text-blue-300/30 ${
-                            errors.mpesaPhone ? 'border-red-400 bg-red-500/5' : 'border-white/10 bg-white/5 focus:border-cyan-500/50'
-                          }`}
-                          placeholder="2547XXXXXXXX or 07XXXXXXXX"
-                        />
-                        {errors.mpesaPhone && <p className="mt-1 text-xs text-red-400">{errors.mpesaPhone}</p>}
-                      </div>
-                    )}
-
-                    {form.paymentMethod === 'manual_mpesa' && (
-                      <div className="space-y-4 rounded-xl border border-emerald-400/20 bg-emerald-500/10 p-4">
-                        <div>
-                          <p className="text-sm font-semibold uppercase tracking-[0.18em] text-emerald-300">Manual M-Pesa Instructions</p>
-                          <p className="mt-3 text-lg font-bold text-white">Send payment to 0757152440</p>
-                          <p className="mt-2 text-sm leading-6 text-blue-100/75">
-                            After sending the money, paste the M-Pesa transaction code below so the payment can be verified quickly.
-                          </p>
-                        </div>
-                        <div>
-                          <label className="mb-1.5 block text-sm font-medium text-blue-200/70">Transaction Code *</label>
-                          <input
-                            type="text"
-                            value={form.transactionCode}
-                            onChange={(e) => handleChange('transactionCode', e.target.value.toUpperCase())}
-                            className={`w-full rounded-xl border px-4 py-3 text-white outline-none transition-all placeholder:text-blue-300/30 ${
-                              errors.transactionCode ? 'border-red-400 bg-red-500/5' : 'border-white/10 bg-white/5 focus:border-cyan-500/50'
-                            }`}
-                            placeholder="e.g. SGH7K2LM9P"
-                          />
-                          {errors.transactionCode && <p className="mt-1 text-xs text-red-400">{errors.transactionCode}</p>}
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="grid gap-3 md:grid-cols-3">
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">M-Pesa First</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Fast, trusted mobile checkout</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Ideal for clients who want a smooth approval-to-payment experience with secure confirmation directly on their phone.</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Manual M-Pesa</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Flexible backup payment route</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Useful when clients prefer direct transfer confirmation or need an alternative while final onboarding details are being completed.</p>
-                      </div>
-                      <div className="rounded-xl border border-white/10 bg-white/5 p-4">
-                        <p className="text-xs uppercase tracking-[0.18em] text-blue-200/50">Card or Bank</p>
-                        <p className="mt-2 text-sm font-semibold text-white">Professional options for larger engagements</p>
-                        <p className="mt-2 text-xs leading-5 text-blue-100/70">Best suited for company clients, structured projects, and approved engagements that require a more formal payment arrangement.</p>
-                      </div>
+                    <div>
+                      <label className="mb-1.5 block text-sm font-medium text-blue-200/70">M-Pesa Phone *</label>
+                      <input
+                        type="tel"
+                        value={form.mpesaPhone}
+                        onChange={(e) => handleChange('mpesaPhone', e.target.value)}
+                        className={`w-full rounded-xl border px-4 py-3 text-white outline-none transition-all placeholder:text-blue-300/30 ${
+                          errors.mpesaPhone ? 'border-red-400 bg-red-500/5' : 'border-white/10 bg-white/5 focus:border-cyan-500/50'
+                        }`}
+                        placeholder="2547XXXXXXXX or 07XXXXXXXX"
+                      />
+                      {errors.mpesaPhone && <p className="mt-1 text-xs text-red-400">{errors.mpesaPhone}</p>}
                     </div>
                   </div>
                 )}
