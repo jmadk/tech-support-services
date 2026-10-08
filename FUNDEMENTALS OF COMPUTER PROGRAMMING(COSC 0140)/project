@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>SUNDAY BOYZ</title>
+    <style>
+        body {
+            font-family: "Monotype Corsiva", cursive;
+            font-size: 27px;
+            color: black;
+        }
+    </style>
+</head>
+<body>
+    <p><a href="create_account.html">Click here to create account</a></p>
+</body>
+</html>

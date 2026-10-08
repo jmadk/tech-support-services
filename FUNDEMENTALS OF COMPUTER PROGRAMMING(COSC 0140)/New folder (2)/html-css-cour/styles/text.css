@@ -1,0 +1,63 @@
+<style>.hasina{
+    font-family:monotype corsiva;
+    font-size: 16px;
+    font-weight: 200;
+    text-align:center;
+
+}
+
+.hasina-button{
+    background-color:red;
+    color:green;
+    border-color:white;
+    border-style:solid;
+    padding-left:40px;
+    padding-bottom:10px;
+    padding-top: 10px;padding-right: 40px;
+    border-radius:20px;
+    cursor:pointer;
+    margin-bottom:300px;
+    margin-inline: 200px;
+}
+.hasina-button:hover{
+    opacity:0.9;
+}
+
+.hasina-button:active{
+    opacity:0.4;
+}
+
+.apple-text{
+   margin-bottom:50px;
+   font-size:14px;
+   background-color:rgb(227,65,64);
+   color:white;
+   text-align:center;
+   padding-top:18px;
+   padding-bottom:18px;
+}
+
+.sosa{
+    font-size:14px;
+    background-color:blue;
+    color:yellow;
+    text-align:center;
+    padding-top:10px;
+    padding-bottom:10px;
+}
+
+.span-example{
+    color:red;
+    margin-left:12px;
+}
+.span-example:hover{
+    text-decoration:underline;
+}
+
+.shop-link{
+  cursor:pointer;  
+}
+.shop-link:hover{
+  text-decoration:underline;  
+}
+</Style>
