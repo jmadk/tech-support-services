@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const steps = [
   {
@@ -38,7 +38,7 @@ const steps = [
 const ProcessSection: React.FC = () => {
   return (
     <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-50 border border-cyan-100 rounded-full mb-4">

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 
 const testimonials = [
   {
@@ -50,7 +50,7 @@ const Testimonials: React.FC = () => {
       <div className="absolute top-1/2 left-0 w-72 h-72 bg-cyan-100/30 rounded-full blur-3xl -translate-y-1/2" />
       <div className="absolute top-1/2 right-0 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl -translate-y-1/2" />
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-50 border border-cyan-100 rounded-full mb-4">
@@ -60,7 +60,7 @@ const Testimonials: React.FC = () => {
             What Our <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Clients Say</span>
           </h2>
           <p className="text-gray-500 max-w-2xl mx-auto text-lg">
-            Don't just take our word for it — hear from the businesses and professionals we've helped succeed.
+            Don't just take our word for it â€” hear from the businesses and professionals we've helped succeed.
           </p>
         </div>
 

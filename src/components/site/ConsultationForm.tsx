@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+﻿import React, { useEffect, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import {
@@ -694,7 +694,7 @@ const ConsultationForm: React.FC = () => {
       <div className="absolute left-1/3 top-0 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="absolute bottom-0 right-1/3 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl" />
 
-      <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="relative z-10 mx-auto w-full px-4 sm:px-6 lg:px-8">
         <div className="grid items-start gap-16 lg:grid-cols-2">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-500/20 bg-cyan-500/10 px-4 py-2">
@@ -1046,7 +1046,7 @@ const ConsultationForm: React.FC = () => {
                     {uploadedAgreement && (
                       <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-blue-100">
                         <p className="font-semibold text-white">{uploadedAgreement.file_name}</p>
-                        <p className="mt-1 text-xs text-blue-200/60">{uploadedAgreement.display_size} • Signed agreement uploaded</p>
+                        <p className="mt-1 text-xs text-blue-200/60">{uploadedAgreement.display_size} â€¢ Signed agreement uploaded</p>
                       </div>
                     )}
                     {errors.agreementDocument && <p className="mt-2 text-xs text-red-400">{errors.agreementDocument}</p>}
@@ -1066,7 +1066,7 @@ const ConsultationForm: React.FC = () => {
                     {uploadedDocument && (
                       <div className="mt-3 rounded-xl border border-white/10 bg-white/5 px-4 py-3 text-sm text-blue-100">
                         <p className="font-semibold text-white">{uploadedDocument.file_name}</p>
-                        <p className="mt-1 text-xs text-blue-200/60">{uploadedDocument.display_size} • {documentOptions.find((option) => option.value === form.documentType)?.label}</p>
+                        <p className="mt-1 text-xs text-blue-200/60">{uploadedDocument.display_size} â€¢ {documentOptions.find((option) => option.value === form.documentType)?.label}</p>
                       </div>
                     )}
                     {errors.idDocument && <p className="mt-2 text-xs text-red-400">{errors.idDocument}</p>}

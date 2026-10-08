@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+﻿import React, { useState } from 'react';
 import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary } from '@/lib/service-pricing';
 
 const spotlightServices = [
@@ -29,7 +29,7 @@ const PricingSection: React.FC = () => {
     <section className="relative overflow-hidden bg-white py-24">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-emerald-500 opacity-20" />
 
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
         <div className="mb-14 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-4 py-2">
             <span className="text-sm font-medium text-cyan-600">Service Payments</span>
@@ -42,7 +42,7 @@ const PricingSection: React.FC = () => {
           </p>
         </div>
 
-        <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
+        <div className="grid gap-10">
           <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-xl shadow-cyan-100/30">
             <div className="mb-8 flex flex-wrap gap-3">
               {spotlightServices.map((service) => (

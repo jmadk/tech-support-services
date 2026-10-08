@@ -1,4 +1,4 @@
-import React from 'react';
+﻿import React from 'react';
 
 const technologies = [
   'Python', 'Java', 'JavaScript', 'React', 'Node.js', 'SQL', 'MongoDB',
@@ -9,7 +9,7 @@ const technologies = [
 const TechStackBanner: React.FC = () => {
   return (
     <section className="py-16 bg-gradient-to-r from-[#0a1628] via-[#0d1b36] to-[#0a1628] relative overflow-hidden border-y border-white/5">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h3 className="text-xl font-bold text-white mb-2">Technologies We Master</h3>
           <p className="text-blue-200/40 text-sm">Proficient across the full technology stack</p>

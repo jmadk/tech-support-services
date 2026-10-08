@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import keithImage from '@/keith.jpg';
 
 interface HeroSectionProps {
@@ -61,7 +61,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
       </div>
 
       {/* Content */}
-      <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-32 w-full">
+      <div className="relative z-10 w-full mx-auto px-4 sm:px-6 lg:px-8 py-32 w-full">
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left */}
           <div>
@@ -80,7 +80,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
             </h1>
 
             <p className="text-lg text-slate-600 mb-8 max-w-xl leading-relaxed">
-              From system architecture to web development, database management to e-commerce solutions — we deliver comprehensive IT services that transform businesses and empower professionals.
+              From system architecture to web development, database management to e-commerce solutions â€” we deliver comprehensive IT services that transform businesses and empower professionals.
             </p>
 
             {/* CTA Buttons */}

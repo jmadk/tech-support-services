@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, getErrorMessage, type LessonAssessmentRecord } from '@/lib/api';
@@ -3134,7 +3134,7 @@ const Lesson: React.FC = () => {
     ? 'min-h-screen overflow-x-hidden bg-gradient-to-br from-[#08111f] via-[#0b1730] to-[#101f3c] pt-16 pb-6'
     : 'min-h-screen bg-gradient-to-br from-[#0a1628] to-[#0f1f35] pt-20 pb-12';
   const fixedLayoutContainerClass = isFixedTopicPhase
-    ? 'max-w-7xl mx-auto px-4 flex flex-col'
+    ? 'w-full mx-auto px-4 flex flex-col'
     : 'max-w-4xl mx-auto px-4';
 
   const topicNavigationPanel = (
@@ -3550,7 +3550,7 @@ const Lesson: React.FC = () => {
                 </svg>
               </div>
               <div className="flex-1">
-                <h2 className="text-xl font-bold text-white mb-2">🎙️ AI Narrator</h2>
+                <h2 className="text-xl font-bold text-white mb-2">ðŸŽ™ï¸ AI Narrator</h2>
                 <p className="text-gray-300 text-sm">Your lesson is being narrated. Listen carefully.</p>
               </div>
             </div>
@@ -3763,7 +3763,7 @@ const Lesson: React.FC = () => {
               <div className="space-y-3">
                 {courseData.summaryPoints.map((point, idx) => (
                   <div key={idx} className="rounded-lg border border-blue-400/20 bg-[#13233b] p-4 flex gap-3">
-                    <span className="font-bold text-blue-300 flex-shrink-0">✓</span>
+                    <span className="font-bold text-blue-300 flex-shrink-0">âœ“</span>
                     <p className="text-sm leading-relaxed text-slate-100">{point}</p>
                   </div>
                 ))}
@@ -3789,14 +3789,14 @@ const Lesson: React.FC = () => {
                 onClick={() => speakText(courseData.notes.join(' '))}
                 className="flex-1 px-4 py-3 rounded-lg bg-cyan-500/20 border border-cyan-400/40 text-cyan-300 font-medium hover:bg-cyan-500/30 transition-all"
               >
-                🔊 Re-play Narrator
+                ðŸ”Š Re-play Narrator
               </button>
               <button
                 onClick={handleNarratorComplete}
                 disabled={!narratorReady}
                 className="flex-1 px-4 py-3 rounded-lg bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-medium hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50 transition-all"
               >
-                {narratorReady ? 'Proceed to Q&A →' : 'Proceed after reading completes'}
+                {narratorReady ? 'Proceed to Q&A â†’' : 'Proceed after reading completes'}
               </button>
             </div>
           </div>
@@ -3806,7 +3806,7 @@ const Lesson: React.FC = () => {
         {/* Q&A PHASE */}
         {phase === 'qa' && (
           <div className="bg-white/5 border border-violet-500/30 rounded-2xl p-8 mb-6">
-            <h2 className="text-2xl font-bold text-white mb-6">❓ Session Q&A</h2>
+            <h2 className="text-2xl font-bold text-white mb-6">â“ Session Q&A</h2>
             <div className="space-y-6 mb-8">
               {courseData.qaQuestions.map((q, idx) => (
                 <div key={idx} className="bg-white/5 border border-white/10 rounded-xl p-5">
