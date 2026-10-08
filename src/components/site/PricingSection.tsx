@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary, type PaymentMethod } from '@/lib/service-pricing';
+import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary } from '@/lib/service-pricing';
 
 const spotlightServices = [
   {
@@ -16,15 +16,6 @@ const spotlightServices = [
   },
 ];
 
-const paymentOptions = [
-  {
-    id: 'mpesa' as PaymentMethod,
-    title: 'M-Pesa Send Money',
-    description: 'Authorize the payment directly from your phone through Safaricom Daraja STK Push.',
-    actionLabel: 'Start M-Pesa Payment',
-  },
-];
-
 const PricingSection: React.FC = () => {
   const [selectedService, setSelectedService] = useState(spotlightServices[0].title);
   const pricing = getServicePricingSummary(selectedService);
@@ -32,20 +23,6 @@ const PricingSection: React.FC = () => {
   const handleOpenContact = () => {
     const el = document.getElementById('contact');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
-  };
-
-  const handlePaymentOptionClick = (paymentMethod: PaymentMethod) => {
-    if (typeof window !== 'undefined') {
-      const detail = {
-        paymentMethod,
-        service: selectedService,
-      };
-
-      window.localStorage.setItem('consultation-payment-selection', JSON.stringify(detail));
-      window.dispatchEvent(new CustomEvent('consultation-payment-selection', { detail }));
-    }
-
-    handleOpenContact();
   };
 
   return (
@@ -105,21 +82,6 @@ const PricingSection: React.FC = () => {
                   );
                 })}
               </div>
-            </div>
-
-            <div className="grid gap-5 md:grid-cols-1">
-              {paymentOptions.map((option) => (
-                <button
-                  key={option.title}
-                  type="button"
-                  onClick={() => handlePaymentOptionClick(option.id)}
-                  className="rounded-2xl border border-cyan-200 bg-cyan-50 p-5 text-left transition-all hover:border-cyan-300 hover:bg-cyan-100/60 hover:shadow-lg hover:shadow-cyan-100"
-                >
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">{option.title}</p>
-                  <p className="mt-3 text-sm leading-6 text-gray-600">{option.description}</p>
-                  <p className="mt-4 text-sm font-semibold text-cyan-700">{option.actionLabel}</p>
-                </button>
-              ))}
             </div>
           </div>
 
