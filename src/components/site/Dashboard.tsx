@@ -1,4 +1,4 @@
-﻿// Deploy trigger: updated curriculum cards and resume progress
+// Deploy trigger: updated curriculum cards and resume progress
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '@/contexts/AuthContext';
@@ -924,7 +924,7 @@ const Dashboard: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#0a1628] pt-20">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Header */}
         <div className="mb-8">
           <div className="flex items-center gap-4 mb-2">
@@ -1119,7 +1119,7 @@ const Dashboard: React.FC = () => {
                                     )}
                                   </div>
                                   <p className="text-sm text-blue-200/60">
-                                    {consultation.full_name} â€¢ {consultation.email}
+                                    {consultation.full_name} • {consultation.email}
                                   </p>
                                   <p className="text-xs text-blue-200/45">
                                     Started from consultation on {new Date(consultation.created_at).toLocaleString()}
@@ -1141,7 +1141,7 @@ const Dashboard: React.FC = () => {
                                   )}
                                   <p className="text-sm text-blue-100/80">
                                     Topic quizzes completed: <span className="font-semibold text-white">{summary.topicCount}</span>
-                                    {summary.finalExamRecord ? ` â€¢ Final exam: ${summary.finalExamRecord.score}%` : ' â€¢ Final exam pending'}
+                                    {summary.finalExamRecord ? ` • Final exam: ${summary.finalExamRecord.score}%` : ' • Final exam pending'}
                                   </p>
                                 </div>
 
@@ -1199,7 +1199,7 @@ const Dashboard: React.FC = () => {
                                       </span>
                                     </div>
                                     <p className="text-sm text-blue-200/60">
-                                      {consultation.full_name} â€¢ {consultation.email}
+                                      {consultation.full_name} • {consultation.email}
                                     </p>
                                     <p className="text-xs text-blue-200/45">
                                       Revoked after consultation on {new Date(consultation.created_at).toLocaleString()}
@@ -1240,7 +1240,7 @@ const Dashboard: React.FC = () => {
                             <div className="flex-1 min-w-0">
                               <p className="text-white font-medium truncate">{c.service}</p>
                               <p className="text-blue-200/40 text-sm truncate">
-                                {isOwner ? `${c.full_name} Â· ${c.message}` : c.message}
+                                {isOwner ? `${c.full_name} · ${c.message}` : c.message}
                               </p>
                             </div>
                             <div className="flex items-center gap-3 ml-4">
@@ -1396,7 +1396,7 @@ const Dashboard: React.FC = () => {
                                 {c.signed_at ? ` on ${new Date(c.signed_at).toLocaleString()}` : ''}.
                               </p>
                               <p className="mt-2 text-blue-200/70">
-                                Terms version: {c.terms_version} â€¢ Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
+                                Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                               </p>
                               {c.latest_payment_reference && (
                                 <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
@@ -1406,7 +1406,7 @@ const Dashboard: React.FC = () => {
                                   </p>
                                   <p className="mt-1 text-xs text-emerald-100/70">
                                     {c.latest_payment_method ? `Method: ${c.latest_payment_method.replace('_', ' ')}` : 'Payment reference submitted'}
-                                    {c.latest_payment_recorded_at ? ` â€¢ Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
+                                    {c.latest_payment_recorded_at ? ` • Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
                                   </p>
                                 </div>
                               )}
@@ -1494,7 +1494,7 @@ const Dashboard: React.FC = () => {
                                       <div key={record.id} className="rounded-xl border border-white/10 bg-white/5 px-3 py-2">
                                         <p className="text-xs font-semibold text-white">{record.session_label}</p>
                                         <p className="text-[11px] text-blue-200/60">
-                                          {record.assessment_type === 'final_exam' ? 'Final exam' : 'Topic quiz'} Â· {record.score}% Â· {record.correct_answers}/{record.total_questions} correct
+                                          {record.assessment_type === 'final_exam' ? 'Final exam' : 'Topic quiz'} · {record.score}% · {record.correct_answers}/{record.total_questions} correct
                                         </p>
                                       </div>
                                     ))}
@@ -1607,7 +1607,7 @@ const Dashboard: React.FC = () => {
                                       : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
                                   }`}
                                 >
-                                  ðŸ“¦ Service
+                                  📦 Service
                                 </button>
                                 <button
                                   onClick={() => {
@@ -1619,7 +1619,7 @@ const Dashboard: React.FC = () => {
                                       : 'border-white/10 bg-white/5 text-gray-300 hover:bg-white/10'
                                   }`}
                                 >
-                                  ðŸ“š Certification
+                                  📚 Certification
                                 </button>
                               </div>
 
@@ -1655,13 +1655,13 @@ const Dashboard: React.FC = () => {
                                   onClick={() => openGmailReply(c)}
                                   className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-red-500/20 to-red-600/20 border border-red-400/30 text-red-300 text-xs font-medium hover:bg-red-500/30 transition-all"
                                 >
-                                  ðŸ“§ Reply via Gmail âˆ§
+                                  📧 Reply via Gmail ∧
                                 </button>
                                 <button
                                   onClick={() => openWhatsApp(c)}
                                   className="flex-1 px-3 py-2 rounded-lg bg-gradient-to-r from-green-500/20 to-green-600/20 border border-green-400/30 text-green-300 text-xs font-medium hover:bg-green-500/30 transition-all"
                                 >
-                                  ðŸ’¬ WhatsApp âˆ§
+                                  💬 WhatsApp ∧
                                 </button>
                               </div>
                             </div>
@@ -1732,7 +1732,7 @@ const Dashboard: React.FC = () => {
                             {c.signed_at ? ` on ${new Date(c.signed_at).toLocaleString()}` : ''}.
                           </p>
                           <p className="mt-2 text-blue-200/70">
-                            Terms version: {c.terms_version} â€¢ Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
+                            Terms version: {c.terms_version} • Agreement accepted: {c.agreement_accepted ? 'Yes' : 'No'}
                           </p>
                           {c.latest_payment_reference && (
                             <div className="mt-3 rounded-xl border border-emerald-400/20 bg-emerald-500/10 px-4 py-3">
@@ -1742,7 +1742,7 @@ const Dashboard: React.FC = () => {
                               </p>
                               <p className="mt-1 text-xs text-emerald-100/70">
                                 {c.latest_payment_method ? `Method: ${c.latest_payment_method.replace('_', ' ')}` : 'Payment reference submitted'}
-                                {c.latest_payment_recorded_at ? ` â€¢ Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
+                                {c.latest_payment_recorded_at ? ` • Recorded ${new Date(c.latest_payment_recorded_at).toLocaleString()}` : ''}
                               </p>
                             </div>
                           )}
@@ -1808,7 +1808,7 @@ const Dashboard: React.FC = () => {
                             )}
 
                             {c.next_path_status === 'test_in_progress' && (
-                              <p className="text-xs text-cyan-100">Test in progressâ€¦ please wait just a moment.</p>
+                              <p className="text-xs text-cyan-100">Test in progress… please wait just a moment.</p>
                             )}
 
                             {c.next_path_status === 'test_completed' && (
@@ -1823,7 +1823,7 @@ const Dashboard: React.FC = () => {
 
                             {c.next_path_status === 'certification_started' && (
                               <>
-                                <p className="text-xs text-cyan-100 mb-3">Certification started â€” choose a course and session.</p>
+                                <p className="text-xs text-cyan-100 mb-3">Certification started — choose a course and session.</p>
 
                                 {(() => {
                                   const summary = getAssessmentSummaryForConsultation(c.id);

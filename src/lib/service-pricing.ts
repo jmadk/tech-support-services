@@ -1,6 +1,6 @@
 export type RequestType = 'service' | 'class';
 export type ServiceComplexity = 'starter' | 'professional' | 'enterprise';
-export type PaymentMethod = 'mpesa';
+export type PaymentMethod = 'mpesa' | 'manual_mpesa' | 'card' | 'bank';
 
 export const SERVICE_OPTIONS = [
   'Software Development',
@@ -164,7 +164,22 @@ export const PAYMENT_METHOD_OPTIONS: Array<{
 }> = [
   {
     id: 'mpesa',
-    label: 'M-Pesa Send Money',
-    description: 'Pay securely from your phone using the M-Pesa STK Push checkout.',
+    label: 'M-Pesa STK Push',
+    description: 'Primary payment method. Initiate checkout from the site directly to your phone.',
+  },
+  {
+    id: 'manual_mpesa',
+    label: 'Send to 0757152440',
+    description: 'Manual M-Pesa fallback. Client pays directly to your number and keeps the receipt for confirmation.',
+  },
+  {
+    id: 'card',
+    label: 'Debit/Credit Card',
+    description: 'Shown as an alternative checkout path for clients who prefer card payments.',
+  },
+  {
+    id: 'bank',
+    label: 'Bank Transfer',
+    description: 'Included as an option, but bank settlement stays unavailable until banking details are added.',
   },
 ];

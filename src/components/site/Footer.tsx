@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import keithImage from '@/keith.jpg';
 
 const Footer: React.FC = () => {
@@ -41,7 +41,7 @@ const Footer: React.FC = () => {
 
       {/* Newsletter section */}
       <div className="border-b border-white/5">
-        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
           <div className="flex flex-col lg:flex-row items-center justify-between gap-8">
             <div>
               <h3 className="text-2xl font-bold text-white mb-2">Stay Updated with KCJ Tech</h3>
@@ -67,7 +67,7 @@ const Footer: React.FC = () => {
       </div>
 
       {/* Main footer */}
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-16">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
           {/* Brand */}
           <div className="lg:col-span-1">
@@ -219,7 +219,7 @@ const Footer: React.FC = () => {
 
       {/* Bottom bar */}
       <div className="border-t border-white/5">
-        <div className="w-full mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
             <p className="text-blue-200/30 text-sm">
               &copy; {new Date().getFullYear()} KCJ Tech Solutions. All rights reserved.

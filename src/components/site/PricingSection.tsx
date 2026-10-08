@@ -1,5 +1,5 @@
-﻿import React, { useState } from 'react';
-import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary } from '@/lib/service-pricing';
+import React, { useState } from 'react';
+import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary, type PaymentMethod } from '@/lib/service-pricing';
 
 const spotlightServices = [
   {
@@ -16,6 +16,33 @@ const spotlightServices = [
   },
 ];
 
+const paymentOptions = [
+  {
+    id: 'mpesa' as PaymentMethod,
+    title: 'M-Pesa First',
+    description: 'Primary checkout path uses Safaricom Daraja STK Push so clients can authorize payment from their phone.',
+    actionLabel: 'Start STK Push',
+  },
+  {
+    id: 'manual_mpesa' as PaymentMethod,
+    title: 'Manual M-Pesa',
+    description: 'Fallback option lets clients send directly to 0757152440 and then share their M-Pesa confirmation message.',
+    actionLabel: 'Use Manual M-Pesa',
+  },
+  {
+    id: 'card' as PaymentMethod,
+    title: 'Card Option',
+    description: 'Debit and credit card checkout stays visible as an alternative for clients who cannot pay by M-Pesa.',
+    actionLabel: 'Choose Card',
+  },
+  {
+    id: 'bank' as PaymentMethod,
+    title: 'Bank Option',
+    description: 'Bank transfer appears in the payment choices, but it stays inactive until account details are added.',
+    actionLabel: 'Choose Bank',
+  },
+];
+
 const PricingSection: React.FC = () => {
   const [selectedService, setSelectedService] = useState(spotlightServices[0].title);
   const pricing = getServicePricingSummary(selectedService);
@@ -25,11 +52,25 @@ const PricingSection: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
+  const handlePaymentOptionClick = (paymentMethod: PaymentMethod) => {
+    if (typeof window !== 'undefined') {
+      const detail = {
+        paymentMethod,
+        service: selectedService,
+      };
+
+      window.localStorage.setItem('consultation-payment-selection', JSON.stringify(detail));
+      window.dispatchEvent(new CustomEvent('consultation-payment-selection', { detail }));
+    }
+
+    handleOpenContact();
+  };
+
   return (
     <section className="relative overflow-hidden bg-white py-24">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-emerald-500 opacity-20" />
 
-      <div className="mx-auto w-full px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="mb-14 text-center">
           <div className="mb-4 inline-flex items-center gap-2 rounded-full border border-cyan-100 bg-cyan-50 px-4 py-2">
             <span className="text-sm font-medium text-cyan-600">Service Payments</span>
@@ -38,11 +79,11 @@ const PricingSection: React.FC = () => {
             Complexity-Based <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Payment Plan</span>
           </h2>
           <p className="mx-auto max-w-3xl text-lg text-gray-500">
-            Pricing is shaped by the service requested and the delivery complexity. Every service payment uses the single M-Pesa Send Money checkout flow.
+            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push leads the checkout flow, manual M-Pesa is available as a fallback, and card or bank options remain visible for broader client coverage.
           </p>
         </div>
 
-        <div className="grid gap-10">
+        <div className="grid gap-10 lg:grid-cols-[1.15fr_0.85fr]">
           <div className="rounded-3xl border border-gray-100 bg-white p-8 shadow-xl shadow-cyan-100/30">
             <div className="mb-8 flex flex-wrap gap-3">
               {spotlightServices.map((service) => (
@@ -83,6 +124,21 @@ const PricingSection: React.FC = () => {
                 })}
               </div>
             </div>
+
+            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
+              {paymentOptions.map((option) => (
+                <button
+                  key={option.title}
+                  type="button"
+                  onClick={() => handlePaymentOptionClick(option.id)}
+                  className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-left transition-all hover:border-cyan-300 hover:bg-cyan-50/60 hover:shadow-lg hover:shadow-cyan-100"
+                >
+                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">{option.title}</p>
+                  <p className="mt-3 text-sm leading-6 text-gray-600">{option.description}</p>
+                  <p className="mt-4 text-sm font-semibold text-cyan-700">{option.actionLabel}</p>
+                </button>
+              ))}
+            </div>
           </div>
 
           <div className="rounded-3xl border border-[#12315e] bg-gradient-to-b from-[#0a1628] to-[#14284b] p-8 text-white shadow-2xl shadow-blue-900/20">
@@ -94,13 +150,25 @@ const PricingSection: React.FC = () => {
                 <p className="mt-2 text-sm leading-6 text-blue-100/70">Choose the exact service, then set the scope to starter, professional, or enterprise based on the work involved.</p>
               </div>
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                <p className="text-sm font-semibold text-cyan-200">2. Approve M-Pesa payment</p>
-                <p className="mt-2 text-sm leading-6 text-blue-100/70">Your phone will receive the M-Pesa Send Money request for the selected service and complexity.</p>
+                <p className="text-sm font-semibold text-cyan-200">2. Choose a payment rail</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">M-Pesa STK Push is the main route. Manual M-Pesa to 0757152440 is the direct fallback when automated checkout is not available.</p>
               </div>
               <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
-                <p className="text-sm font-semibold text-cyan-200">3. Confirm payment</p>
-                <p className="mt-2 text-sm leading-6 text-blue-100/70">Confirm the amount and complete the payment on your phone. The request will then be reviewed and continued.</p>
+                <p className="text-sm font-semibold text-cyan-200">3. Confirm payment evidence</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">Manual M-Pesa payments should be followed by the client sharing the transaction message so you can verify and continue delivery.</p>
               </div>
+              <div className="rounded-2xl border border-cyan-500/20 bg-cyan-500/10 p-4">
+                <p className="text-sm font-semibold text-cyan-200">4. Start delivery after confirmation</p>
+                <p className="mt-2 text-sm leading-6 text-blue-100/70">Once payment is initiated and your request is reviewed, the project proceeds according to the selected complexity tier.</p>
+              </div>
+            </div>
+
+            <div className="mt-8 rounded-2xl border border-white/10 bg-white/5 p-5">
+              <p className="text-sm font-semibold uppercase tracking-[0.22em] text-emerald-300">M-Pesa Contact</p>
+              <p className="mt-3 text-2xl font-black">0757 152 440</p>
+              <p className="mt-2 text-sm leading-6 text-blue-100/65">
+                The public payment contact is shown here for trust and fallback support, while live STK Push uses the Daraja business credentials configured on the server.
+              </p>
             </div>
 
             <button

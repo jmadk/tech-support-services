@@ -1,4 +1,4 @@
-﻿import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 
 interface NavbarProps {
@@ -58,7 +58,7 @@ const Navbar: React.FC<NavbarProps> = ({ onAuthClick, onDashboardClick, showDash
 
   return (
     <nav className="fixed top-0 left-0 right-0 z-40 bg-[#0a1628]/95 py-2 shadow-2xl shadow-blue-900/20 backdrop-blur-xl transition-all duration-500">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between">
           {/* Logo */}
           <button onClick={() => { if (showDashboard) onHomeClick(); else scrollTo('hero'); }} className="flex items-center gap-3 group">

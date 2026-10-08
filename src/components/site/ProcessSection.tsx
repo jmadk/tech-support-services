@@ -1,14 +1,16 @@
-﻿import React from 'react';
+import React from 'react';
 
 const steps = [
   {
+    number: '01',
     title: 'Discovery',
     description: 'We start by understanding your unique challenges, goals, and requirements through in-depth consultation.',
     icon: (
-      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y="21" x2="16.65" y2="16.65"/></svg>
+      <svg xmlns="http://www.w3.org/2000/svg" width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
     ),
   },
   {
+    number: '02',
     title: 'Strategy',
     description: 'Our experts design a tailored solution architecture and implementation roadmap for your project.',
     icon: (
@@ -16,6 +18,7 @@ const steps = [
     ),
   },
   {
+    number: '03',
     title: 'Development',
     description: 'We build and implement your solution using cutting-edge technologies and industry best practices.',
     icon: (
@@ -23,6 +26,7 @@ const steps = [
     ),
   },
   {
+    number: '04',
     title: 'Delivery & Support',
     description: 'We deploy your solution and provide ongoing support, training, and optimization to ensure success.',
     icon: (
@@ -34,7 +38,7 @@ const steps = [
 const ProcessSection: React.FC = () => {
   return (
     <section className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
-      <div className="w-full mx-auto px-4 sm:px-6 lg:px-8">
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="text-center mb-16">
           <div className="inline-flex items-center gap-2 px-4 py-2 bg-cyan-50 border border-cyan-100 rounded-full mb-4">
@@ -58,9 +62,13 @@ const ProcessSection: React.FC = () => {
               )}
 
               <div className="relative z-10 text-center">
+                {/* Number badge */}
                 <div className="relative inline-flex mb-6">
                   <div className="w-24 h-24 rounded-3xl bg-gradient-to-br from-cyan-50 to-blue-50 border-2 border-cyan-100 flex items-center justify-center text-cyan-600 group-hover:from-cyan-500 group-hover:to-blue-600 group-hover:text-white group-hover:border-transparent group-hover:shadow-xl group-hover:shadow-cyan-200 transition-all duration-500">
                     {step.icon}
+                  </div>
+                  <div className="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-cyan-400 to-blue-600 text-white text-xs font-bold flex items-center justify-center shadow-lg">
+                    {step.number}
                   </div>
                 </div>
 

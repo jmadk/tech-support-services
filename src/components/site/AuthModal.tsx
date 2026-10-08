@@ -1,4 +1,4 @@
-﻿import React, { useState } from 'react';
+import React, { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import { api, getErrorMessage } from '@/lib/api';
 import keithImage from '@/keith.jpg';
@@ -452,7 +452,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
   return (
     <div className="relative min-h-screen overflow-hidden bg-[#edf2ff]">
       <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.18),transparent_32%),radial-gradient(circle_at_bottom_right,rgba(29,78,216,0.18),transparent_30%)]" />
-      <div className="relative mx-auto flex min-h-screen w-full items-center px-4 py-10 sm:px-6 lg:px-8">
+      <div className="relative mx-auto flex min-h-screen max-w-7xl items-center px-4 py-10 sm:px-6 lg:px-8">
         <div className="grid w-full gap-8 lg:grid-cols-[1.1fr_0.9fr] lg:items-center">
           <div className="hidden rounded-[2.5rem] bg-[linear-gradient(160deg,#0f172a_0%,#0f2f63_42%,#38bdf8_100%)] p-10 text-white shadow-[0_40px_90px_rgba(15,23,42,0.28)] lg:block">
             <div className="max-w-xl">

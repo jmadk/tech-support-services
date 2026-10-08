@@ -1,4 +1,4 @@
-﻿import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import Navbar from '@/components/site/Navbar';
 import ConsultationForm from '@/components/site/ConsultationForm';
@@ -150,7 +150,7 @@ const TrainingEducation: React.FC = () => {
           <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
           <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-emerald-500/5 blur-3xl" />
 
-          <div className="relative z-10 mx-auto w-full px-4 sm:px-6 lg:px-8">
+          <div className="relative z-10 mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
             <div className="mb-12 max-w-4xl">
               <button
                 onClick={() => navigate('/')}

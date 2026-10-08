@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import Navbar from '@/components/site/Navbar';
 import Footer from '@/components/site/Footer';
@@ -38,7 +38,7 @@ const ServiceDetail: React.FC = () => {
           <div className="absolute left-10 top-10 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
           <div className="absolute right-10 top-20 h-72 w-72 rounded-full bg-blue-500/10 blur-3xl" />
 
-          <div className="relative mx-auto grid w-full gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
+          <div className="relative mx-auto grid max-w-7xl gap-10 px-4 py-16 sm:px-6 lg:grid-cols-[1.1fr_0.9fr] lg:px-8 lg:py-20">
             <div>
               <button
                 onClick={() => navigate('/#services')}
@@ -81,7 +81,7 @@ const ServiceDetail: React.FC = () => {
           </div>
         </section>
 
-        <section className="mx-auto w-full px-4 pt-14 sm:px-6 lg:px-8">
+        <section className="mx-auto max-w-7xl px-4 pt-14 sm:px-6 lg:px-8">
           <div className="mb-8">
             <p className="text-sm font-semibold uppercase tracking-[0.26em] text-cyan-300">All Services Under This Card</p>
             <h2 className="mt-3 text-3xl font-black text-white sm:text-4xl">Detailed Service Breakdown</h2>

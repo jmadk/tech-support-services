@@ -1483,6 +1483,7 @@ async function handlePaymentInitialize(env, request) {
   const transactionCode = String(body.transaction_code || "").trim().toUpperCase();
   const validRequestTypes = new Set(["service", "class"]);
   const validComplexities = new Set(["starter", "professional", "enterprise"]);
+  const validMethods = new Set(["mpesa", "manual_mpesa", "card", "bank"]);
 
   if (!consultationId || !service) {
     return json({ error: "Consultation and service are required." }, 400);
@@ -1493,8 +1494,11 @@ async function handlePaymentInitialize(env, request) {
   if (!validComplexities.has(complexity)) {
     return json({ error: "Invalid service complexity." }, 400);
   }
-  if (paymentMethod !== "mpesa") {
-    return json({ error: "Only M-Pesa Send Money payments are supported." }, 400);
+  if (!validMethods.has(paymentMethod)) {
+    return json({ error: "Invalid payment method." }, 400);
+  }
+  if (paymentMethod === "manual_mpesa" && !transactionCode) {
+    return json({ error: "Manual M-Pesa transaction code is required." }, 400);
   }
 
   const consultation = await firstRow(
@@ -1513,6 +1517,79 @@ async function handlePaymentInitialize(env, request) {
 
   const amount = Math.max(1, Math.round(providedAmount || getServicePrice(service, complexity)));
   const externalReference = `${service.slice(0, 18).replace(/\s+/g, "-")}-${consultationId.slice(0, 8)}`;
+
+  if (paymentMethod === "manual_mpesa") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: "0757152440",
+      status: "manual_mpesa_pending",
+      provider: "manual",
+      externalReference,
+      customerTransactionCode: transactionCode,
+      lastError: "Manual M-Pesa selected. Awaiting customer payment to 0757152440 and receipt confirmation.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Manual M-Pesa instructions recorded.",
+      customerMessage: "Send the payment to 0757152440, then keep the M-Pesa message and share the transaction code for verification.",
+    });
+  }
+
+  if (paymentMethod === "bank") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: consultation.phone,
+      status: "bank_option_pending",
+      provider: "manual",
+      externalReference,
+      lastError: "Bank transfer selected, but bank account details have not been added yet.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Bank transfer option recorded.",
+      customerMessage: "Bank transfer is listed on the site, but bank settlement is not active yet because no bank account has been added.",
+    });
+  }
+
+  if (paymentMethod === "card") {
+    const payment = await createServicePaymentRecord(env, {
+      consultation,
+      session: auth.session,
+      requestType,
+      service,
+      complexity,
+      paymentMethod,
+      amount,
+      phone: consultation.phone,
+      status: "card_option_recorded",
+      provider: "manual",
+      externalReference,
+      lastError: "Card checkout preference captured. Gateway credentials are still required before live card charging.",
+    });
+
+    return json({
+      success: true,
+      payment,
+      message: "Card checkout preference recorded.",
+      customerMessage: "Debit or credit card payment has been captured as your preferred route, but live card charging still needs a connected card processor.",
+    });
+  }
 
   if (!phone) {
     return json({ error: "A valid Safaricom phone number is required for M-Pesa STK Push." }, 400);
