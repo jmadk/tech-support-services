@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import keithImage from '@/keith.jpg';
+import { businessSolutions, productPlatforms } from './SolutionsSection';
 
 const Footer: React.FC = () => {
   const [newsletterEmail, setNewsletterEmail] = useState('');
@@ -29,6 +30,8 @@ const Footer: React.FC = () => {
   const quickLinks = [
     { label: 'Home', id: 'hero' },
     { label: 'Our Services', id: 'services' },
+    { label: 'Our Solutions', id: 'solutions' },
+    { label: 'Our Products', id: 'products' },
     { label: 'Why Choose Us', id: 'why-us' },
     { label: 'Testimonials', id: 'testimonials' },
     { label: 'Contact Us', id: 'contact' },
@@ -68,9 +71,9 @@ const Footer: React.FC = () => {
 
       {/* Main footer */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-12">
+        <div className="grid grid-cols-1 gap-x-7 gap-y-12 sm:grid-cols-2 lg:grid-cols-7">
           {/* Brand */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-2">
             <div className="flex items-center gap-3 mb-6">
               <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-cyan-400 to-blue-600 flex items-center justify-center shadow-lg">
                 <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><polyline points="16 18 22 12 16 6"/><polyline points="8 6 2 12 8 18"/></svg>
@@ -145,6 +148,45 @@ const Footer: React.FC = () => {
             </ul>
           </div>
 
+          {/* Our Solutions */}
+          <div>
+            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+              <div className="w-1 h-5 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full" />
+              Our Solutions
+            </h4>
+            <ul className="space-y-3">
+              {businessSolutions.map(solution => (
+                <li key={solution.id}>
+                  <button
+                    onClick={() => scrollTo(`solution-${solution.id}`)}
+                    className="text-left text-blue-200/50 hover:text-cyan-400 text-sm leading-5 transition-colors"
+                  >
+                    {solution.title}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
+
+          {/* Our Products */}
+          <div>
+            <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">
+              <div className="w-1 h-5 bg-gradient-to-b from-cyan-400 to-blue-600 rounded-full" />
+              Our Products
+            </h4>
+            <ul className="space-y-3">
+              {productPlatforms.map(product => (
+                <li key={product}>
+                  <button
+                    onClick={() => scrollTo('products')}
+                    className="text-left text-blue-200/50 hover:text-cyan-400 text-sm leading-5 transition-colors"
+                  >
+                    {product}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          </div>
           {/* Contact */}
           <div>
             <h4 className="text-white font-bold text-lg mb-6 flex items-center gap-2">

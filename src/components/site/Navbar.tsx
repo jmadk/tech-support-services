@@ -41,6 +41,7 @@ const Navbar: React.FC<NavbarProps> = ({ onAuthClick, onDashboardClick, showDash
   const navLinks = [
     { label: 'Home', id: 'hero' },
     { label: 'Services', id: 'services' },
+    { label: 'Solutions', id: 'solutions' },
     { label: 'Why Us', id: 'why-us' },
     { label: 'Testimonials', id: 'testimonials' },
     { label: 'Contact', id: 'contact' },

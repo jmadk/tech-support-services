@@ -5,6 +5,7 @@ import Navbar from './site/Navbar';
 import HeroSection from './site/HeroSection';
 import TechStackBanner from './site/TechStackBanner';
 import ServicesGrid from './site/ServicesGrid';
+import SolutionsSection from './site/SolutionsSection';
 import WhyChooseUs from './site/WhyChooseUs';
 import ProcessSection from './site/ProcessSection';
 import Testimonials from './site/Testimonials';
@@ -55,6 +56,7 @@ const AppLayout: React.FC = () => {
           <HeroSection onGetStarted={() => setAuthOpen(true)} />
           <TechStackBanner />
           <ServicesGrid />
+          <SolutionsSection />
           <WhyChooseUs />
           <ProcessSection />
           <Testimonials />
