@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary, type PaymentMethod } from '@/lib/service-pricing';
+import { COMPLEXITY_OPTIONS, formatKes, getServicePricingSummary } from '@/lib/service-pricing';
 
 const spotlightServices = [
   {
@@ -16,32 +16,6 @@ const spotlightServices = [
   },
 ];
 
-const paymentOptions = [
-  {
-    id: 'mpesa' as PaymentMethod,
-    title: 'M-Pesa First',
-    description: 'Primary checkout path uses Safaricom Daraja STK Push so clients can authorize payment from their phone.',
-    actionLabel: 'Start STK Push',
-  },
-  {
-    id: 'manual_mpesa' as PaymentMethod,
-    title: 'Manual M-Pesa',
-    description: 'Fallback option lets clients send directly to 0757152440 and then share their M-Pesa confirmation message.',
-    actionLabel: 'Use Manual M-Pesa',
-  },
-  {
-    id: 'card' as PaymentMethod,
-    title: 'Card Option',
-    description: 'Debit and credit card checkout stays visible as an alternative for clients who cannot pay by M-Pesa.',
-    actionLabel: 'Choose Card',
-  },
-  {
-    id: 'bank' as PaymentMethod,
-    title: 'Bank Option',
-    description: 'Bank transfer appears in the payment choices, but it stays inactive until account details are added.',
-    actionLabel: 'Choose Bank',
-  },
-];
 
 const PricingSection: React.FC = () => {
   const [selectedService, setSelectedService] = useState(spotlightServices[0].title);
@@ -52,19 +26,6 @@ const PricingSection: React.FC = () => {
     if (el) el.scrollIntoView({ behavior: 'smooth' });
   };
 
-  const handlePaymentOptionClick = (paymentMethod: PaymentMethod) => {
-    if (typeof window !== 'undefined') {
-      const detail = {
-        paymentMethod,
-        service: selectedService,
-      };
-
-      window.localStorage.setItem('consultation-payment-selection', JSON.stringify(detail));
-      window.dispatchEvent(new CustomEvent('consultation-payment-selection', { detail }));
-    }
-
-    handleOpenContact();
-  };
 
   return (
     <section className="relative overflow-hidden bg-white py-24">
@@ -79,7 +40,7 @@ const PricingSection: React.FC = () => {
             Complexity-Based <span className="bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">Payment Plan</span>
           </h2>
           <p className="mx-auto max-w-3xl text-lg text-gray-500">
-            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push leads the checkout flow, manual M-Pesa is available as a fallback, and card or bank options remain visible for broader client coverage.
+            Pricing is shaped by the service requested and the delivery complexity. M-Pesa STK Push is the primary checkout path, with manual M-Pesa available as a fallback.
           </p>
         </div>
 
@@ -125,20 +86,6 @@ const PricingSection: React.FC = () => {
               </div>
             </div>
 
-            <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-4">
-              {paymentOptions.map((option) => (
-                <button
-                  key={option.title}
-                  type="button"
-                  onClick={() => handlePaymentOptionClick(option.id)}
-                  className="rounded-2xl border border-gray-100 bg-gray-50 p-5 text-left transition-all hover:border-cyan-300 hover:bg-cyan-50/60 hover:shadow-lg hover:shadow-cyan-100"
-                >
-                  <p className="text-sm font-semibold uppercase tracking-[0.2em] text-cyan-700">{option.title}</p>
-                  <p className="mt-3 text-sm leading-6 text-gray-600">{option.description}</p>
-                  <p className="mt-4 text-sm font-semibold text-cyan-700">{option.actionLabel}</p>
-                </button>
-              ))}
-            </div>
           </div>
 
           <div className="rounded-3xl border border-[#12315e] bg-gradient-to-b from-[#0a1628] to-[#14284b] p-8 text-white shadow-2xl shadow-blue-900/20">
