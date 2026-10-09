@@ -8,7 +8,7 @@ const technologies = [
 
 const TechStackBanner: React.FC = () => {
   return (
-    <section className="py-16 bg-gradient-to-r from-[#0a1628] via-[#0d1b36] to-[#0a1628] relative overflow-hidden border-y border-white/5">
+    <section className="py-16 bg-gradient-to-r from-[#0a1628]/92 via-[#0d1b36]/88 to-[#0a1628]/92 relative overflow-hidden border-y border-white/5">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center mb-10">
           <h3 className="text-xl font-bold text-white mb-2">Technologies We Master</h3>

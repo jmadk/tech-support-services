@@ -77,7 +77,7 @@ const ServicesGrid: React.FC = () => {
   };
 
   return (
-    <section id="services" className="relative overflow-hidden bg-gradient-to-b from-[#0a1628] via-[#0f1d35] to-[#0a1628] py-24">
+    <section id="services" className="relative overflow-hidden bg-gradient-to-b from-[#0a1628]/90 via-[#0f1d35]/85 to-[#0a1628]/90 py-24">
       <div className="absolute left-1/4 top-0 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="absolute bottom-0 right-1/4 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl" />
 

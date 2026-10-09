@@ -94,7 +94,7 @@ const SolutionsSection: React.FC = () => {
   const [selectedProduct, setSelectedProduct] = useState<ProductDetail | null>(null);
 
   return (
-  <section id="solutions" className="relative overflow-hidden bg-[#081426] py-20 sm:py-24">
+  <section id="solutions" className="relative overflow-hidden bg-[#081426]/88 py-20 sm:py-24">
     <div className="pointer-events-none absolute -left-24 top-20 h-72 w-72 rounded-full bg-cyan-500/10 blur-3xl" />
     <div className="pointer-events-none absolute -right-24 bottom-20 h-80 w-80 rounded-full bg-blue-600/10 blur-3xl" />
 

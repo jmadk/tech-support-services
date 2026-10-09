@@ -46,7 +46,7 @@ const Testimonials: React.FC = () => {
   const prev = () => goTo((active - 1 + testimonials.length) % testimonials.length);
 
   return (
-    <section id="testimonials" className="py-24 bg-gradient-to-b from-gray-50 to-white relative overflow-hidden">
+    <section id="testimonials" className="py-24 bg-gradient-to-b from-gray-50/92 to-white/90 relative overflow-hidden">
       <div className="absolute top-1/2 left-0 w-72 h-72 bg-cyan-100/30 rounded-full blur-3xl -translate-y-1/2" />
       <div className="absolute top-1/2 right-0 w-72 h-72 bg-blue-100/30 rounded-full blur-3xl -translate-y-1/2" />
 

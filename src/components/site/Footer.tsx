@@ -38,7 +38,7 @@ const Footer: React.FC = () => {
   ];
 
   return (
-    <footer className="bg-[#060e1a] relative overflow-hidden">
+    <footer className="bg-[#060e1a]/95 relative overflow-hidden">
       {/* Top gradient line */}
       <div className="h-1 bg-gradient-to-r from-cyan-500 via-blue-600 to-purple-600" />
 

@@ -695,7 +695,7 @@ const ConsultationForm: React.FC = () => {
   };
 
   return (
-    <section id="contact" className="relative overflow-hidden bg-gradient-to-b from-[#0a1628] to-[#0f1d35] py-24">
+    <section id="contact" className="relative overflow-hidden bg-gradient-to-b from-[#0a1628]/92 to-[#0f1d35]/92 py-24">
       <div className="absolute left-1/3 top-0 h-96 w-96 rounded-full bg-cyan-500/5 blur-3xl" />
       <div className="absolute bottom-0 right-1/3 h-96 w-96 rounded-full bg-blue-500/5 blur-3xl" />
 

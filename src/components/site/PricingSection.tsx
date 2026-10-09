@@ -28,7 +28,7 @@ const PricingSection: React.FC = () => {
 
 
   return (
-    <section className="relative overflow-hidden bg-white py-24">
+    <section className="relative overflow-hidden bg-white/92 py-24">
       <div className="absolute left-0 top-0 h-1 w-full bg-gradient-to-r from-cyan-500 via-blue-600 to-emerald-500 opacity-20" />
 
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">

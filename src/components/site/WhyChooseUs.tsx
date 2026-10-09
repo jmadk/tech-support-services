@@ -43,7 +43,7 @@ const WhyChooseUs: React.FC = () => {
   const [activeCard, setActiveCard] = useState(0);
 
   return (
-    <section id="why-us" className="py-24 bg-white relative overflow-hidden">
+    <section id="why-us" className="py-24 bg-white/92 relative overflow-hidden">
       {/* Background decoration */}
       <div className="absolute top-0 right-0 w-[500px] h-[500px] bg-gradient-to-bl from-cyan-50 to-transparent rounded-full -translate-y-1/2 translate-x-1/4" />
       <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-gradient-to-tr from-blue-50 to-transparent rounded-full translate-y-1/2 -translate-x-1/4" />

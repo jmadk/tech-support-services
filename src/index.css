@@ -136,17 +136,17 @@ html {
   zoom: 90%;
 }
 
-@keyframes hero-background-drift {
+@keyframes site-background-drift {
   from { transform: scale(1); }
   to { transform: scale(1.08); }
 }
 
-.hero-background-drift {
-  animation: hero-background-drift 8s ease-in-out infinite alternate;
+.site-background-drift {
+  animation: site-background-drift 8s ease-in-out infinite alternate;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .hero-background-drift {
+  .site-background-drift {
     animation: none;
   }
 }

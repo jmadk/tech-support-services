@@ -1,13 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import keithImage from '@/keith.jpg';
 
-const heroBackgrounds = [
-  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1920&q=80',
-  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1920&q=80',
-  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1920&q=80',
-  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1920&q=80',
-  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1920&q=80',
-];
 
 interface HeroSectionProps {
   onGetStarted: () => void;
@@ -15,7 +8,6 @@ interface HeroSectionProps {
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
   const [currentStat, setCurrentStat] = useState(0);
-  const [currentBackground, setCurrentBackground] = useState(0);
   const stats = [
     { value: '20+', label: 'Expert Services' },
     { value: '500+', label: 'Clients Served' },
@@ -30,15 +22,6 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
     return () => clearInterval(interval);
   }, [stats.length]);
 
-  useEffect(() => {
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-
-    const interval = window.setInterval(() => {
-      setCurrentBackground((current) => (current + 1) % heroBackgrounds.length);
-    }, 7000);
-
-    return () => window.clearInterval(interval);
-  }, []);
 
   const scrollToServices = () => {
     const el = document.getElementById('services');
@@ -47,18 +30,9 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
 
   return (
     <section id="hero" className="relative min-h-screen flex items-center overflow-hidden">
-      {/* Background */}
-      <div className="absolute inset-0 overflow-hidden bg-[#071426]">
-        {heroBackgrounds.map((image, index) => (
-          <div
-            key={image}
-            aria-hidden="true"
-            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-[1500ms] ${index === currentBackground ? 'hero-background-drift opacity-100' : 'opacity-0'}`}
-            style={{ backgroundImage: `url("${image}")` }}
-          />
-        ))}
-        <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(4,14,30,0.88)_0%,rgba(5,24,48,0.72)_48%,rgba(6,28,52,0.68)_100%)]" />
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(34,211,238,0.20),transparent_34%),radial-gradient(circle_at_10%_90%,rgba(37,99,235,0.20),transparent_36%)]" />
+      {/* The animated site background sits behind this color-matched contrast layer. */}
+      <div className="absolute inset-0">
+        <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(4,14,30,0.36)_0%,rgba(5,24,48,0.25)_48%,rgba(6,28,52,0.40)_100%)]" />
         <div className="absolute inset-0 opacity-[0.10]" style={{
           backgroundImage: `
             linear-gradient(rgba(103,232,249,0.20) 1px, transparent 1px),
@@ -66,8 +40,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
           `,
           backgroundSize: '88px 88px',
         }} />
-        <div className="absolute -left-24 top-[18%] h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
-        <div className="absolute right-[10%] bottom-[8%] h-80 w-80 rounded-full bg-blue-500/15 blur-3xl" />
+        <div className="absolute left-[12%] top-[18%] h-64 w-64 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute right-[12%] top-[12%] h-72 w-72 rounded-full bg-blue-400/10 blur-3xl" />
       </div>
       {/* Animated particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">

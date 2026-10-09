@@ -13,7 +13,7 @@ const CTABanner: React.FC<CTABannerProps> = ({ onGetStarted }) => {
   return (
     <section className="py-20 relative overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628] via-[#1a237e] to-[#0d47a1]" />
+      <div className="absolute inset-0 bg-gradient-to-r from-[#0a1628]/90 via-[#1a237e]/84 to-[#0d47a1]/88" />
       <div className="absolute inset-0 opacity-10">
         <div className="absolute top-10 left-20 w-64 h-64 border border-white/20 rounded-full" />
         <div className="absolute bottom-10 right-20 w-48 h-48 border border-white/20 rounded-full" />

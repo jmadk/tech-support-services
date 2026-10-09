@@ -16,6 +16,7 @@ import Footer from './site/Footer';
 import AuthModal from './site/AuthModal';
 import ScrollToTop from './site/ScrollToTop';
 import Dashboard from './site/Dashboard';
+import AnimatedBusinessBackground from './site/AnimatedBusinessBackground';
 
 const AppLayout: React.FC = () => {
   const { loading, user } = useAuth();
@@ -41,7 +42,9 @@ const AppLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#f4f9ff]">
+    <div className={`${showDashboard ? 'min-h-screen bg-[#f4f9ff]' : 'relative isolate min-h-screen bg-[#071426]'}`}>
+      {!showDashboard && <AnimatedBusinessBackground />}
+      <div className="relative z-10">
       <Navbar
         onAuthClick={() => {}}
         onDashboardClick={() => navigate('/?view=dashboard')}
@@ -68,6 +71,7 @@ const AppLayout: React.FC = () => {
       )}
 
       <ScrollToTop />
+      </div>
     </div>
   );
 };
