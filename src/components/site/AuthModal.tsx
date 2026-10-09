@@ -463,7 +463,7 @@ const AuthModal: React.FC<AuthModalProps> = ({
                 Sign in to Tech Support Services.
               </h1>
               <p className="mt-6 max-w-md text-base leading-7 text-cyan-50/85">
-                Built by KCJ Tech, this secure portal is where members log in to manage learning, support, and service activity.
+                Learn new skills, get expert technical support, and keep every service request moving—all from one secure KCJ Tech workspace.
               </p>
               <div className="mt-8 flex items-center gap-4 rounded-[1.75rem] border border-white/15 bg-white/10 p-4 backdrop-blur">
                 <img
