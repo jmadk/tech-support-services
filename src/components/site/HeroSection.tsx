@@ -1,12 +1,21 @@
 import React, { useState, useEffect } from 'react';
 import keithImage from '@/keith.jpg';
 
+const heroBackgrounds = [
+  'https://images.unsplash.com/photo-1498050108023-c5249f4df085?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1558494949-ef010cbdcc31?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1522202176988-66273c2fd55f?auto=format&fit=crop&w=1920&q=80',
+  'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1920&q=80',
+];
+
 interface HeroSectionProps {
   onGetStarted: () => void;
 }
 
 const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
   const [currentStat, setCurrentStat] = useState(0);
+  const [currentBackground, setCurrentBackground] = useState(0);
   const stats = [
     { value: '20+', label: 'Expert Services' },
     { value: '500+', label: 'Clients Served' },
@@ -21,6 +30,16 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
     return () => clearInterval(interval);
   }, [stats.length]);
 
+  useEffect(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+
+    const interval = window.setInterval(() => {
+      setCurrentBackground((current) => (current + 1) % heroBackgrounds.length);
+    }, 7000);
+
+    return () => window.clearInterval(interval);
+  }, []);
+
   const scrollToServices = () => {
     const el = document.getElementById('services');
     if (el) el.scrollIntoView({ behavior: 'smooth' });
@@ -29,27 +48,33 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
   return (
     <section id="hero" className="relative min-h-screen flex items-center overflow-hidden">
       {/* Background */}
-      <div className="absolute inset-0">
-        <div className="absolute inset-0 bg-[radial-gradient(circle_at_top_left,_rgba(34,211,238,0.18),_transparent_24%),radial-gradient(circle_at_82%_20%,_rgba(59,130,246,0.14),_transparent_18%),radial-gradient(circle_at_50%_100%,_rgba(125,211,252,0.22),_transparent_28%),linear-gradient(135deg,_#f8fcff_0%,_#eef7ff_42%,_#dceeff_100%)]" />
-        <div className="absolute inset-0 opacity-[0.12]" style={{
+      <div className="absolute inset-0 overflow-hidden bg-[#071426]">
+        {heroBackgrounds.map((image, index) => (
+          <div
+            key={image}
+            aria-hidden="true"
+            className={`absolute inset-0 bg-cover bg-center transition-opacity duration-[1500ms] ${index === currentBackground ? 'hero-background-drift opacity-100' : 'opacity-0'}`}
+            style={{ backgroundImage: `url("${image}")` }}
+          />
+        ))}
+        <div className="absolute inset-0 bg-[linear-gradient(105deg,rgba(4,14,30,0.88)_0%,rgba(5,24,48,0.72)_48%,rgba(6,28,52,0.68)_100%)]" />
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_78%_18%,rgba(34,211,238,0.20),transparent_34%),radial-gradient(circle_at_10%_90%,rgba(37,99,235,0.20),transparent_36%)]" />
+        <div className="absolute inset-0 opacity-[0.10]" style={{
           backgroundImage: `
-            linear-gradient(rgba(14,165,233,0.18) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(14,165,233,0.14) 1px, transparent 1px)
+            linear-gradient(rgba(103,232,249,0.20) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(103,232,249,0.16) 1px, transparent 1px)
           `,
           backgroundSize: '88px 88px',
         }} />
-        <div className="absolute inset-y-0 right-0 w-[48%] bg-[radial-gradient(circle_at_center,_rgba(56,189,248,0.14),_transparent_60%)]" />
-        <div className="absolute inset-0 bg-[linear-gradient(180deg,_rgba(255,255,255,0.08)_0%,_rgba(220,238,255,0.12)_46%,_rgba(191,219,254,0.24)_100%)]" />
-        <div className="absolute left-[12%] top-[18%] h-64 w-64 rounded-full bg-cyan-400/12 blur-3xl" />
-        <div className="absolute right-[12%] top-[12%] h-72 w-72 rounded-full bg-blue-400/12 blur-3xl" />
+        <div className="absolute -left-24 top-[18%] h-72 w-72 rounded-full bg-cyan-400/10 blur-3xl" />
+        <div className="absolute right-[10%] bottom-[8%] h-80 w-80 rounded-full bg-blue-500/15 blur-3xl" />
       </div>
-
       {/* Animated particles */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         {[...Array(20)].map((_, i) => (
           <div
             key={i}
-            className="absolute w-1 h-1 bg-cyan-500/35 rounded-full animate-pulse"
+            className="absolute w-1 h-1 bg-cyan-200/65 rounded-full animate-pulse"
             style={{
               left: `${Math.random() * 100}%`,
               top: `${Math.random() * 100}%`,
@@ -65,21 +90,21 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
         <div className="grid lg:grid-cols-2 gap-12 items-center">
           {/* Left */}
           <div>
-            <div className="inline-flex items-center gap-2 px-4 py-2 bg-white/75 border border-cyan-200 rounded-full mb-6 shadow-sm">
+            <div className="inline-flex items-center gap-2 px-4 py-2 bg-slate-950/40 border border-cyan-200/25 backdrop-blur-md rounded-full mb-6 shadow-lg shadow-black/10">
               <div className="w-2 h-2 bg-cyan-500 rounded-full animate-pulse" />
-              <span className="text-cyan-700 text-sm font-medium">Trusted IT Solutions Provider</span>
+              <span className="text-cyan-100 text-sm font-medium">Trusted IT Solutions Provider</span>
             </div>
 
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-slate-900 leading-tight mb-6">
+            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-extrabold text-white leading-tight mb-6">
               Expert{' '}
-              <span className="bg-gradient-to-r from-cyan-600 via-blue-600 to-sky-500 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-cyan-300 via-blue-300 to-sky-200 bg-clip-text text-transparent">
                 Tech
               </span>
               <br />
               Solutions & Training
             </h1>
 
-            <p className="text-lg text-slate-600 mb-8 max-w-xl leading-relaxed">
+            <p className="text-lg text-blue-50/80 mb-8 max-w-xl leading-relaxed">
               From system architecture to web development, database management to e-commerce solutions — we deliver comprehensive IT services that transform businesses and empower professionals.
             </p>
 
@@ -94,7 +119,7 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
               </button>
               <button
                 onClick={onGetStarted}
-                className="px-8 py-4 border-2 border-slate-300 text-slate-800 font-bold rounded-xl bg-white/75 hover:bg-white hover:border-cyan-300 transition-all duration-300 flex items-center gap-2 shadow-sm"
+                className="px-8 py-4 border border-white/30 text-white font-bold rounded-xl bg-white/10 backdrop-blur-md hover:bg-white/20 hover:border-cyan-200/70 transition-all duration-300 flex items-center gap-2 shadow-lg shadow-black/10"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M15 3h4a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2h-4"/><polyline points="10 17 15 12 10 7"/><line x1="15" y1="12" x2="3" y2="12"/></svg>
                 Get Started
@@ -108,12 +133,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
                   key={i}
                   className={`p-4 rounded-xl border transition-all duration-500 ${
                     i === currentStat
-                      ? 'bg-cyan-100/80 border-cyan-300 scale-105'
-                      : 'bg-white/75 border-slate-200 shadow-sm'
+                      ? 'bg-cyan-400/20 border-cyan-200/60 scale-105 shadow-lg shadow-cyan-950/25'
+                      : 'bg-slate-950/35 border-white/15 shadow-sm shadow-black/10'
                   }`}
                 >
-                  <div className="text-2xl font-extrabold text-slate-900">{stat.value}</div>
-                  <div className="text-xs text-slate-500 mt-0.5">{stat.label}</div>
+                  <div className="text-2xl font-extrabold text-white">{stat.value}</div>
+                  <div className="text-xs text-blue-100/65 mt-0.5">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -156,8 +181,8 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => {
 
       {/* Scroll indicator */}
       <div className="absolute bottom-8 left-1/2 -translate-x-1/2 flex flex-col items-center gap-2 animate-bounce">
-        <span className="text-slate-500 text-xs uppercase tracking-widest">Scroll</span>
-        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-slate-500"><polyline points="6 9 12 15 18 9"/></svg>
+        <span className="text-blue-100/60 text-xs uppercase tracking-widest">Scroll</span>
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-100/60"><polyline points="6 9 12 15 18 9"/></svg>
       </div>
     </section>
   );
