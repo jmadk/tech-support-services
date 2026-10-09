@@ -130,3 +130,8 @@
 .markdown-preview ol {
   @apply my-4 ml-6;
 }
+
+/* Keep the site at the requested visual scale across routes. */
+html {
+  zoom: 90%;
+}

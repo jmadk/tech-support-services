@@ -405,6 +405,7 @@ const ConsultationForm: React.FC = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitError, setSubmitError] = useState('');
+  const [agreementExpanded, setAgreementExpanded] = useState(false);
   const [paymentSubmission, setPaymentSubmission] = useState<PaymentSubmissionState | null>(null);
   useEffect(() => {
     if (user && profile) {
@@ -1038,6 +1039,16 @@ const ConsultationForm: React.FC = () => {
                       <p className="text-xs text-blue-200/50">Version {TERMS_VERSION}</p>
                       <button
                         type="button"
+                        onClick={() => setAgreementExpanded((expanded) => !expanded)}
+                        aria-expanded={agreementExpanded}
+                        aria-controls="agreement-preview"
+                        className="flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-4 py-2 text-xs font-semibold text-blue-100 transition-all hover:bg-white/10"
+                      >
+                        {agreementExpanded ? 'Hide Agreement' : 'View Agreement'}
+                        <span aria-hidden="true">{agreementExpanded ? '▲' : '▼'}</span>
+                      </button>
+                      <button
+                        type="button"
                         onClick={handleDownloadAgreementPdf}
                         className="rounded-full border border-cyan-400/30 bg-cyan-500/10 px-4 py-2 text-xs font-semibold text-cyan-200 transition-all hover:bg-cyan-500/20"
                       >
@@ -1046,7 +1057,8 @@ const ConsultationForm: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="mt-4 space-y-4 text-sm leading-6 text-blue-100/80">
+                  {agreementExpanded && (
+                  <div id="agreement-preview" className="mt-4 space-y-4 text-sm leading-6 text-blue-100/80">
                     {agreementConfig.sections.map((section) => (
                       <div key={section.title} className="rounded-xl border border-white/10 bg-white/5 px-4 py-4">
                         <p className="font-semibold text-white">{section.title}</p>
@@ -1055,6 +1067,7 @@ const ConsultationForm: React.FC = () => {
                     ))}
                   </div>
 
+                  )}
                   <div className="mt-5 rounded-2xl border border-amber-400/20 bg-amber-500/10 p-4 text-sm text-amber-100">
                     <p className="font-semibold">Signature Instructions</p>
                     <p className="mt-2 text-amber-100/80">
